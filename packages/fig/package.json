@@ -1,0 +1,28 @@
+{
+  "name": "@open-pencil/fig",
+  "version": "0.13.2",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node-change": "./src/node-change.ts",
+    "./instance-overrides": "./src/instance-overrides.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/fig"
+  },
+  "peerDependencies": {
+    "@open-pencil/kiwi": "workspace:*",
+    "@open-pencil/scene-graph": "workspace:*"
+  },
+  "dependencies": {
+    "es-toolkit": "^1.46.1",
+    "fflate": "^0.8.2"
+  },
+  "private": true
+}

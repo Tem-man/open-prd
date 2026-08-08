@@ -1,0 +1,39 @@
+{
+  "name": "@open-pencil/vue",
+  "version": "0.13.2",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/vue"
+  },
+  "peerDependencies": {
+    "@open-pencil/core": "workspace:*",
+    "canvaskit-wasm": ">=0.39.0",
+    "vue": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "canvaskit-wasm": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@nanostores/i18n": "^1.2.2",
+    "@nanostores/vue": "^1.1.0",
+    "@open-pencil/scene-graph": "workspace:*",
+    "@tanstack/vue-table": "^8.21.3",
+    "@vueuse/core": "14.2.1",
+    "nanostores": "^1.2.0",
+    "reka-ui": "^2.9.0"
+  },
+  "private": true
+}

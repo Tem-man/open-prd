@@ -1,0 +1,39 @@
+{
+  "name": "@open-pencil/dom-css",
+  "version": "0.13.2",
+  "license": "MIT",
+  "type": "module",
+  "imports": {
+    "#dom-css/*": {
+      "types": "./src/*",
+      "bun": "./src/*",
+      "default": "./dist/*"
+    }
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.ts",
+    "./jsx-runtime": "./src/jsx-runtime.ts",
+    "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/dom-css"
+  },
+  "peerDependencies": {
+    "@open-pencil/core": "workspace:*",
+    "@open-pencil/scene-graph": "workspace:*"
+  },
+  "dependencies": {
+    "@acemir/cssom": "^0.9.31",
+    "parse5": "^8.0.1",
+    "postcss-value-parser": "^4.2.0",
+    "tailwindcss": "^4.2.1",
+    "twirlwind": "^0.3.0"
+  },
+  "private": true
+}

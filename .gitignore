@@ -1,0 +1,12 @@
+node_modules/
+backend/data/
+**/.env
+dist/
+out/
+*.db
+.DS_Store
+Thumbs.db
+
+# Cursor IDE & Spec Kit（本地工具配置，不提交到仓库）
+.cursor/
+.specify/

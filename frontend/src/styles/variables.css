@@ -1,0 +1,41 @@
+:root {
+  /* 主色 */
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+
+  /* 语义色 */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  /* 背景 */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+
+  /* 文字 */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  /* 边框 */
+  --color-border: #e2e8f0;
+
+  /* 字体 */
+  --font-family: 'Inter', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --font-size-heading-lg: 24px;
+  --font-size-heading-md: 18px;
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+
+  /* 圆角 */
+  --radius-card: 8px;
+  --radius-btn-sm: 6px;
+  --radius-btn-lg: 8px;
+  --radius-bubble: 12px;
+  --radius-avatar: 50%;
+
+  /* 阴影 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@open-pencil/kiwi",
+  "version": "0.13.2",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema-runtime": "./src/schema-runtime.ts",
+    "./fig": "./src/fig.ts",
+    "./fig/codec": "./src/fig/codec.ts",
+    "./fig/container": "./src/fig/container.ts",
+    "./fig/guid": "./src/fig/guid.ts",
+    "./fig/parse": "./src/fig/parse.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/kiwi"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "fzstd": "^0.1.1"
+  },
+  "private": true
+}

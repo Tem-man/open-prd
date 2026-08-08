@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+    <!-- Mermaid：PRD 产品架构、业务流程、数据模型图表 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <!-- Markmap：PRD 信息架构思维导图 -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-lib/dist/browser/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view/dist/browser/index.js"></script>
+    <script>
+      // 在所有 CDN 脚本加载完后立即初始化 mermaid（同步，startOnLoad:false）
+      // 这里放在同步 <script> 块中确保在 Vue 应用挂载前执行
+      if (window.mermaid) {
+        window.mermaid.initialize({
+          startOnLoad: false,
+          theme: 'default',
+          securityLevel: 'loose',
+          fontFamily: 'Inter, "PingFang SC", sans-serif',
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

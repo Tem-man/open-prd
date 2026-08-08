@@ -1,0 +1,422 @@
+﻿## 项目定位
+
+要开发一个PRD（产品需求文档）生成 Agent，该Agent 能够通过对话深度分析用户零散需求，引导用户补充关键信息，最终生成一份结构化、包含多种专业图表且带有交互界面的HTML 格式 PRD 文档。
+
+---
+
+## 技术栈
+
+| 层级           | 技术                                                                 |
+| -------------- | -------------------------------------------------------------------- |
+| 前端           | Vue 3.5 + TypeScript +sass+ LangChain.js1.1.46（前端）+pinia3+Vite 8 |
+| 后端           | Node.js + Express + LangChain.js1.1.46（后端）+ Daemon 进程管理      |
+| Agent          | LangChain.js（默认），预留接口支持切换至本地 Claude Code 或 Codex    |
+| 数据持久化存储 | SQLite+ better-sqlite3                                               |
+| 模型 Provider  | `@langchain/openai`（GPT-4o）、`@langchain/anthropic`（Claude）      |
+| 桌面打包       | Electron 33 + electron-vite 3 + electron-builder 25                  |
+| 原型设计编辑器 | OpenPencil 引擎源码（CanvasKit/Skia WASM + Yoga WASM）+ Tailwind v4  |
+| 包管理         | **pnpm only**（禁止使用 npm 安装任何包）                             |
+
+> **重要约束**：所有第三方包的安装只允许使用 `pnpm`，严禁使用 `npm install`。
+
+---
+
+## 模型 Provider 配置
+
+Agent 通过 LangChain.js 官方 Provider 包接入 LLM，按 **API 协议标准** 分为三种接入方式，通过环境变量切换：
+
+| 协议标准    | 包名                   | 兼容厂商示例                                            | 说明                                    |
+| ----------- | ---------------------- | ------------------------------------------------------- | --------------------------------------- |
+| `openai`    | `@langchain/openai`    | OpenAI、OpenRouter、DeepSeek、SiliconFlow、LM Studio 等 | 凡支持 OpenAI API 格式的服务均可接入    |
+| `anthropic` | `@langchain/anthropic` | Anthropic、AWS Bedrock（Anthropic 模型）等              | 凡支持 Anthropic API 格式的服务均可接入 |
+| `ollama`    | `@langchain/ollama`    | 所有 Ollama 本地模型（llama3、mistral、qwen 等）        | 本地离线推理，无需 API Key              |
+
+> **接入原则**：`openai` / `anthropic` 均支持自定义 `baseURL`，只需将目标服务的 API 地址填入对应变量，即可无缝切换至任意兼容厂商，无需修改代码。
+
+环境变量在 `backend/.env` 中配置，模板见 `backend/.env.example`：
+
+```env
+# 选择协议标准: openai | anthropic | ollama
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o
+
+# OpenAI 标准（适用于 OpenAI、OpenRouter、DeepSeek、SiliconFlow 等兼容服务）
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1   # 切换厂商只需改此地址
+
+# Anthropic 标准（适用于 Anthropic 及兼容服务）
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_BASE_URL=https://api.anthropic.com  # 切换厂商只需改此地址
+
+# Ollama（本地，无需 API Key）
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+后端通过统一工厂函数按 `LLM_PROVIDER` 实例化对应的 LangChain ChatModel，上层 Agent 代码只依赖 `BaseChatModel`，无需感知具体厂商。
+
+---
+
+## 开发命令
+
+```bash
+# 安装依赖
+pnpm install
+
+# 同时启动前端 + 后端（推荐）
+pnpm dev
+
+# 单独启动
+pnpm --filter frontend dev
+pnpm --filter backend dev
+
+# 构建
+pnpm --filter frontend build
+pnpm --filter backend build
+```
+
+---
+
+## 项目目录结构
+
+```
+open-prd/
+├── frontend/                          # Vue 3.5 前端应用
+│   ├── public/                        # 静态资源（favicon、icons.svg）
+│   ├── src/
+│   │   ├── assets/                    # 图片等静态资源
+│   │   ├── components/                # 跨页面公共组件（PascalCase）
+│   │   │   ├── NavBar/                # 顶栏导航
+│   │   │   ├── ExportModal/           # PRD 导出
+│   │   │   ├── ModuleManager.vue      # PRD 模块管理
+│   │   │   ├── QuestionForm.vue       # AI 信息收集表单
+│   │   │   └── …
+│   │   ├── pencil/                    # 原型设计编辑器界面层（见下方专章）
+│   │   │   ├── PencilEditor.vue       # 编辑器根组件，挂载 CanvasKit 画布
+│   │   │   └── pencil.css             # Tailwind v4 入口（作用域限定 .pencil-root）
+│   │   ├── views/                     # 路由页面（按业务域分子目录）
+│   │   │   ├── home/                  # 首页：新建会话、历史入口
+│   │   │   │   ├── HomeView.vue
+│   │   │   │   └── components/        # 首页专属子组件（如 ConfirmDialog）
+│   │   │   ├── session/               # 会话页：对话 + PRD 预览/编辑
+│   │   │   │   ├── SessionView.vue
+│   │   │   │   └── components/        # 会话页专属（Sidebar、PrdPanel、ProgressSteps 等）
+│   │   │   └── prototype/             # 原型设计页：挂载 PencilEditor
+│   │   │       └── PrototypeView.vue
+│   │   ├── stores/                    # Pinia（sessions、messages、prdEdit、modules）
+│   │   ├── composables/               # 组合式函数（如 useSSE）
+│   │   ├── router/                    # Vue Router
+│   │   ├── styles/                    # variables.css、prd-content.scss
+│   │   ├── types/                     # 前端 TypeScript 类型
+│   │   ├── App.vue
+│   │   └── main.ts
+│   ├── vite/                          # Vite 插件与别名（引擎源码解析、静态资产同步）
+│   │   ├── aliases.ts                 # @open-pencil/* 与 #core/#vue 等指向 packages/*/src
+│   │   ├── pencil-assets.ts           # canvaskit.wasm 与内置字体同步到 public/
+│   │   ├── raw-markdown.ts            # .md / .kiwi 按裸文本导入
+│   │   └── empty-node-module.ts       # 浏览器侧 fs / path 空实现
+│   ├── index.html
+│   └── vite.config.ts
+├── packages/                          # 原型设计引擎源码（从 OpenPencil 迁入，无 dist）
+│   ├── PENCIL_UPSTREAM.md             # 迁移基线 commit 与本地改动记录（必读）
+│   ├── tsconfig.json                  # 引擎与编辑器界面层的统一类型检查配置
+│   ├── scene-graph/src/               # 文档模型、变量系统、撤销栈、命中测试
+│   ├── kiwi/src/                      # Figma Kiwi 二进制编解码
+│   ├── fig/src/                       # .fig 解析与导出
+│   ├── pen/src/                       # .pen 原生格式
+│   ├── core/src/                      # createEditor()、Skia 渲染、Yoga 布局、IO、导出
+│   ├── core/assets/                   # 内置字体（Inter / Noto），运行时由 public/ 提供
+│   ├── dom-css/src/                   # HTML / CSS / JSX 投影（「代码」标签页）
+│   └── vue/src/                       # Vue 绑定层：画布挂载、输入管线、headless 基元
+├── backend/                           # Node.js + Express 后端
+│   ├── data/                          # SQLite 库 prd.db（不提交 git）
+│   ├── src/
+│   │   ├── routes/                    # sessions.ts、modules.ts
+│   │   ├── services/
+│   │   │   ├── agent.ts               # Agent 编排与对话流程
+│   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
+│   │   │   ├── prompts.ts             # 系统/阶段 Prompt
+│   │   │   ├── contextManager.ts      # 上下文与 Token 管理
+│   │   │   ├── skillLoader.ts         # 加载 skills/ 下图表 Skill
+│   │   │   ├── sse.ts                 # SSE 流式推送
+│   │   │   ├── prdOutline.ts          # PRD 大纲规划
+│   │   │   ├── prdValidator.ts        # PRD 产出校验
+│   │   │   └── prd/                   # PRD 生成与 HTML 渲染
+│   │   │       ├── modules/           # 各章节生成器（background、architecture…）
+│   │   │       ├── renderer.ts        # 单文件 HTML 组装
+│   │   │       └── index.ts
+│   │   ├── db/                        # client、schema、migrations
+│   │   └── index.ts                   # Express 入口、startServer()
+│   ├── .env                           # 环境变量（不提交 git）
+│   ├── .env.example
+│   └── tsconfig.json
+├── daemon/                            # PM2 进程管理（pnpm start/stop/restart）
+│   └── ecosystem.config.cjs
+├── electron/                          # Electron 桌面壳（electron-vite）
+│   ├── src/
+│   │   ├── main/index.ts              # BrowserWindow + 内嵌 Express
+│   │   └── preload/index.ts           # contextBridge IPC
+│   ├── electron.vite.config.ts
+│   ├── electron-builder.yml
+│   ├── package.json
+│   └── tsconfig.json
+├── skills/                            # PRD 图表生成 Skill（运行时由 skillLoader 读取）
+│   ├── skill-prd-architecture/
+│   ├── skill-prd-flowchart/
+│   ├── skill-prd-infoarch/
+│   └── skill-prd-datamodel/
+├── docs/                              # 设计稿、实现方案与流程说明
+│   ├── assets/images/                 # UI 参考截图
+│   ├── electron-guide.md
+│   ├── implementation-plan.md
+│   ├── prd-generation-flow.md
+│   └── plan-*.md                      # 各功能迭代计划
+├── pnpm-workspace.yaml                # frontend | backend | daemon | electron | packages/*
+└── package.json                       # 根脚本：dev、build、lint、daemon 启停
+```
+
+---
+
+## Agent 核心工作流与交互原则
+
+Agent 在与用户交互时，必须严格遵循以下机制：
+
+### 信息诊断与反问机制
+
+1. **前置评估**：接收到用户需求后，首先评估信息是否足以支撑生成完整 PRD。
+2. **表单式提问**：当信息不足或存在歧义时，禁止主观臆断，必须向用户输出结构化的"提问表单"。
+3. **确认机制**：在关键业务逻辑、核心数据流向等环节，需与用户明确确认后再进入 PRD 生成阶段。
+
+- **工作流程**：理解需求 → 信息查漏补缺（结构化反问）→ 必要时与用户确认关键信息（无歧义则跳过）→ `TodoWrite` → 按 7 个默认模块生成 PRD → 输出单文件 HTML
+
+### Skill 支持
+
+- Agent 支持引用（`@skill`）和加载 Skill 文件。
+- 加载 Skill 后，需按 Skill 内的指令扩展或覆盖默认行为。
+
+---
+
+## 前端样式规范
+
+### 色彩系统
+
+| 用途           | 色值              |
+| -------------- | ----------------- |
+| 主色           | `#4F46E5`（靛蓝） |
+| 成功           | `#10B981`         |
+| 警告           | `#F59E0B`         |
+| 错误           | `#EF4444`         |
+| 背景（主）     | `#FFFFFF`         |
+| 背景（次）     | `#F8FAFC`         |
+| 背景（第三层） | `#F1F5F9`         |
+
+### 字体
+
+- **字体**：Inter / PingFang SC / Noto Sans SC
+- **字号**：标题 18–24px，正文 14px，辅助文字 12px
+
+### 圆角
+
+| 组件   | 圆角值 |
+| ------ | ------ |
+| 卡片   | 8px    |
+| 小按钮 | 6px    |
+| 大按钮 | 8px    |
+| 气泡   | 12px   |
+| 头像   | 50%    |
+
+### 阴影
+
+```css
+/* 卡片阴影 */
+box-shadow:
+	0 1px 3px rgba(0, 0, 0, 0.1),
+	0 1px 2px rgba(0, 0, 0, 0.06);
+
+/* 悬浮按钮阴影 */
+box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+```
+
+> 具体设计稿参见 `docs/assets/images/`。
+
+---
+
+## PRD 文档结构
+
+生成的 PRD 包含以下 7 个模块（默认结构，支持用户自定义）：
+
+| #   | 模块       | 说明                                     |
+| --- | ---------- | ---------------------------------------- |
+| 1   | 背景与目标 | 业务痛点、SMART 目标                     |
+| 2   | 用户与场景 | 用户画像、使用场景                       |
+| 3   | 功能清单   | 功能模块 × 功能点 × 优先级表格           |
+| 4   | 产品架构   | Mermaid `graph TB` 分层架构图            |
+| 5   | 业务流程   | Mermaid `flowchart TD` 流程图            |
+| 6   | 信息架构   | markmap.js 思维导图                      |
+| 7   | 数据模型   | Mermaid `erDiagram` ER 图 + 实体说明表格 |
+
+---
+
+## 当需要生成，产品架构图，业务流程图，数据模型，信息架构请使用skills
+
+各图表对应的 Skill 路径：
+
+| 图表类型   | Skill 名称               | 路径                            |
+| ---------- | ------------------------ | ------------------------------- |
+| 产品架构图 | `skill-prd-architecture` | `skills\skill-prd-architecture` |
+| 业务流程图 | `skill-prd-flowchart`    | `skills\skill-prd-flowchart`    |
+| 信息架构   | `skill-prd-infoarch`     | `skills\skill-prd-infoarch`     |
+| 数据模型   | `skill-prd-datamodel`    | `skills\skill-prd-datamodel`    |
+
+## 生成对应图表时，先用 Read 工具读取对应 Skill 文件，按其规范输出。
+
+## PRD 输出规范
+
+最终输出为**单一纯静态可交互 HTML 文件**，遵守以下规则：
+
+1. **单文件原则**：所有 CSS 和 JS 内嵌在 HTML 中，禁止依赖外部本地文件。
+2. **CDN 依赖**：允许且必须引入以下 CDN：
+   - `mermaid.js`：渲染产品架构图、业务流程图、数据模型；需在脚本中执行 `mermaid.initialize()`
+   - `markmap-lib` + `markmap-view`：渲染信息架构思维导图
+3. **Tab 导航**：包含 7 个 Tab 标签（背景与目标、用户与场景、功能清单、产品架构、业务流程、信息架构、数据模型），点击标签切换对应模块内容。
+4. **自定义结构**：默认 7 个模块，但支持用户在对话中自定义 PRD 结构，Agent 应据此调整输出。
+
+---
+
+## 前后端通信协议
+
+### HTTP API 端点
+
+| 方法 | 路径                         | 说明                          |
+| ---- | ---------------------------- | ----------------------------- |
+| POST | `/api/sessions`              | 创建新会话，返回 `session_id` |
+| GET  | `/api/sessions`              | 获取会话列表                  |
+| GET  | `/api/sessions/:id`          | 获取会话信息及消息历史        |
+| POST | `/api/sessions/:id/messages` | 发送消息，触发 SSE 流式响应   |
+| GET  | `/api/sessions/:id/prd`      | 获取该会话最新生成的 PRD HTML |
+
+### SSE 流式响应规范
+
+对话消息统一使用 **Server-Sent Events（SSE）** 推送 AI 增量输出：
+
+- **请求**：`POST /api/sessions/:id/messages`，`Content-Type: application/json`
+- **响应**：`Content-Type: text/event-stream; charset=utf-8`，关闭 Nginx 缓冲
+
+---
+
+## 扩展接口（预留，暂不开发）
+
+以下能力已预留接口，无需实现，但代码架构需为其留好扩展点：
+
+- 切换 Agent 驱动至本地 **Claude Code**
+- 切换 Agent 驱动至本地 **Codex**
+
+---
+
+## 数据持久化 Schema
+
+使用 SQLite（`better-sqlite3`）持久化会话历史与生成的 PRD，表结构如下：
+
+```sql
+-- 会话表
+CREATE TABLE sessions (
+  id         TEXT    PRIMARY KEY,          -- UUID v4
+  title      TEXT    NOT NULL DEFAULT '',  -- 首条用户消息摘要（自动生成）
+  created_at INTEGER NOT NULL,             -- Unix 毫秒时间戳
+  updated_at INTEGER NOT NULL
+);
+
+-- 消息历史表
+CREATE TABLE messages (
+  id         TEXT    PRIMARY KEY,
+  session_id TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  role       TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
+  content    TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+-- PRD 产出表
+CREATE TABLE prds (
+  id         TEXT    PRIMARY KEY,
+  session_id TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  html       TEXT    NOT NULL,             -- 完整单文件 HTML
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+```
+
+> 数据库文件路径：`backend/data/prd.db`（不提交 git，加入 `.gitignore`）。
+
+---
+
+## 代码规范
+
+- 使用 TypeScript，开启严格模式（`strict: true`）
+- Vue 组件使用 Composition API + `<script setup>` 语法
+- 样式使用 CSS 变量管理主题色，遵循上方色彩系统
+- 文件命名：组件使用 PascalCase，工具函数使用 camelCase
+- 代码书写要模块化，组件化
+- 提交前确保 `pnpm lint` 和 `pnpm typecheck` 通过
+
+---
+
+## 原型设计编辑器（packages/ + frontend/src/pencil）
+
+`/prototype` 路由下的设计编辑器由 [OpenPencil](https://github.com/open-pencil/open-pencil) 的引擎
+**源码**驱动，迁移基线与本地改动记录在 [`packages/PENCIL_UPSTREAM.md`](./packages/PENCIL_UPSTREAM.md)，
+迁移方案见 [`docs/plan-prototype-editor-migration.md`](./docs/plan-prototype-editor-migration.md)。
+**改动 `packages/` 下任何代码前请先读这两份文档。**
+
+### 关键约束
+
+- **引擎包不构建**。`packages/*` 没有 `dist`，Vite 与 TypeScript 通过别名直接读 `src`。
+  改一行引擎代码页面就热更新——这是刻意的，不要为它们加回 build 脚本。
+- **别名有两处，必须同步**：`frontend/vite/aliases.ts`（运行时解析）与
+  `packages/tsconfig.json` + `frontend/tsconfig.app.json` 的 `paths`（类型解析）。
+  `@vue/compiler-sfc` 解析 `defineProps<T>()` 的类型导入走的是 tsconfig 而非 Vite 别名，
+  两边漏配任意一处都会整片报错。
+- **Tailwind 严格限定在 `.pencil-root` 子树内**。`frontend/src/pencil/pencil.css` 只在编辑器组件里
+  import，且不引入 preflight（改为手写的作用域 reset），以免冲掉其余页面的 Sass/CSS 变量体系。
+- **静态资产不入库**。`canvaskit.wasm` 与内置字体由 `vite/pencil-assets.ts` 从
+  `node_modules` / `packages/core/assets` 同步进 `frontend/public/`，已在 `.gitignore` 中排除。
+- **`base: "./"` 不能改回 `/`**。CanvasKit 与字体在运行时按 URL 抓取，Electron 用 `file://`
+  加载构建产物，根绝对路径会落到文件系统根目录。
+- **画布挂载用 `useCanvas(canvasRef, editor)` 配普通 `<canvas>`**，不要用
+  `CanvasRoot` / `CanvasSurface`，原因见 `PENCIL_UPSTREAM.md` 的「已知偏差」。
+
+### 类型检查
+
+| 命令 | 范围 |
+| --- | --- |
+| `pnpm --filter frontend typecheck` | 业务代码（严格），会顺着导入一并检查用到的引擎源码 |
+| `pnpm --filter frontend typecheck:pencil` | `packages/*/src` 与 `src/pencil` 全量（放宽了未使用变量等风格项） |
+
+### 已知未完成项
+
+- Electron 生产环境下路由仍是 `createWebHistory`，`file://` 加载时无法进入 `/prototype`。
+- P1 已完成三栏布局 + 图层树 + 设计面板 + 底部工具条；Code/AI 完整能力、持久化、放映、矢量化仍按计划后续阶段推进。
+- `@/components/*` 在 `src/pencil/` 源码内会被 Vite 插件改写为 `@pencil/components/*`，避免与业务侧 `src/components` 冲突。
+
+---
+
+## Electron 桌面应用支持
+
+本项目支持打包为跨平台桌面应用（Windows / macOS / Linux），桌面壳层位于 `electron/` workspace 包，使用 **electron-vite** 构建、**electron-builder** 打包。
+
+**架构要点**：
+
+- electron-vite 负责构建 `main` + `preload`，渲染进程复用 `frontend/` 的 Vite 配置
+- 主进程直接 `import` backend 的 `startServer()`，内嵌 Express，通过 IPC 将端口传给渲染进程
+- 原生模块 `better-sqlite3` 需执行 `pnpm --filter electron rebuild` 重编译
+- 生产环境数据库路径切换为 `app.getPath('userData')/prd.db`
+
+**pnpm-workspace.yaml** 需包含 `electron` 包：
+
+```yaml
+packages:
+  - "frontend"
+  - "backend"
+  - "electron"
+  - "packages/*"
+```
+
+> 完整实现规范（目录结构、配置文件、代码示例、打包配置）见 [`docs/electron-guide.md`](./docs/electron-guide.md)。

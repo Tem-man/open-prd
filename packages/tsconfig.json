@@ -1,0 +1,83 @@
+{
+  /*
+   * Config for the migrated OpenPencil sources: the engine packages here and the editor shell
+   * under `frontend/src/pencil`.
+   *
+   * It has two jobs. It is what `vue-tsc -p packages/tsconfig.json` checks (see the
+   * `typecheck:pencil` script), and it is what `@vue/compiler-sfc` finds when it walks up from a
+   * `.vue` file to resolve the type imports behind `defineProps<T>()` — that resolution reads
+   * tsconfig `paths`, not Vite aliases, so the two must stay in sync with `frontend/vite/aliases.ts`.
+   *
+   * These files were written against TypeScript 5.8 and the upstream lint options, so a few of
+   * this repo's stricter switches are off here. `strict` stays on.
+   * See docs/plan-prototype-editor-migration.md 5.3.
+   */
+  "compilerOptions": {
+    "tsBuildInfoFile": "../frontend/node_modules/.tmp/tsconfig.pencil.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // No explicit `types`: `vite/client` is not resolvable from this directory, and the sources
+    // that need it (canvaskit.ts, public-asset.ts) pull it in with a triple-slash reference.
+
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "allowArbitraryExtensions": true,
+    "useDefineForClassFields": true,
+    "verbatimModuleSyntax": false,
+    "jsx": "preserve",
+
+    /* Relaxed relative to frontend/tsconfig.app.json */
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "erasableSyntaxOnly": false,
+    "noFallthroughCasesInSwitch": true,
+
+    // No `baseUrl` (deprecated in TS 6); `paths` resolve relative to this file.
+    "paths": {
+      "@/app/*": ["../frontend/src/pencil/app/*"],
+      "@/components/*": [
+        "../frontend/src/pencil/components/*",
+        "../frontend/src/components/*"
+      ],
+      "@/theme/*": ["../frontend/src/pencil/theme/*"],
+      "@/constants": ["../frontend/src/pencil/constants.ts"],
+      "@pencil/*": ["../frontend/src/pencil/*"],
+
+      "@open-pencil/core": ["./core/src/index.ts"],
+      "@open-pencil/core/*": ["./core/src/*"],
+      "@open-pencil/vue": ["./vue/src/index.ts"],
+      "@open-pencil/vue/*": ["./vue/src/*"],
+      "@open-pencil/scene-graph": ["./scene-graph/src/index.ts"],
+      "@open-pencil/scene-graph/*": ["./scene-graph/src/*"],
+      "@open-pencil/dom-css": ["./dom-css/src/index.ts"],
+      "@open-pencil/dom-css/*": ["./dom-css/src/*"],
+      "@open-pencil/fig": ["./fig/src/index.ts"],
+      "@open-pencil/fig/*": ["./fig/src/*"],
+      "@open-pencil/kiwi": ["./kiwi/src/index.ts"],
+      "@open-pencil/kiwi/*": ["./kiwi/src/*"],
+      "@open-pencil/pen": ["./pen/src/index.ts"],
+      "@open-pencil/pen/*": ["./pen/src/*"],
+
+      /* Package-internal specifiers, declared via each package.json `imports` field. */
+      "#core/*": ["./core/src/*"],
+      "#vue/*": ["./vue/src/*"],
+      "#scene-graph/*": ["./scene-graph/src/*"],
+      "#dom-css/*": ["./dom-css/src/*"],
+      "#pen/*": ["./pen/src/*"],
+      "#kiwi/*": ["./kiwi/src/*"],
+      "#fig/*": ["./fig/src/*"]
+    }
+  },
+  "include": [
+    "./*/src/**/*.ts",
+    "./*/src/**/*.vue",
+    "../frontend/src/pencil/**/*.ts",
+    "../frontend/src/pencil/**/*.vue"
+  ]
+}

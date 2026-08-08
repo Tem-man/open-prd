@@ -1,0 +1,27 @@
+{
+  "name": "@open-pencil/pen",
+  "version": "0.13.2",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/pen"
+  },
+  "peerDependencies": {
+    "@open-pencil/scene-graph": "workspace:*"
+  },
+  "dependencies": {
+    "culori": "^4.0.2"
+  },
+  "private": true,
+  "devDependencies": {
+    "@types/culori": "^4.0.1"
+  }
+}

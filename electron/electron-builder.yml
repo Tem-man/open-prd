@@ -1,0 +1,28 @@
+appId: com.donjet.open-prd
+productName: OpenPRD
+directories:
+  buildResources: build
+  output: release/${version}
+files:
+  - out/
+  - "!out/**/*.map"
+extraResources:
+  - from: ../frontend/dist/
+    to: frontend/dist/
+  - from: ../backend/dist/
+    to: backend/dist/
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

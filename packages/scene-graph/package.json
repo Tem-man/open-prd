@@ -1,0 +1,44 @@
+{
+  "name": "@open-pencil/scene-graph",
+  "version": "0.13.2",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./copy": "./src/copy.ts",
+    "./node-defaults": "./src/node-defaults.ts",
+    "./instances": "./src/instances.ts",
+    "./snap": "./src/snap.ts",
+    "./source-metadata": "./src/source-metadata.ts",
+    "./undo": "./src/undo.ts",
+    "./variant-name": "./src/variant-name.ts",
+    "./vector-network": "./src/vector-network.ts",
+    "./types": "./src/types.ts",
+    "./primitives": "./src/primitives.ts",
+    "./constants": "./src/constants.ts",
+    "./hit-test": "./src/hit-test.ts",
+    "./preview": "./src/preview.ts",
+    "./text-picture": "./src/text-picture.ts",
+    "./variables": "./src/variables.ts",
+    "./images": "./src/images.ts",
+    "./coordinate": "./src/coordinate.ts",
+    "./matrix": "./src/matrix.ts",
+    "./geometry": "./src/geometry.ts",
+    "./resize": "./src/resize.ts",
+    "./parse-path": "./src/parse-path.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-pencil/open-pencil.git",
+    "directory": "packages/scene-graph"
+  },
+  "dependencies": {
+    "es-toolkit": "^1.46.1",
+    "nanoevents": "^9.1.0",
+    "svgpath": "^2.6.0"
+  },
+  "private": true
+}

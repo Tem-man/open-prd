@@ -1,0 +1,296 @@
+/*
+ * Stylesheet for the migrated OpenPencil editor.
+ *
+ * Loaded only by the prototype route, never from main.ts. Tailwind's preflight is left out
+ * because it resets global element styles and would break the existing Sass/CSS-variable
+ * pages; a scoped equivalent is defined under `.pencil-root` instead.
+ */
+
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+@utility scrollbar-none {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+@utility scrollbar-thin {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-border) transparent;
+	&::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	&::-webkit-scrollbar-thumb {
+		background: var(--color-border);
+		border-radius: 3px;
+	}
+	&::-webkit-scrollbar-thumb:hover {
+		background: var(--color-muted);
+	}
+}
+
+@theme {
+	--color-panel: #2a2a2a;
+	--color-panel-secondary: #242424;
+	--color-panel-field: #383838;
+	--color-panel-field-hover: #404040;
+	--color-panel-focus: #3b82f6;
+	--color-panel-selected: #2f6fdd;
+	--color-panel-selected-muted: #3d4450;
+	--color-canvas: #1e1e1e;
+	--color-border: #3a3a3a;
+	--color-hover: #353535;
+	--color-accent: #3b82f6;
+	--color-surface: #f0f0f0;
+	--color-muted: #888888;
+	--color-input: #1e1e1e;
+	--color-component: #9747ff;
+	--color-warning-bg: rgb(245 158 11 / 0.1);
+	--color-warning-border: rgb(245 158 11 / 0.3);
+	--color-warning-text: #fde68a;
+	--color-warning-action: #fcd34d;
+	--color-success: #4ade80;
+	--color-error: #f87171;
+	--color-success-bg: #16a34a;
+	--color-success-bg-hover: #15803d;
+	--color-code-tag: #7dd3fc;
+	--color-code-attribute: #c4b5fd;
+	--color-code-string: #86efac;
+	--color-code-number: #fca5a5;
+	--color-code-punctuation: #888888;
+	--color-checkerboard: #3a3a3a;
+	--color-checkerboard-muted: #4a4a4a;
+	--color-ruler-bg: rgb(36, 36, 36);
+	--color-ruler-tick: rgb(102, 102, 102);
+	--color-ruler-text: rgb(140, 140, 140);
+	--color-ruler-label: rgb(255, 255, 255);
+}
+
+/*
+ * Light tokens on both hosts:
+ * - `.pencil-root` for in-tree chrome
+ * - `:root` for reka-ui portals (Select/Dropdown/Tip) that teleport to `body`
+ * Theme setting is written to `document.documentElement` in `app/shell/theme.ts`.
+ */
+:root[data-theme="light"],
+.pencil-root[data-theme="light"] {
+	/* Align with open-prd `styles/variables.css` (:root tokens). */
+	--color-panel: var(--color-bg-primary);
+	--color-panel-secondary: var(--color-bg-secondary);
+	--color-panel-field: var(--color-bg-tertiary);
+	--color-panel-field-hover: #e2e8f0;
+	--color-panel-focus: var(--color-primary);
+	--color-panel-selected: var(--color-primary);
+	--color-panel-selected-muted: #e0e7ff;
+	--color-canvas: var(--color-bg-tertiary);
+	/* Same hex as :root --color-border; cannot self-reference. */
+	--color-border: #e2e8f0;
+	--color-hover: var(--color-bg-tertiary);
+	--color-accent: var(--color-primary);
+	--color-surface: var(--color-text-primary);
+	--color-muted: var(--color-text-muted);
+	--color-input: var(--color-bg-primary);
+	--color-component: var(--color-primary);
+	--color-warning-bg: rgb(245 158 11 / 0.14);
+	--color-warning-border: rgb(245 158 11 / 0.32);
+	--color-warning-text: #92400e;
+	--color-warning-action: #78350f;
+	/* Same hex as :root --color-success / --color-error; cannot self-reference. */
+	--color-success: #10b981;
+	--color-error: #ef4444;
+	--color-success-bg: #10b981;
+	--color-success-bg-hover: #059669;
+	--color-code-tag: #4338ca;
+	--color-code-attribute: #4f46e5;
+	--color-code-string: #059669;
+	--color-code-number: #dc2626;
+	--color-code-punctuation: var(--color-text-muted);
+	--color-checkerboard: #e2e8f0;
+	--color-checkerboard-muted: var(--color-bg-tertiary);
+	--color-ruler-bg: var(--color-bg-secondary);
+	--color-ruler-tick: var(--color-text-muted);
+	--color-ruler-text: var(--color-text-secondary);
+	--color-ruler-label: #ffffff;
+}
+
+/*
+ * Runtime token host — intentionally unlayered.
+ *
+ * open-prd's `styles/variables.css` already defines `--color-border: #e2e8f0` on `:root`
+ * outside any cascade layer. Values inside `@layer base` lose to that unlayered `:root`
+ * token via inheritance, so panel borders rendered as near-white. Keeping these declarations
+ * unlayered lets `.pencil-root` win for its subtree. `@theme` above still drives which
+ * Tailwind utilities get generated (`border-border`, `bg-panel`, …).
+ */
+.pencil-root {
+	--color-panel: #2a2a2a;
+	--color-panel-secondary: #242424;
+	--color-panel-field: #383838;
+	--color-panel-field-hover: #404040;
+	--color-panel-focus: #3b82f6;
+	--color-panel-selected: #2f6fdd;
+	--color-panel-selected-muted: #3d4450;
+	--color-canvas: #1e1e1e;
+	--color-border: #3a3a3a;
+	--color-hover: #353535;
+	--color-accent: #3b82f6;
+	--color-surface: #f0f0f0;
+	--color-muted: #888888;
+	--color-input: #1e1e1e;
+	--color-component: #9747ff;
+	--color-warning-bg: rgb(245 158 11 / 0.1);
+	--color-warning-border: rgb(245 158 11 / 0.3);
+	--color-warning-text: #fde68a;
+	--color-warning-action: #fcd34d;
+	--color-success: #4ade80;
+	--color-error: #f87171;
+	--color-success-bg: #16a34a;
+	--color-success-bg-hover: #15803d;
+	--color-code-tag: #7dd3fc;
+	--color-code-attribute: #c4b5fd;
+	--color-code-string: #86efac;
+	--color-code-number: #fca5a5;
+	--color-code-punctuation: #888888;
+	--color-checkerboard: #3a3a3a;
+	--color-checkerboard-muted: #4a4a4a;
+	--color-ruler-bg: rgb(36, 36, 36);
+	--color-ruler-tick: rgb(102, 102, 102);
+	--color-ruler-text: rgb(140, 140, 140);
+	--color-ruler-label: rgb(255, 255, 255);
+}
+
+@layer base {
+	/*
+	 * Scoped stand-in for Tailwind preflight. Only the resets the editor panels actually rely
+	 * on: border-box sizing, zeroed spacing, and a default border style so `border` utilities
+	 * render without also setting `border-style`.
+	 *
+	 * Dialog / alert-dialog hosts are included because reka-ui portals them to `body`, outside
+	 * `.pencil-root`. Without the same UA reset, adjacent nav buttons and accent buttons keep
+	 * the browser's default border and read as overlapping double strokes.
+	 */
+	.pencil-root,
+	.pencil-root *,
+	.pencil-root *::before,
+	.pencil-root *::after,
+	[data-slot="dialog-content"],
+	[data-slot="dialog-content"] *,
+	[data-slot="dialog-content"] *::before,
+	[data-slot="dialog-content"] *::after,
+	[data-slot="alert-dialog-content"],
+	[data-slot="alert-dialog-content"] *,
+	[data-slot="alert-dialog-content"] *::before,
+	[data-slot="alert-dialog-content"] *::after {
+		box-sizing: border-box;
+		border: 0 solid var(--color-border);
+		margin: 0;
+		padding: 0;
+		min-width: 0;
+	}
+
+	.pencil-root {
+		font-family:
+			Inter,
+			system-ui,
+			-apple-system,
+			sans-serif;
+		font-size: 13px;
+		line-height: 1.5;
+		color: var(--color-surface);
+		background: var(--color-canvas);
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.pencil-root button,
+	.pencil-root input,
+	.pencil-root select,
+	.pencil-root textarea,
+	[data-slot="dialog-content"] button,
+	[data-slot="dialog-content"] input,
+	[data-slot="dialog-content"] select,
+	[data-slot="dialog-content"] textarea,
+	[data-slot="alert-dialog-content"] button,
+	[data-slot="alert-dialog-content"] input,
+	[data-slot="alert-dialog-content"] select,
+	[data-slot="alert-dialog-content"] textarea {
+		font: inherit;
+		color: inherit;
+		background: transparent;
+	}
+
+	.pencil-root button,
+	[data-slot="dialog-content"] button,
+	[data-slot="alert-dialog-content"] button {
+		cursor: pointer;
+	}
+
+	.pencil-root img,
+	.pencil-root svg,
+	.pencil-root canvas,
+	[data-slot="dialog-content"] img,
+	[data-slot="dialog-content"] svg,
+	[data-slot="alert-dialog-content"] img,
+	[data-slot="alert-dialog-content"] svg {
+		display: block;
+	}
+
+	/*
+	 * Upstream preflight marks this `!important`, and the editor depends on it: reka-ui hides
+	 * inactive force-mounted panels with the `hidden` attribute, while the same elements carry a
+	 * `flex` utility. Without the override every properties tab renders stacked on top of the others.
+	 */
+	.pencil-root [hidden]:where(:not([hidden="until-found"])),
+	[data-slot="dialog-content"] [hidden]:where(:not([hidden="until-found"])),
+	[data-slot="alert-dialog-content"] [hidden]:where(:not([hidden="until-found"])) {
+		display: none !important;
+	}
+
+	.pencil-root input[type="number"],
+	[data-slot="dialog-content"] input[type="number"],
+	[data-slot="alert-dialog-content"] input[type="number"] {
+		appearance: textfield;
+		-moz-appearance: textfield;
+	}
+
+	.pencil-root input[type="number"]::-webkit-inner-spin-button,
+	.pencil-root input[type="number"]::-webkit-outer-spin-button,
+	[data-slot="dialog-content"] input[type="number"]::-webkit-inner-spin-button,
+	[data-slot="dialog-content"] input[type="number"]::-webkit-outer-spin-button,
+	[data-slot="alert-dialog-content"] input[type="number"]::-webkit-inner-spin-button,
+	[data-slot="alert-dialog-content"] input[type="number"]::-webkit-outer-spin-button {
+		display: none;
+	}
+}
+
+.pencil-root .code-highlight .token.tag {
+	color: var(--color-code-tag);
+}
+
+.pencil-root .code-highlight .token.attr-name,
+.pencil-root .code-highlight .token.keyword {
+	color: var(--color-code-attribute);
+}
+
+.pencil-root .code-highlight .token.attr-value,
+.pencil-root .code-highlight .token.string {
+	color: var(--color-code-string);
+}
+
+.pencil-root .code-highlight .token.number,
+.pencil-root .code-highlight .token.boolean {
+	color: var(--color-code-number);
+}
+
+.pencil-root .code-highlight .token.punctuation {
+	color: var(--color-code-punctuation);
+}

@@ -1,0 +1,15 @@
+{
+  "name": "daemon",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "pm2 start ecosystem.config.cjs",
+    "stop": "pm2 stop ecosystem.config.cjs",
+    "restart": "pm2 restart ecosystem.config.cjs",
+    "status": "pm2 status",
+    "logs": "pm2 logs open-prd-backend"
+  },
+  "devDependencies": {
+    "pm2": "^7.0.1"
+  }
+}

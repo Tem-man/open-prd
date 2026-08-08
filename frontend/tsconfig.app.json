@@ -1,0 +1,62 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    // unplugin-icons/types/vue declares the `~icons/*` modules the editor panels import.
+    "types": ["vite/client", "unplugin-icons/types/vue"],
+    // The migrated engine uses toSorted / toReversed / Uint8Array.toHex.
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "paths": {
+      /* Pencil shell imports use `@/app/*` etc.; must beat the general `@/*` mapping.
+         `@/components/*` prefers the pencil tree, then falls back to open-prd's own components. */
+      "@/app/*": ["./src/pencil/app/*"],
+      "@/components/*": ["./src/pencil/components/*", "./src/components/*"],
+      "@/theme/*": ["./src/pencil/theme/*"],
+      "@/constants": ["./src/pencil/constants.ts"],
+      "@/*": ["./src/*"],
+      "@pencil/*": ["./src/pencil/*"],
+
+      "@open-pencil/core": ["../packages/core/src/index.ts"],
+      "@open-pencil/core/*": ["../packages/core/src/*"],
+      "@open-pencil/vue": ["../packages/vue/src/index.ts"],
+      "@open-pencil/vue/*": ["../packages/vue/src/*"],
+      "@open-pencil/scene-graph": ["../packages/scene-graph/src/index.ts"],
+      "@open-pencil/scene-graph/*": ["../packages/scene-graph/src/*"],
+      "@open-pencil/dom-css": ["../packages/dom-css/src/index.ts"],
+      "@open-pencil/dom-css/*": ["../packages/dom-css/src/*"],
+      "@open-pencil/fig": ["../packages/fig/src/index.ts"],
+      "@open-pencil/fig/*": ["../packages/fig/src/*"],
+      "@open-pencil/kiwi": ["../packages/kiwi/src/index.ts"],
+      "@open-pencil/kiwi/*": ["../packages/kiwi/src/*"],
+      "@open-pencil/pen": ["../packages/pen/src/index.ts"],
+      "@open-pencil/pen/*": ["../packages/pen/src/*"],
+
+      /* Package-internal specifiers. Needed here too because type-checking the app follows
+         imports into the engine sources. Keep in sync with packages/tsconfig.json. */
+      "#core/*": ["../packages/core/src/*"],
+      "#vue/*": ["../packages/vue/src/*"],
+      "#scene-graph/*": ["../packages/scene-graph/src/*"],
+      "#dom-css/*": ["../packages/dom-css/src/*"],
+      "#pen/*": ["../packages/pen/src/*"],
+      "#kiwi/*": ["../packages/kiwi/src/*"],
+      "#fig/*": ["../packages/fig/src/*"]
+    },
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    // Off because type-checking this project follows imports into the migrated engine, which
+    // uses constructor parameter properties. Nothing here is run through a type-stripping
+    // runtime, so the restriction buys nothing.
+    "erasableSyntaxOnly": false,
+    "noFallthroughCasesInSwitch": true
+  },
+  // The engine's ambient declarations (Local Font Access API, `*.md` modules, ...) are not
+  // reachable through imports, so they have to be listed explicitly.
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "../packages/*/src/**/*.d.ts"
+  ]
+}
