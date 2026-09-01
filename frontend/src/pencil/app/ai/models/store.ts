@@ -117,11 +117,15 @@ function parseSettings(value: unknown): AIModelSettings | null {
   const resolvedDesign = modelIds.has(design) ? design : models[0].id
   const assignments: AIModelSettings['assignments'] = {
     design: resolvedDesign,
+    prd:
+      rawAssignments.prd === undefined
+        ? 'design'
+        : optionalAssignment(rawAssignments.prd, modelIds),
     review: optionalAssignment(rawAssignments.review, modelIds),
     fast: optionalAssignment(rawAssignments.fast, modelIds),
     vision: optionalAssignment(rawAssignments.vision, modelIds)
   }
-  for (const role of ['review', 'fast', 'vision'] as const) {
+  for (const role of ['prd', 'review', 'fast', 'vision'] as const) {
     const assignment = assignments[role]
     if (assignment === null) continue
     const profileId = assignment === 'design' ? resolvedDesign : assignment
@@ -172,6 +176,7 @@ function legacySettings(): AIModelSettings {
     ],
     assignments: {
       design: LEGACY_MODEL_ID,
+      prd: 'design',
       review: 'design',
       fast: 'design',
       vision: null
@@ -358,9 +363,9 @@ export function removeModelProfile(profileId: string): void {
       aiModelSettings.value.assignments.vision = null
     }
   }
-  for (const role of ['review', 'fast', 'vision'] as const) {
+  for (const role of ['prd', 'review', 'fast', 'vision'] as const) {
     if (aiModelSettings.value.assignments[role] === profileId) {
-      aiModelSettings.value.assignments[role] = null
+      aiModelSettings.value.assignments[role] = role === 'prd' ? 'design' : null
     }
   }
   if (removed && modelConnectionUsageCount(removed.connectionId) === 0) {

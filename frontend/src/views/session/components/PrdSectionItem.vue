@@ -21,6 +21,7 @@
 		onBeforeUnmount,
 	} from "vue";
 	import { usePrdEditStore } from "@/stores/prdEdit";
+	import { useSessionsStore } from "@/stores/sessions";
 	import { useSectionActions } from "@/composables/useSectionActions";
 	import ElementFloatPanel from "@/components/ElementFloatPanel.vue";
 	import ConfirmDialog from "@/views/home/components/ConfirmDialog.vue";
@@ -33,6 +34,10 @@
 		isMermaidRelationEl,
 		zoneHintText,
 	} from "@/utils/mermaidErUtils";
+	import {
+		downloadMarkmapMarkdown,
+		hasMarkmapContent,
+	} from "@/utils/markmapExport";
 	import { useMermaidZoom } from "@/composables/useMermaidZoom";
 
 	const props = defineProps<{
@@ -47,9 +52,17 @@
 	}>();
 
 	const prdEditStore = usePrdEditStore();
+	const sessionsStore = useSessionsStore();
 
 	const isEditing = computed(
 		() => prdEditStore.editingSection === props.sectionId,
+	);
+
+	const isMarkmapSection = computed(
+		() =>
+			props.sectionId === "infoArch" ||
+			props.renderType === "markmap" ||
+			hasMarkmapContent(props.html),
 	);
 
 	const { initZoom, destroyAll: destroyZoom } = useMermaidZoom();
@@ -132,6 +145,16 @@
 		toastTimer = setTimeout(() => {
 			toastMsg.value = "";
 		}, 2000);
+	}
+
+	function exportMarkmap() {
+		const title = sessionsStore.currentSession?.title;
+		const sectionTitle = props.title || "信息架构";
+		const ok =
+			(contentRef.value !== null &&
+				downloadMarkmapMarkdown(contentRef.value, title, sectionTitle)) ||
+			downloadMarkmapMarkdown(props.html, title, sectionTitle);
+		if (!ok) showLocalToast("未找到思维导图数据");
 	}
 
 	// ── Mermaid / markmap 渲染 ──────────────────────────────────────────────────
@@ -1393,15 +1416,29 @@
 		@mouseenter="hovered = true"
 		@mouseleave="hovered = false"
 	>
-		<!-- 编辑按钮（hover 时浮现，编辑中隐藏） -->
-		<button
-			v-if="editable && hovered && !isEditing"
-			class="edit-trigger"
-			@click.stop="startEdit"
-			title="编辑此模块"
+		<!-- 模块操作：信息架构常显「导出 + 编辑」；其他模块仅 hover 显示编辑 -->
+		<div
+			v-if="!isEditing && (isMarkmapSection || (editable && hovered))"
+			class="section-toolbar"
 		>
-			✏ 编辑
-		</button>
+			<span v-if="toastMsg" class="export-toast">{{ toastMsg }}</span>
+			<button
+				v-if="isMarkmapSection"
+				class="edit-trigger edit-trigger--ghost"
+				@click.stop="exportMarkmap"
+				title="导出思维导图为 Markdown"
+			>
+				导出
+			</button>
+			<button
+				v-if="editable"
+				class="edit-trigger"
+				@click.stop="startEdit"
+				title="编辑此模块"
+			>
+				✏ 编辑
+			</button>
+		</div>
 
 		<!-- 编辑模式徽章（显示当前子模式） -->
 		<div v-if="isEditing" class="mode-badge">
@@ -1484,25 +1521,46 @@
 		}
 	}
 
-	.edit-trigger {
+	.section-toolbar {
 		position: absolute;
 		top: 10px;
 		right: 10px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		z-index: 2;
+	}
+
+	.edit-trigger {
 		padding: 3px 10px;
 		background: #4f46e5;
 		color: #fff;
-		border: none;
-		border-radius: 5px;
+		border: 1px solid #4f46e5;
+		border-radius: 6px;
 		font-size: 11px;
 		font-weight: 500;
 		cursor: pointer;
-		z-index: 2;
 		opacity: 0.9;
 		transition: opacity 0.15s;
+		font-family: inherit;
 
 		&:hover {
 			opacity: 1;
 		}
+
+		&--ghost {
+			background: #fff;
+			color: #4f46e5;
+		}
+	}
+
+	.export-toast {
+		padding: 3px 10px;
+		background: #fef3c7;
+		color: #92400e;
+		border-radius: 6px;
+		font-size: 11px;
+		font-weight: 500;
 	}
 
 	/* ── 模式徽章 ── */

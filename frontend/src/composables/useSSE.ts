@@ -1,6 +1,10 @@
 import { useMessagesStore } from "@/stores/messages";
 import { usePrdEditStore } from "@/stores/prdEdit";
 import type { Message, PipelineState, QuestionForm, RetryMode } from "@/types";
+import {
+	resolvePrdLlmPayload,
+	type PrdLlmPayload,
+} from "@/app/ai/models/prd-llm-payload";
 
 /** 表格内部元素的 DOM 坐标，用于后端精确定位 tr / td / th */
 export type TableElementPath =
@@ -21,6 +25,15 @@ export function registerToast(fn: (msg: string) => void) {
 function showToast(msg: string) {
 	if (toastFn) toastFn(msg);
 	else console.error("[SSE error]", msg);
+}
+
+async function requirePrdLlmPayload(): Promise<PrdLlmPayload | null> {
+	try {
+		return await resolvePrdLlmPayload();
+	} catch (err) {
+		showToast(err instanceof Error ? err.message : "模型配置不可用");
+		return null;
+	}
 }
 
 /** SSE 事件格式 */
@@ -161,10 +174,10 @@ async function consumeStream(
 					if (evt.prdGenerated) {
 						fetchPrdHtml(sessionId, messagesStore);
 					}
-			} else if (evt.type === "prd_ready" && evt.prdId) {
-				messagesStore.setPrdReady(evt.prdId);
-				messagesStore.clearPipelineState();
-				fetchPrdHtml(sessionId, messagesStore);
+				} else if (evt.type === "prd_ready" && evt.prdId) {
+					messagesStore.setPrdReady(evt.prdId);
+					messagesStore.clearPipelineState();
+					fetchPrdHtml(sessionId, messagesStore);
 
 					// 拼装成功通知消息
 					let successMsg = "✅ PRD 已生成完成，点击右侧面板查看";
@@ -174,29 +187,29 @@ async function consumeStream(
 							evt.warnings.map((w) => `• ${w}`).join("\n");
 					}
 					messagesStore.addStaticAssistantMessage(sessionId, successMsg);
-			} else if (evt.type === "error" && evt.message) {
-				showToast(evt.message);
-				if (evt.retryable) {
-					// 保留气泡（不 finalize），标记为中断，展示继续按钮
-					messagesStore.markMessageInterrupted(tempId);
-					messagesStore.applyPipelineState({
-						phase:
-							evt.suggestedMode === "continue_prd" ||
-							evt.suggestedMode === "retry_section"
-								? "prd_partial"
-								: "agent_interrupted",
-						interruptedMessageId: tempId,
-						lastError: {
-							reason: evt.reason ?? "unknown",
-							retryable: true,
-							message: evt.message,
-							suggestedMode: evt.suggestedMode,
-						},
-					} as PipelineState);
-				} else {
-					messagesStore.finalizeMessage(tempId);
+				} else if (evt.type === "error" && evt.message) {
+					showToast(evt.message);
+					if (evt.retryable) {
+						// 保留气泡（不 finalize），标记为中断，展示继续按钮
+						messagesStore.markMessageInterrupted(tempId);
+						messagesStore.applyPipelineState({
+							phase:
+								evt.suggestedMode === "continue_prd" ||
+								evt.suggestedMode === "retry_section"
+									? "prd_partial"
+									: "agent_interrupted",
+							interruptedMessageId: tempId,
+							lastError: {
+								reason: evt.reason ?? "unknown",
+								retryable: true,
+								message: evt.message,
+								suggestedMode: evt.suggestedMode,
+							},
+						} as PipelineState);
+					} else {
+						messagesStore.finalizeMessage(tempId);
+					}
 				}
-			}
 			}
 		}
 	} finally {
@@ -222,6 +235,9 @@ export function useSSE() {
 	const messagesStore = useMessagesStore();
 
 	async function sendMessage(sessionId: string, text: string): Promise<void> {
+		const llm = await requirePrdLlmPayload();
+		if (!llm) return;
+
 		const tempId = `stream-${Date.now()}`;
 
 		// 创建本次请求的 AbortController，注册到模块级变量以便外部中止
@@ -255,7 +271,7 @@ export function useSSE() {
 				res = await fetch(`/api/sessions/${sessionId}/messages`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ content: text }),
+					body: JSON.stringify({ content: text, llm }),
 					signal,
 				});
 			} catch (err) {
@@ -267,7 +283,14 @@ export function useSSE() {
 			}
 
 			if (!res.ok || !res.body) {
-				showToast(`请求失败：${res.status}`);
+				let detail = `请求失败：${res.status}`;
+				try {
+					const errBody = (await res.json()) as { error?: string };
+					if (errBody.error) detail = errBody.error;
+				} catch {
+					/* keep status text */
+				}
+				showToast(detail);
 				messagesStore.finalizeMessage(tempId);
 				return;
 			}
@@ -300,7 +323,7 @@ export function useSSE() {
 							"Content-Type": "application/json",
 							"Last-Event-ID": lastEventId,
 						},
-						body: JSON.stringify({ content: text }),
+						body: JSON.stringify({ content: text, llm }),
 						signal,
 					});
 				} catch (err) {
@@ -341,6 +364,9 @@ export function useSSE() {
 		mode: RetryMode,
 		sectionId?: string,
 	): Promise<void> {
+		const llm = await requirePrdLlmPayload();
+		if (!llm) return;
+
 		const isPrdMode = mode === "continue_prd" || mode === "retry_section";
 
 		// 找到中断消息（对话模式），或创建新的临时消息（PRD 模式）
@@ -382,7 +408,7 @@ export function useSSE() {
 				res = await fetch(`/api/sessions/${sessionId}/messages/retry`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ mode, sectionId }),
+					body: JSON.stringify({ mode, sectionId, llm }),
 					signal,
 				});
 			} catch (err) {
@@ -425,7 +451,7 @@ export function useSSE() {
 							"Content-Type": "application/json",
 							"Last-Event-ID": lastEventId,
 						},
-						body: JSON.stringify({ mode, sectionId }),
+						body: JSON.stringify({ mode, sectionId, llm }),
 						signal,
 					});
 				} catch (err) {
@@ -478,6 +504,9 @@ export function useSectionEdit() {
 		entityName?: string,
 		tablePath?: TableElementPath,
 	): Promise<void> {
+		const llm = await requirePrdLlmPayload();
+		if (!llm) return;
+
 		const res = await fetch(
 			`/api/sessions/${sessionId}/prd/sections/${sectionId}`,
 			{
@@ -488,6 +517,7 @@ export function useSectionEdit() {
 					selectedElementHtml,
 					entityName,
 					tablePath,
+					llm,
 				}),
 			},
 		);

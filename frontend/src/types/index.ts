@@ -85,6 +85,8 @@ export interface Message {
 	interrupted?: boolean;
 	formData?: QuestionForm;
 	formSubmitted?: boolean;
+	/** 刷新后还原的已选答案（questionId → 选项或文本） */
+	formAnswers?: Record<string, string | string[]>;
 }
 
 export interface PrdOutlineSection {

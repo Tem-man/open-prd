@@ -81,29 +81,43 @@ pnpm --filter backend build
 ```
 open-prd/
 ├── frontend/                          # Vue 3.5 前端应用
-│   ├── public/                        # 静态资源（favicon、icons.svg）
+│   ├── public/                        # 静态资源（favicon、icons.svg；运行时同步 canvaskit/字体）
 │   ├── src/
 │   │   ├── assets/                    # 图片等静态资源
 │   │   ├── components/                # 跨页面公共组件（PascalCase）
 │   │   │   ├── NavBar/                # 顶栏导航
 │   │   │   ├── ExportModal/           # PRD 导出
 │   │   │   ├── ModuleManager.vue      # PRD 模块管理
+│   │   │   ├── ModuleBuilderPanel.vue # 自定义模块构建
+│   │   │   ├── SkillEditorPanel.vue   # Skill 编辑
+│   │   │   ├── HistoryDrawer.vue      # 历史会话抽屉
 │   │   │   ├── QuestionForm.vue       # AI 信息收集表单
 │   │   │   └── …
 │   │   ├── pencil/                    # 原型设计编辑器界面层（见下方专章）
 │   │   │   ├── PencilEditor.vue       # 编辑器根组件，挂载 CanvasKit 画布
-│   │   │   └── pencil.css             # Tailwind v4 入口（作用域限定 .pencil-root）
+│   │   │   ├── PencilEditorShell.vue  # 三栏壳层（图层 / 画布 / 属性）
+│   │   │   ├── PencilSettingsHost.vue # 设置弹层宿主（含模型配置）
+│   │   │   ├── PresentView.vue        # 放映 / 演示视图
+│   │   │   ├── pencil.css             # Tailwind v4 入口（作用域限定 .pencil-root）
+│   │   │   ├── app/                   # 编辑器应用逻辑
+│   │   │   │   ├── ai/                # AI 对话、模型配置、Provider、工具
+│   │   │   │   ├── document/          # 文档 IO、自动保存、导出
+│   │   │   │   ├── editor/            # 会话、画布菜单、剪贴板、矢量等
+│   │   │   │   ├── settings/          # 凭据与设置对话框
+│   │   │   │   └── …
+│   │   │   ├── components/            # 编辑器 UI（Layers/Design/Chat/Toolbar/settings…）
+│   │   │   └── theme/                 # 编辑器主题
 │   │   ├── views/                     # 路由页面（按业务域分子目录）
 │   │   │   ├── home/                  # 首页：新建会话、历史入口
 │   │   │   │   ├── HomeView.vue
 │   │   │   │   └── components/        # 首页专属子组件（如 ConfirmDialog）
 │   │   │   ├── session/               # 会话页：对话 + PRD 预览/编辑
 │   │   │   │   ├── SessionView.vue
-│   │   │   │   └── components/        # 会话页专属（Sidebar、PrdPanel、ProgressSteps 等）
+│   │   │   │   └── components/        # Sidebar、PrdPanel、ProgressSteps 等
 │   │   │   └── prototype/             # 原型设计页：挂载 PencilEditor
 │   │   │       └── PrototypeView.vue
-│   │   ├── stores/                    # Pinia（sessions、messages、prdEdit、modules）
-│   │   ├── composables/               # 组合式函数（如 useSSE）
+│   │   ├── stores/                    # Pinia（sessions、messages、prdEdit、modules、prototypes）
+│   │   ├── composables/               # useSSE、useMermaidZoom、useSectionActions 等
 │   │   ├── router/                    # Vue Router
 │   │   ├── styles/                    # variables.css、prd-content.scss
 │   │   ├── types/                     # 前端 TypeScript 类型
@@ -112,8 +126,10 @@ open-prd/
 │   ├── vite/                          # Vite 插件与别名（引擎源码解析、静态资产同步）
 │   │   ├── aliases.ts                 # @open-pencil/* 与 #core/#vue 等指向 packages/*/src
 │   │   ├── pencil-assets.ts           # canvaskit.wasm 与内置字体同步到 public/
+│   │   ├── pencil-components.ts       # @/components → @pencil/components 改写
 │   │   ├── raw-markdown.ts            # .md / .kiwi 按裸文本导入
-│   │   └── empty-node-module.ts       # 浏览器侧 fs / path 空实现
+│   │   ├── empty-node-module.ts       # 浏览器侧 fs / path 空实现
+│   │   └── stubs/                     # 浏览器侧 Node API stub
 │   ├── index.html
 │   └── vite.config.ts
 ├── packages/                          # 原型设计引擎源码（从 OpenPencil 迁入，无 dist）
@@ -130,13 +146,16 @@ open-prd/
 ├── backend/                           # Node.js + Express 后端
 │   ├── data/                          # SQLite 库 prd.db（不提交 git）
 │   ├── src/
-│   │   ├── routes/                    # sessions.ts、modules.ts
+│   │   ├── routes/                    # sessions.ts、modules.ts、prototypes.ts
 │   │   ├── services/
 │   │   │   ├── agent.ts               # Agent 编排与对话流程
 │   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
 │   │   │   ├── prompts.ts             # 系统/阶段 Prompt
 │   │   │   ├── contextManager.ts      # 上下文与 Token 管理
 │   │   │   ├── skillLoader.ts         # 加载 skills/ 下图表 Skill
+│   │   │   ├── moduleBuilder.ts       # 自定义模块构建 Agent
+│   │   │   ├── pipelineState.ts       # PRD 生成流水线状态
+│   │   │   ├── prototypeStore.ts      # 原型设计文档持久化
 │   │   │   ├── sse.ts                 # SSE 流式推送
 │   │   │   ├── prdOutline.ts          # PRD 大纲规划
 │   │   │   ├── prdValidator.ts        # PRD 产出校验
@@ -159,17 +178,21 @@ open-prd/
 │   ├── electron-builder.yml
 │   ├── package.json
 │   └── tsconfig.json
-├── skills/                            # PRD 图表生成 Skill（运行时由 skillLoader 读取）
+├── skills/                            # PRD 图表 / 自定义 Skill（运行时由 skillLoader 读取）
 │   ├── skill-prd-architecture/
 │   ├── skill-prd-flowchart/
 │   ├── skill-prd-infoarch/
-│   └── skill-prd-datamodel/
+│   ├── skill-prd-datamodel/
+│   ├── skill-mermaid/                 # Mermaid 通用图表 Skill
+│   ├── skill-creator/                 # Skill 创建辅助
+│   └── skill-custom-*/                # 用户自定义 Skill
 ├── docs/                              # 设计稿、实现方案与流程说明
 │   ├── assets/images/                 # UI 参考截图
 │   ├── electron-guide.md
 │   ├── implementation-plan.md
 │   ├── prd-generation-flow.md
-│   └── plan-*.md                      # 各功能迭代计划
+│   ├── plan-*.md                      # 各功能迭代计划
+│   └── research-*.md                  # 技术调研笔记
 ├── pnpm-workspace.yaml                # frontend | backend | daemon | electron | packages/*
 └── package.json                       # 根脚本：dev、build、lint、daemon 启停
 ```

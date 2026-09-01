@@ -1,6 +1,6 @@
 import type { AIProviderID } from '@open-pencil/core/constants'
 
-export const AI_MODEL_ROLES = ['design', 'review', 'fast', 'vision'] as const
+export const AI_MODEL_ROLES = ['design', 'prd', 'review', 'fast', 'vision'] as const
 export const AI_MODEL_CAPABILITIES = ['tools', 'vision'] as const
 
 export type AIModelRole = (typeof AI_MODEL_ROLES)[number]
@@ -29,6 +29,7 @@ export type AIModelProfile = {
 
 export type AIModelAssignments = {
   design: AIModelProfileId
+  prd: AIModelRoleAssignment
   review: AIModelRoleAssignment
   fast: AIModelRoleAssignment
   vision: AIModelRoleAssignment

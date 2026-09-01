@@ -3,6 +3,7 @@ import { ref } from "vue";
 import type {
 	Message,
 	PipelineState,
+	Question,
 	QuestionForm,
 	RetryMode,
 	WorkflowStep,
@@ -35,6 +36,9 @@ const SECTION_TO_STEP: Record<string, string> = {
 /** 中断标记正则（与后端 pipelineState.ts 保持一致） */
 const INTERRUPT_RE = /(?:\[⚠ 生成中断(?:\|[^\]|]+)?\]|\[⚠ 回复被中断\])\s*$/;
 
+const QUESTION_FORM_START = "[QUESTION_FORM]";
+const QUESTION_FORM_END = "[/QUESTION_FORM]";
+
 export function stripInterruptMarker(content: string): {
 	clean: string;
 	interrupted: boolean;
@@ -45,6 +49,77 @@ export function stripInterruptMarker(content: string): {
 		clean: content.replace(INTERRUPT_RE, "").trimEnd(),
 		interrupted: true,
 	};
+}
+
+/** 从消息 content 提取 QUESTION_FORM 块（与后端 extractQuestionForm 语义一致） */
+export function extractQuestionForm(content: string): {
+	clean: string;
+	formData: QuestionForm | null;
+} {
+	const startIdx = content.indexOf(QUESTION_FORM_START);
+	const endIdx = content.indexOf(QUESTION_FORM_END);
+	if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+		return { clean: content, formData: null };
+	}
+	const jsonStr = content
+		.slice(startIdx + QUESTION_FORM_START.length, endIdx)
+		.trim();
+	const clean = (
+		content.slice(0, startIdx) +
+		content.slice(endIdx + QUESTION_FORM_END.length)
+	).trim();
+	try {
+		const parsed = JSON.parse(jsonStr) as QuestionForm;
+		if (!parsed || !Array.isArray(parsed.questions)) {
+			return { clean: content, formData: null };
+		}
+		return { clean, formData: { questions: parsed.questions } };
+	} catch {
+		return { clean: content, formData: null };
+	}
+}
+
+/**
+ * 从用户提交的答案文本还原各题选中值。
+ * 格式与 QuestionForm handleSubmit 一致：`标签：答案`，多选用顿号拼接。
+ */
+export function parseFormAnswers(
+	questions: Question[],
+	userContent: string,
+): Record<string, string | string[]> {
+	const answers: Record<string, string | string[]> = {};
+	const lines = userContent
+		.split("\n")
+		.map((l) => l.trim())
+		.filter(Boolean);
+
+	for (const q of questions) {
+		const prefix = `${q.label}：`;
+		const line = lines.find((l) => l.startsWith(prefix));
+		if (!line) {
+			answers[q.id] = q.type === "multi_choice" ? [] : "";
+			continue;
+		}
+		const raw = line.slice(prefix.length).trim();
+		if (!raw || raw === "（未填写）") {
+			answers[q.id] = q.type === "multi_choice" ? [] : "";
+			continue;
+		}
+		if (q.type === "multi_choice") {
+			const parts = raw
+				.split("、")
+				.map((p) => p.trim())
+				.filter(Boolean);
+			const opts = new Set(q.options ?? []);
+			answers[q.id] = opts.size > 0 ? parts.filter((p) => opts.has(p)) : parts;
+		} else if (q.type === "single_choice") {
+			answers[q.id] = raw;
+		} else {
+			answers[q.id] = raw;
+		}
+	}
+
+	return answers;
 }
 
 export const useMessagesStore = defineStore("messages", () => {
@@ -66,8 +141,9 @@ export const useMessagesStore = defineStore("messages", () => {
 			created_at: number;
 		}>,
 	) {
-		messages.value = raw.map((m) => {
-			const { clean, interrupted } = stripInterruptMarker(m.content);
+		const mapped: Message[] = raw.map((m) => {
+			const { clean: withoutForm, formData } = extractQuestionForm(m.content);
+			const { clean, interrupted } = stripInterruptMarker(withoutForm);
 			return {
 				id: m.id,
 				sessionId: m.session_id,
@@ -75,8 +151,24 @@ export const useMessagesStore = defineStore("messages", () => {
 				content: clean,
 				createdAt: m.created_at,
 				interrupted: interrupted || undefined,
+				formData: formData ?? undefined,
 			};
 		});
+
+		// 助手消息后若已有用户回复，视为表单已提交，并还原答题选中态
+		for (let i = 0; i < mapped.length; i++) {
+			const msg = mapped[i];
+			if (!msg.formData) continue;
+			const nextUser = mapped.slice(i + 1).find((m) => m.role === "user");
+			if (!nextUser) continue;
+			msg.formSubmitted = true;
+			msg.formAnswers = parseFormAnswers(
+				msg.formData.questions,
+				nextUser.content,
+			);
+		}
+
+		messages.value = mapped;
 	}
 
 	function addUserMessage(msg: Message) {
@@ -151,8 +243,7 @@ export const useMessagesStore = defineStore("messages", () => {
 				(s) => !fixedIds.has(s.id),
 			);
 			const allDone =
-				moduleSteps.length > 0 &&
-				moduleSteps.every((s) => s.status === "done");
+				moduleSteps.length > 0 && moduleSteps.every((s) => s.status === "done");
 			if (allDone) {
 				const outputStep = workflowSteps.value.find((s) => s.id === "output");
 				if (outputStep) outputStep.status = "active";
@@ -212,10 +303,7 @@ export const useMessagesStore = defineStore("messages", () => {
 		}
 
 		// 标记被中断的消息
-		if (
-			state.phase === "agent_interrupted" &&
-			state.interruptedMessageId
-		) {
+		if (state.phase === "agent_interrupted" && state.interruptedMessageId) {
 			const msg = messages.value.find(
 				(m) => m.id === state.interruptedMessageId,
 			);

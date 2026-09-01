@@ -3,6 +3,7 @@
 	import { useRoute } from "vue-router";
 	import NavBar from "@/components/NavBar/NavBar.vue";
 	import ExportModal from "@/components/ExportModal/ExportModal.vue";
+	import PencilSettingsHost from "@/pencil/PencilSettingsHost.vue";
 
 	const showExport = ref(false);
 	const route = useRoute();
@@ -18,6 +19,7 @@
 			<RouterView />
 		</div>
 		<ExportModal v-model="showExport" />
+		<PencilSettingsHost />
 	</div>
 </template>
 

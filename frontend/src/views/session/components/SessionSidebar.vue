@@ -432,6 +432,7 @@
 					<QuestionForm
 						v-if="msg.formData"
 						:form="msg.formData"
+						:default-answers="msg.formAnswers"
 						:disabled="msg.formSubmitted || isSending"
 						@submit="(text) => handleFormSubmit(msg.id, text)"
 					/>

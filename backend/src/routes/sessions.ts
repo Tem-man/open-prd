@@ -33,9 +33,19 @@ import {
 	getLastUserMessage,
 } from "../services/pipelineState.js";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
-import { createChatModel } from "../services/llm.js";
+import {
+	createChatModel,
+	parseLlmRuntimeConfig,
+	runWithLlmConfig,
+	type LlmRuntimeConfig,
+} from "../services/llm.js";
 import { parse as parseHtml } from "node-html-parser";
 import { loadSkill } from "../services/skillLoader.js";
+
+function readLlmFromBody(body: unknown): LlmRuntimeConfig | undefined {
+	const llm = (body as { llm?: unknown } | null | undefined)?.llm;
+	return parseLlmRuntimeConfig(llm);
+}
 
 // ─── 工具：清除 el-selected ────────────────────────────────────────────────────
 
@@ -358,16 +368,20 @@ async function finalizePrd(
 	stopHeartbeat: () => void,
 ): Promise<void> {
 	type PrdRow = { html: string };
-	const prdRow = db
-		.prepare("SELECT html FROM prds WHERE id = ?")
-		.get(prdId) as PrdRow | undefined;
+	const prdRow = db.prepare("SELECT html FROM prds WHERE id = ?").get(prdId) as
+		| PrdRow
+		| undefined;
 
 	if (!prdRow?.html) {
 		stopHeartbeat();
 		writeError(
 			res as import("express").Response,
 			"PRD 内容写入异常，无法读取生成结果",
-			{ retryable: true, reason: "prd_write_error", suggestedMode: "continue_prd" },
+			{
+				retryable: true,
+				reason: "prd_write_error",
+				suggestedMode: "continue_prd",
+			},
 		);
 		return;
 	}
@@ -387,14 +401,21 @@ async function finalizePrd(
 		}
 	}
 
-	const { hardErrors, warnings } = validatePrdHtml(prdRow.html, expectedSectionCount);
+	const { hardErrors, warnings } = validatePrdHtml(
+		prdRow.html,
+		expectedSectionCount,
+	);
 
 	if (hardErrors.length > 0) {
 		stopHeartbeat();
 		writeError(
 			res as import("express").Response,
 			`PRD 结构校验失败：\n• ${hardErrors.join("\n• ")}`,
-			{ retryable: true, reason: "prd_validation_failed", suggestedMode: "continue_prd" },
+			{
+				retryable: true,
+				reason: "prd_validation_failed",
+				suggestedMode: "continue_prd",
+			},
 		);
 		return;
 	}
@@ -525,6 +546,16 @@ router.post("/:id/messages", async (req, res) => {
 		return;
 	}
 
+	let llmConfig: LlmRuntimeConfig | undefined;
+	try {
+		llmConfig = readLlmFromBody(req.body);
+	} catch (err) {
+		res.status(400).json({
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return;
+	}
+
 	// 写入用户消息
 	const userMsgId = uuidv4();
 	const now = Date.now();
@@ -573,171 +604,36 @@ router.post("/:id/messages", async (req, res) => {
 		}
 	});
 
-	await runAgentStream(
-		sessionId,
-		userContent,
-		// onDelta
-		(chunk, seq) => {
-			partialReply += chunk;
-			if (!res.writableEnded) {
-				writeDelta(res, chunk, seq);
-			}
-		},
-		// onDone
-		async (reply, shouldGeneratePrd) => {
-			streamFinished = true;
-
-			// 提取问题表单（存在时推送 form 事件，并从落库内容中剥离）
-			const { cleanReply, formData } = extractQuestionForm(reply);
-			if (formData !== null && !res.writableEnded) {
-				writeForm(res, formData);
-			}
-
-			// 写入完整助手回复（不含表单标记块）
-			const assistantMsgId = uuidv4();
-			const finishedAt = Date.now();
-			db.prepare(
-				"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-			).run(assistantMsgId, sessionId, "assistant", cleanReply, finishedAt);
-
-			db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
-				finishedAt,
-				sessionId,
-			);
-
-			if (shouldGeneratePrd && !res.writableEnded) {
-				try {
-					await generatePrdOutline(sessionId);
-					const prdId = await generateFullPrd(sessionId, (sid, status) => {
-						if (!res.writableEnded) writePrdProgress(res, sid, status);
-					});
-					await finalizePrd(res, db, sessionId, prdId, stopHeartbeat);
-				} catch (err) {
-					const msg = err instanceof Error ? err.message : String(err);
-					if (!res.writableEnded) {
-						stopHeartbeat();
-						writeError(res, `PRD 生成失败：${msg}`, {
-							retryable: true,
-							reason: "prd_generation_failed",
-							suggestedMode: "continue_prd",
-						});
-					}
-				}
-			} else if (!res.writableEnded) {
-				stopHeartbeat();
-				writeDone(res, false);
-			}
-		},
-		// onError —— idle 超时等异常，保存 partial 并返回 retryable 错误
-		(err) => {
-			streamFinished = true;
-			stopHeartbeat();
-
-			// 保存 partial（带标记，供续写使用）
-			if (partialReply.length > 20) {
-				const reason = err.message.includes("idle") ? "idle_timeout" : "agent_error";
-				db.prepare(
-					"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-				).run(
-					uuidv4(),
-					sessionId,
-					"assistant",
-					appendInterruptMarker(partialReply, reason),
-					Date.now(),
-				);
-				db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
-					Date.now(),
-					sessionId,
-				);
-			}
-
-			if (!res.writableEnded) {
-				const reason = err.message.includes("idle") ? "idle_timeout" : "agent_error";
-				writeError(res, err.message, {
-					retryable: true,
-					reason,
-					suggestedMode: partialReply.length > 20 ? "continue_agent" : "retry_last",
-				});
-			}
-		},
-	);
-});
-
-// ─── POST /api/sessions/:id/messages/retry ────────────────────────────────────
-type RetryMode = "retry_last" | "continue_agent" | "continue_prd" | "retry_section";
-
-router.post("/:id/messages/retry", async (req, res) => {
-	const db = getDb();
-	const sessionId = req.params.id;
-	const mode = (req.body?.mode ?? "") as RetryMode;
-	const sectionId = req.body?.sectionId as string | undefined;
-
-	if (!db.prepare("SELECT id FROM sessions WHERE id = ?").get(sessionId)) {
-		res.status(404).json({ error: "Session not found" });
-		return;
-	}
-
-	const validModes: RetryMode[] = [
-		"retry_last",
-		"continue_agent",
-		"continue_prd",
-		"retry_section",
-	];
-	if (!validModes.includes(mode)) {
-		res.status(400).json({ error: `mode 必须是 ${validModes.join(" | ")}` });
-		return;
-	}
-
-	const stopHeartbeat = initSse(res);
-
-	// ── 模式：retry_last / continue_agent ────────────────────────────────────
-	if (mode === "retry_last" || mode === "continue_agent") {
-		const lastUserMsg = getLastUserMessage(sessionId);
-		if (!lastUserMsg) {
-			stopHeartbeat();
-			writeError(res, "找不到可重试的用户消息", { retryable: false });
-			return;
-		}
-
-		// 取出并删除带中断标记的 assistant 消息（若有）
-		const partialContent = removeLastInterruptedAssistant(sessionId);
-		// retry_last = 丢弃 partial 重来；continue_agent = 续写
-		const partialForResume = mode === "continue_agent" ? (partialContent ?? undefined) : undefined;
-
-		let partialReply = partialForResume ?? "";
-		let streamFinished = false;
-
-		req.on("close", () => {
-			if (!streamFinished && partialReply.length > 20) {
-				db.prepare(
-					"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-				).run(
-					uuidv4(),
-					sessionId,
-					"assistant",
-					appendInterruptMarker(partialReply, "connection_lost"),
-					Date.now(),
-				);
-			}
-		});
-
-		await runAgentStream(
+	await runWithLlmConfig(llmConfig, () =>
+		runAgentStream(
 			sessionId,
-			lastUserMsg,
+			userContent,
+			// onDelta
 			(chunk, seq) => {
 				partialReply += chunk;
-				if (!res.writableEnded) writeDelta(res, chunk, seq);
+				if (!res.writableEnded) {
+					writeDelta(res, chunk, seq);
+				}
 			},
+			// onDone
 			async (reply, shouldGeneratePrd) => {
 				streamFinished = true;
-				const { cleanReply, formData } = extractQuestionForm(reply);
-				if (formData !== null && !res.writableEnded) writeForm(res, formData);
 
+				// 提取问题表单（存在时推送 form 事件；落库保留标记块以便刷新后还原）
+				const { formData } = extractQuestionForm(reply);
+				if (formData !== null && !res.writableEnded) {
+					writeForm(res, formData);
+				}
+
+				// 写入完整助手回复（含 QUESTION_FORM 标记块）
+				const assistantMsgId = uuidv4();
+				const finishedAt = Date.now();
 				db.prepare(
 					"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-				).run(uuidv4(), sessionId, "assistant", cleanReply, Date.now());
+				).run(assistantMsgId, sessionId, "assistant", reply, finishedAt);
+
 				db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
-					Date.now(),
+					finishedAt,
 					sessionId,
 				);
 
@@ -764,11 +660,16 @@ router.post("/:id/messages/retry", async (req, res) => {
 					writeDone(res, false);
 				}
 			},
+			// onError —— idle 超时等异常，保存 partial 并返回 retryable 错误
 			(err) => {
 				streamFinished = true;
 				stopHeartbeat();
-				const reason = err.message.includes("idle") ? "idle_timeout" : "agent_error";
+
+				// 保存 partial（带标记，供续写使用）
 				if (partialReply.length > 20) {
+					const reason = err.message.includes("idle")
+						? "idle_timeout"
+						: "agent_error";
 					db.prepare(
 						"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
 					).run(
@@ -783,15 +684,172 @@ router.post("/:id/messages/retry", async (req, res) => {
 						sessionId,
 					);
 				}
+
 				if (!res.writableEnded) {
+					const reason = err.message.includes("idle")
+						? "idle_timeout"
+						: "agent_error";
 					writeError(res, err.message, {
 						retryable: true,
 						reason,
-						suggestedMode: partialReply.length > 20 ? "continue_agent" : "retry_last",
+						suggestedMode:
+							partialReply.length > 20 ? "continue_agent" : "retry_last",
 					});
 				}
 			},
-			{ partialReply: partialForResume },
+		),
+	);
+});
+
+// ─── POST /api/sessions/:id/messages/retry ────────────────────────────────────
+type RetryMode =
+	| "retry_last"
+	| "continue_agent"
+	| "continue_prd"
+	| "retry_section";
+
+router.post("/:id/messages/retry", async (req, res) => {
+	const db = getDb();
+	const sessionId = req.params.id;
+	const mode = (req.body?.mode ?? "") as RetryMode;
+	const sectionId = req.body?.sectionId as string | undefined;
+
+	if (!db.prepare("SELECT id FROM sessions WHERE id = ?").get(sessionId)) {
+		res.status(404).json({ error: "Session not found" });
+		return;
+	}
+
+	const validModes: RetryMode[] = [
+		"retry_last",
+		"continue_agent",
+		"continue_prd",
+		"retry_section",
+	];
+	if (!validModes.includes(mode)) {
+		res.status(400).json({ error: `mode 必须是 ${validModes.join(" | ")}` });
+		return;
+	}
+
+	let llmConfig: LlmRuntimeConfig | undefined;
+	try {
+		llmConfig = readLlmFromBody(req.body);
+	} catch (err) {
+		res.status(400).json({
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return;
+	}
+
+	const stopHeartbeat = initSse(res);
+
+	// ── 模式：retry_last / continue_agent ────────────────────────────────────
+	if (mode === "retry_last" || mode === "continue_agent") {
+		const lastUserMsg = getLastUserMessage(sessionId);
+		if (!lastUserMsg) {
+			stopHeartbeat();
+			writeError(res, "找不到可重试的用户消息", { retryable: false });
+			return;
+		}
+
+		// 取出并删除带中断标记的 assistant 消息（若有）
+		const partialContent = removeLastInterruptedAssistant(sessionId);
+		// retry_last = 丢弃 partial 重来；continue_agent = 续写
+		const partialForResume =
+			mode === "continue_agent" ? (partialContent ?? undefined) : undefined;
+
+		let partialReply = partialForResume ?? "";
+		let streamFinished = false;
+
+		req.on("close", () => {
+			if (!streamFinished && partialReply.length > 20) {
+				db.prepare(
+					"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+				).run(
+					uuidv4(),
+					sessionId,
+					"assistant",
+					appendInterruptMarker(partialReply, "connection_lost"),
+					Date.now(),
+				);
+			}
+		});
+
+		await runWithLlmConfig(llmConfig, () =>
+			runAgentStream(
+				sessionId,
+				lastUserMsg,
+				(chunk, seq) => {
+					partialReply += chunk;
+					if (!res.writableEnded) writeDelta(res, chunk, seq);
+				},
+				async (reply, shouldGeneratePrd) => {
+					streamFinished = true;
+					const { formData } = extractQuestionForm(reply);
+					if (formData !== null && !res.writableEnded) writeForm(res, formData);
+
+					db.prepare(
+						"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+					).run(uuidv4(), sessionId, "assistant", reply, Date.now());
+					db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
+						Date.now(),
+						sessionId,
+					);
+
+					if (shouldGeneratePrd && !res.writableEnded) {
+						try {
+							await generatePrdOutline(sessionId);
+							const prdId = await generateFullPrd(sessionId, (sid, status) => {
+								if (!res.writableEnded) writePrdProgress(res, sid, status);
+							});
+							await finalizePrd(res, db, sessionId, prdId, stopHeartbeat);
+						} catch (err) {
+							const msg = err instanceof Error ? err.message : String(err);
+							if (!res.writableEnded) {
+								stopHeartbeat();
+								writeError(res, `PRD 生成失败：${msg}`, {
+									retryable: true,
+									reason: "prd_generation_failed",
+									suggestedMode: "continue_prd",
+								});
+							}
+						}
+					} else if (!res.writableEnded) {
+						stopHeartbeat();
+						writeDone(res, false);
+					}
+				},
+				(err) => {
+					streamFinished = true;
+					stopHeartbeat();
+					const reason = err.message.includes("idle")
+						? "idle_timeout"
+						: "agent_error";
+					if (partialReply.length > 20) {
+						db.prepare(
+							"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+						).run(
+							uuidv4(),
+							sessionId,
+							"assistant",
+							appendInterruptMarker(partialReply, reason),
+							Date.now(),
+						);
+						db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
+							Date.now(),
+							sessionId,
+						);
+					}
+					if (!res.writableEnded) {
+						writeError(res, err.message, {
+							retryable: true,
+							reason,
+							suggestedMode:
+								partialReply.length > 20 ? "continue_agent" : "retry_last",
+						});
+					}
+				},
+				{ partialReply: partialForResume },
+			),
 		);
 		return;
 	}
@@ -799,10 +857,12 @@ router.post("/:id/messages/retry", async (req, res) => {
 	// ── 模式：continue_prd ───────────────────────────────────────────────────
 	if (mode === "continue_prd") {
 		try {
-			const prdId = await generateFullPrd(sessionId, (sid, status) => {
-				if (!res.writableEnded) writePrdProgress(res, sid, status);
+			await runWithLlmConfig(llmConfig, async () => {
+				const prdId = await generateFullPrd(sessionId, (sid, status) => {
+					if (!res.writableEnded) writePrdProgress(res, sid, status);
+				});
+				await finalizePrd(res, db, sessionId, prdId, stopHeartbeat);
 			});
-			await finalizePrd(res, db, sessionId, prdId, stopHeartbeat);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			if (!res.writableEnded) {
@@ -821,14 +881,22 @@ router.post("/:id/messages/retry", async (req, res) => {
 	if (mode === "retry_section") {
 		if (!sectionId) {
 			stopHeartbeat();
-			writeError(res, "retry_section 需要 sectionId 参数", { retryable: false });
+			writeError(res, "retry_section 需要 sectionId 参数", {
+				retryable: false,
+			});
 			return;
 		}
 		try {
-			const prdId = await generateSingleSection(sessionId, sectionId, (sid, status) => {
-				if (!res.writableEnded) writePrdProgress(res, sid, status);
+			await runWithLlmConfig(llmConfig, async () => {
+				const prdId = await generateSingleSection(
+					sessionId,
+					sectionId,
+					(sid, status) => {
+						if (!res.writableEnded) writePrdProgress(res, sid, status);
+					},
+				);
+				await finalizePrd(res, db, sessionId, prdId, stopHeartbeat);
 			});
-			await finalizePrd(res, db, sessionId, prdId, stopHeartbeat);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			if (!res.writableEnded) {
@@ -1002,6 +1070,16 @@ router.patch("/:id/prd/sections/:sectionId", async (req, res) => {
 		return;
 	}
 
+	let llmConfig: LlmRuntimeConfig | undefined;
+	try {
+		llmConfig = readLlmFromBody(req.body);
+	} catch (err) {
+		res.status(400).json({
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return;
+	}
+
 	const prd = db
 		.prepare(
 			"SELECT id FROM prds WHERE session_id = ? ORDER BY created_at DESC LIMIT 1",
@@ -1087,7 +1165,7 @@ ${oldEntitySection || "（尚不存在，请新建）"}
 
 		try {
 			writeSectionElementPatchStart(res, sectionId);
-			const model = createChatModel();
+			const model = runWithLlmConfig(llmConfig, () => createChatModel());
 			const response = await model.invoke([
 				new SystemMessage(entitySystemPrompt),
 				new HumanMessage(entityUserPrompt),
@@ -1245,7 +1323,7 @@ ${selectedElementHtml}
 			// element patch 响应体较小，用非流式调用
 			writeSectionElementPatchStart(res, sectionId);
 
-			const model = createChatModel();
+			const model = runWithLlmConfig(llmConfig, () => createChatModel());
 			const response = await model.invoke([
 				new SystemMessage(elementSystemPrompt),
 				new HumanMessage(elementUserPrompt),
@@ -1386,7 +1464,7 @@ ${current.html_content}
 
 	let generated = "";
 	try {
-		const model = createChatModel();
+		const model = runWithLlmConfig(llmConfig, () => createChatModel());
 		const stream = await model.stream([
 			new SystemMessage(systemPrompt),
 			new HumanMessage(userPrompt),

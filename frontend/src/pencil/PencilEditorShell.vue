@@ -17,7 +17,6 @@
 	import PresentButton from "@pencil/components/prototype/PresentButton.vue";
 	import PropertiesPanel from "@pencil/components/PropertiesPanel.vue";
 	import AppToast from "@pencil/components/Shell/AppToast.vue";
-	import SettingsDialog from "@pencil/components/settings/SettingsDialog.vue";
 	import Toolbar from "@pencil/components/Toolbar/Toolbar.vue";
 
 	// Runs in a child of PencilEditor so `provideEditor` from the parent is injectable.
@@ -128,5 +127,4 @@
 	</div>
 
 	<AppToast />
-	<SettingsDialog />
 </template>
