@@ -40,7 +40,8 @@ export function buildSystemPrompt(
 4. **产品架构**：Mermaid \`graph TB\` 分层架构图
 5. **业务流程**：Mermaid \`flowchart TD\` 流程图
 6. **信息架构**：markmap.js 思维导图
-7. **数据模型**：Mermaid \`erDiagram\` ER 图 + 实体说明表格`;
+7. **数据模型**：Mermaid \`erDiagram\` ER 图 + 实体说明表格
+8. **原型设计依据**：页面清单 + 页面详情 + 导航关系 + 设计规范（供原型设计 AI 代理使用）`;
 
 	return `你是一位资深产品经理，专门负责撰写结构化的产品需求文档（PRD）。
 

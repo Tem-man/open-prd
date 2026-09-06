@@ -25,9 +25,10 @@ export default defineConfig({
 		tailwindcss(),
 		Icons({ compiler: "vue3" }),
 		Components({
-			// Auto-register editor shell components (`Tip`, panel pieces, …) and `<icon-lucide-*>`.
-			// Scoped to `src/pencil/components` so open-prd's own `src/components` stay untouched.
-			dirs: ["src/pencil/components"],
+			// Scan Vue SFCs in the editor shell and the app-level components folder.
+			// `<icon-lucide-*>` is resolved by IconsResolver in any .vue file, including
+			// `src/components` (ExportModal, NavBar, …).
+			dirs: ["src/pencil/components", "src/components"],
 			dts: "src/components.d.ts",
 			resolvers: [IconsResolver({ prefix: "icon" })],
 		}),

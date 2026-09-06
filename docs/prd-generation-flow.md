@@ -20,7 +20,7 @@
   │        ↳ 若信息不足：返回提问表单，继续收集
   │        ↳ 若信息充分：回复末尾追加 [GENERATE_PRD] 触发信号
   ▼
-[Phase 4] 检测到触发信号 → 生成 PRD Outline（7 个模块 keyPoints）
+[Phase 4] 检测到触发信号 → 生成 PRD Outline（8 个模块 keyPoints）
   │
   ▼
 [Phase 5] 逐模块生成内容（可注入 Skill）→ SSE 推送进度
@@ -135,7 +135,7 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
 当 `shouldGeneratePrd === true` 时触发（在 `sessions.ts` 的 `onDone` 回调中调用）。
 
 1. 从 `messages` 表加载完整对话历史，格式化为纯文本（`用户：... \n AI：...`）。
-2. 向 LLM 发起一次**非流式**调用，要求按固定 JSON Schema 输出包含 7 个模块的 Outline：
+2. 向 LLM 发起一次**非流式**调用，要求按固定 JSON Schema 输出包含 8 个模块的 Outline：
 
 ```json
 {
@@ -154,7 +154,7 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
 3. 图表类模块（`architecture` / `flowchart` / `infoArch` / `dataModel`）自动填充 `skillRequired` 字段，指向对应 Skill 名称。
 4. Outline 结果以 JSON 字符串形式持久化到 `sessions.outline` 字段，供后续断点续传使用。
 
-**7 个模块 ID 对照**：
+**8 个模块 ID 对照**：
 
 | id | 标题 | 是否图表模块 |
 |----|------|-------------|
@@ -165,6 +165,7 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
 | `flowchart` | 业务流程 | 是（Mermaid flowchart TD）|
 | `infoArch` | 信息架构 | 是（markmap.js）|
 | `dataModel` | 数据模型 | 是（Mermaid erDiagram）|
+| `prototypeBasis` | 原型设计依据 | 否（文段类，注入 skill-prd-prototype 固化结构）|
 
 ---
 
@@ -172,7 +173,7 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
 
 **入口**：`backend/src/services/prd/index.ts` → `generateFullPrd()`
 
-读取 Phase 4 生成的 Outline，按顺序驱动 7 个模块依次生成。
+读取 Phase 4 生成的 Outline，按顺序驱动 8 个模块依次生成。
 
 ### 5.1 生成循环
 
@@ -193,12 +194,13 @@ backend/src/services/prd/modules/
 ├── architecture.ts   ← 产品架构（注入 skill-prd-architecture）
 ├── flowchart.ts      ← 业务流程（注入 skill-prd-flowchart）
 ├── infoArch.ts       ← 信息架构（注入 skill-prd-infoarch）
-└── dataModel.ts      ← 数据模型（注入 skill-prd-datamodel）
+├── dataModel.ts      ← 数据模型（注入 skill-prd-datamodel）
+└── prototypeBasis.ts ← 原型设计依据（注入 skill-prd-prototype）
 ```
 
-### 5.3 Skill 注入（图表模块）
+### 5.3 Skill 注入（图表模块与原型设计依据）
 
-图表类模块生成时，`agent.ts` 中的 `buildMessagesWithSkill()` 会将对应 Skill 文件内容以 XML 块的形式注入 `SystemPrompt`，覆盖默认行为，确保 Mermaid / markmap 语法的准确性。
+图表类模块生成时，`agent.ts` 中的 `buildMessagesWithSkill()` 会将对应 Skill 文件内容以 XML 块的形式注入 `SystemPrompt`，覆盖默认行为，确保 Mermaid / markmap 语法的准确性。「原型设计依据」虽为文段类模块，同样通过 Skill 固化输出结构（页面清单 / 页面详情 / 导航关系 / 设计规范），供原型设计 AI 代理消费。
 
 Skill 路径对应关系：
 
@@ -208,6 +210,7 @@ Skill 路径对应关系：
 | 业务流程 | `skills/skill-prd-flowchart/SKILL.md` |
 | 信息架构 | `skills/skill-prd-infoarch/SKILL.md` |
 | 数据模型 | `skills/skill-prd-datamodel/SKILL.md` |
+| 原型设计依据 | `skills/skill-prd-prototype/SKILL.md` |
 
 ---
 
@@ -215,9 +218,9 @@ Skill 路径对应关系：
 
 **入口**：`backend/src/services/prd/renderer.ts` → `renderPrd()`
 
-1. 接收 7 个模块的 `{ id, title, content }` 数组。
+1. 接收 8 个模块的 `{ id, title, content }` 数组。
 2. 将所有模块内容内嵌进单一 HTML 文件，包含：
-   - Tab 导航栏（点击切换 7 个模块）
+   - Tab 导航栏（点击切换 8 个模块）
    - 内联 CSS（遵循项目色彩/字体/圆角/阴影规范）
    - 内联 JS（Tab 切换逻辑）
    - CDN 引入 `mermaid.js`（渲染架构图/流程图/ER 图）和 `markmap-lib` + `markmap-view`（渲染信息架构思维导图）

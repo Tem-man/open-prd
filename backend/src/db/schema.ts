@@ -61,6 +61,12 @@ export const BUILTIN_MODULES: Array<{
 		name: "数据模型",
 		description: "核心实体 ER 图（Mermaid erDiagram）及字段说明表格",
 	},
+	{
+		id: "prototypeBasis",
+		name: "原型设计依据",
+		description:
+			"面向原型设计 AI 代理的结构化设计依据：页面清单、页面详情、导航关系与设计规范",
+	},
 ];
 
 export interface ModuleTemplateRow {

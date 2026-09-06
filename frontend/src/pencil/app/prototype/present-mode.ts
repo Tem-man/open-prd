@@ -6,6 +6,14 @@
  * active store is reused without reloading the .fig.
  */
 
+/**
+ * Stage zoom strategy for the presenter:
+ * - `fit`: shrink so the whole frame fits the window (never upscale);
+ * - `fill-width`: match the window width and let tall (long-scroll) pages scroll vertically;
+ * - `actual`: always 100%, scrolling both ways when the frame exceeds the window.
+ */
+export type PresentZoomMode = "fit" | "fill-width" | "actual";
+
 export function editorRoute(prototypeId: string): string {
 	return `/prototype/${prototypeId}`;
 }

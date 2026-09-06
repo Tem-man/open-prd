@@ -7,6 +7,7 @@
 
 	import { setActiveEditorStore } from "@/app/editor/active-store";
 	import { createEditorStore } from "@/app/editor/session";
+	import { beginPrdBasisLoad, clearPrdBasis, loadPrdBasis } from "@/app/ai/prdContext";
 	import { applyImportedDocument } from "@/app/document/io/imported-document";
 	import {
 		applyViewport,
@@ -44,6 +45,10 @@
 	// Must live in a parent of anything that calls `useEditor()` / `useKeyboard()`.
 	provideEditor(store);
 
+	// 同步挂起 PRD 依据的就绪门闩：子组件 ChatPanel 挂载时会立即创建设计代理
+	// transport，必须让它等到 bindPrototype 完成依据加载（或确认无关联）之后。
+	beginPrdBasisLoad();
+
 	async function bindPrototype(id: string) {
 		loadError.value = null;
 		ready.value = false;
@@ -51,7 +56,15 @@
 		const meta = await prototypesStore.fetchMeta(id);
 		if (!meta) {
 			loadError.value = "原型不存在或已被删除";
+			clearPrdBasis(); // 释放就绪门闩，避免 ChatPanel 永远等待
 			return;
+		}
+
+		// 原型关联了 PRD 会话时，并行拉取「原型设计依据」供设计代理注入使用
+		if (meta.sessionId) {
+			void loadPrdBasis(meta.sessionId);
+		} else {
+			clearPrdBasis();
 		}
 
 		const bytes = await prototypesStore.fetchFigBytes(id);
@@ -117,12 +130,14 @@
 		void bindPrototype(props.prototypeId).catch((e) => {
 			console.error(e);
 			loadError.value = e instanceof Error ? e.message : "加载原型失败";
+			clearPrdBasis(); // 释放就绪门闩，避免 ChatPanel 永远等待
 		});
 	});
 
 	onBeforeUnmount(() => {
 		saveViewport();
 		store.state.autosaveEnabled = false;
+		clearPrdBasis();
 		store.dispose();
 	});
 </script>

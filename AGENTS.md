@@ -92,6 +92,7 @@ open-prd/
 │   │   │   ├── SkillEditorPanel.vue   # Skill 编辑
 │   │   │   ├── HistoryDrawer.vue      # 历史会话抽屉
 │   │   │   ├── QuestionForm.vue       # AI 信息收集表单
+│   │   │   ├── ModelSelector.vue      # PRD 对话输入框模型切换
 │   │   │   └── …
 │   │   ├── pencil/                    # 原型设计编辑器界面层（见下方专章）
 │   │   │   ├── PencilEditor.vue       # 编辑器根组件，挂载 CanvasKit 画布
@@ -100,7 +101,7 @@ open-prd/
 │   │   │   ├── PresentView.vue        # 放映 / 演示视图
 │   │   │   ├── pencil.css             # Tailwind v4 入口（作用域限定 .pencil-root）
 │   │   │   ├── app/                   # 编辑器应用逻辑
-│   │   │   │   ├── ai/                # AI 对话、模型配置、Provider、工具
+│   │   │   │   ├── ai/                # AI 对话、模型配置、Provider、工具、PRD 依据上下文（prdContext.ts）
 │   │   │   │   ├── document/          # 文档 IO、自动保存、导出
 │   │   │   │   ├── editor/            # 会话、画布菜单、剪贴板、矢量等
 │   │   │   │   ├── settings/          # 凭据与设置对话框
@@ -183,6 +184,7 @@ open-prd/
 │   ├── skill-prd-flowchart/
 │   ├── skill-prd-infoarch/
 │   ├── skill-prd-datamodel/
+│   ├── skill-prd-prototype/           # 原型设计依据模块 Skill（页面清单/详情/导航/设计规范）
 │   ├── skill-mermaid/                 # Mermaid 通用图表 Skill
 │   ├── skill-creator/                 # Skill 创建辅助
 │   └── skill-custom-*/                # 用户自定义 Skill
@@ -209,7 +211,7 @@ Agent 在与用户交互时，必须严格遵循以下机制：
 2. **表单式提问**：当信息不足或存在歧义时，禁止主观臆断，必须向用户输出结构化的"提问表单"。
 3. **确认机制**：在关键业务逻辑、核心数据流向等环节，需与用户明确确认后再进入 PRD 生成阶段。
 
-- **工作流程**：理解需求 → 信息查漏补缺（结构化反问）→ 必要时与用户确认关键信息（无歧义则跳过）→ `TodoWrite` → 按 7 个默认模块生成 PRD → 输出单文件 HTML
+- **工作流程**：理解需求 → 信息查漏补缺（结构化反问）→ 必要时与用户确认关键信息（无歧义则跳过）→ `TodoWrite` → 按 8 个默认模块生成 PRD → 输出单文件 HTML
 
 ### Skill 支持
 
@@ -265,17 +267,18 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
 ## PRD 文档结构
 
-生成的 PRD 包含以下 7 个模块（默认结构，支持用户自定义）：
+生成的 PRD 包含以下 8 个模块（默认结构，支持用户自定义）：
 
-| #   | 模块       | 说明                                     |
-| --- | ---------- | ---------------------------------------- |
-| 1   | 背景与目标 | 业务痛点、SMART 目标                     |
-| 2   | 用户与场景 | 用户画像、使用场景                       |
-| 3   | 功能清单   | 功能模块 × 功能点 × 优先级表格           |
-| 4   | 产品架构   | Mermaid `graph TB` 分层架构图            |
-| 5   | 业务流程   | Mermaid `flowchart TD` 流程图            |
-| 6   | 信息架构   | markmap.js 思维导图                      |
-| 7   | 数据模型   | Mermaid `erDiagram` ER 图 + 实体说明表格 |
+| #   | 模块         | 说明                                                         |
+| --- | ------------ | ------------------------------------------------------------ |
+| 1   | 背景与目标   | 业务痛点、SMART 目标                                         |
+| 2   | 用户与场景   | 用户画像、使用场景                                           |
+| 3   | 功能清单     | 功能模块 × 功能点 × 优先级表格                               |
+| 4   | 产品架构     | Mermaid `graph TB` 分层架构图                                |
+| 5   | 业务流程     | Mermaid `flowchart TD` 流程图                                |
+| 6   | 信息架构     | markmap.js 思维导图                                          |
+| 7   | 数据模型     | Mermaid `erDiagram` ER 图 + 实体说明表格                     |
+| 8   | 原型设计依据 | 页面清单、页面详情、导航关系与设计规范（供原型设计 AI 代理生成原型稿使用） |
 
 ---
 
@@ -283,12 +286,13 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
 各图表对应的 Skill 路径：
 
-| 图表类型   | Skill 名称               | 路径                            |
-| ---------- | ------------------------ | ------------------------------- |
-| 产品架构图 | `skill-prd-architecture` | `skills\skill-prd-architecture` |
-| 业务流程图 | `skill-prd-flowchart`    | `skills\skill-prd-flowchart`    |
-| 信息架构   | `skill-prd-infoarch`     | `skills\skill-prd-infoarch`     |
-| 数据模型   | `skill-prd-datamodel`    | `skills\skill-prd-datamodel`    |
+| 图表类型     | Skill 名称               | 路径                            |
+| ------------ | ------------------------ | ------------------------------- |
+| 产品架构图   | `skill-prd-architecture` | `skills\skill-prd-architecture` |
+| 业务流程图   | `skill-prd-flowchart`    | `skills\skill-prd-flowchart`    |
+| 信息架构     | `skill-prd-infoarch`     | `skills\skill-prd-infoarch`     |
+| 数据模型     | `skill-prd-datamodel`    | `skills\skill-prd-datamodel`    |
+| 原型设计依据 | `skill-prd-prototype`    | `skills\skill-prd-prototype`    |
 
 ## 生成对应图表时，先用 Read 工具读取对应 Skill 文件，按其规范输出。
 
@@ -300,8 +304,8 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 2. **CDN 依赖**：允许且必须引入以下 CDN：
    - `mermaid.js`：渲染产品架构图、业务流程图、数据模型；需在脚本中执行 `mermaid.initialize()`
    - `markmap-lib` + `markmap-view`：渲染信息架构思维导图
-3. **Tab 导航**：包含 7 个 Tab 标签（背景与目标、用户与场景、功能清单、产品架构、业务流程、信息架构、数据模型），点击标签切换对应模块内容。
-4. **自定义结构**：默认 7 个模块，但支持用户在对话中自定义 PRD 结构，Agent 应据此调整输出。
+3. **Tab 导航**：包含 8 个 Tab 标签（背景与目标、用户与场景、功能清单、产品架构、业务流程、信息架构、数据模型、原型设计依据），点击标签切换对应模块内容。
+4. **自定义结构**：默认 8 个模块，但支持用户在对话中自定义 PRD 结构，Agent 应据此调整输出。
 
 ---
 

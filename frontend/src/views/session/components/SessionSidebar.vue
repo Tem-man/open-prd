@@ -14,18 +14,22 @@
 	import { useMessagesStore } from "@/stores/messages";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdEditStore } from "@/stores/prdEdit";
+	import { usePrototypesStore } from "@/stores/prototypes";
 	import { useSSE, useSectionEdit } from "@/composables/useSSE";
 	import { useSectionActions } from "@/composables/useSectionActions";
 	import TypingIndicator from "@/components/TypingIndicator.vue";
 	import HistoryDrawer from "@/components/HistoryDrawer.vue";
 	import ModuleManager from "@/components/ModuleManager.vue";
 	import QuestionForm from "@/components/QuestionForm.vue";
+	import StopGenerateButton from "@/components/StopGenerateButton.vue";
+	import ModelSelector from "@/components/ModelSelector.vue";
 
 	const props = defineProps<{ sessionId: string }>();
 
 	const messagesStore = useMessagesStore();
 	const sessionsStore = useSessionsStore();
 	const prdEditStore = usePrdEditStore();
+	const prototypesStore = usePrototypesStore();
 	const { sendMessage, retrySession, stopGeneration } = useSSE();
 	const { editSection } = useSectionEdit();
 	const { saving, rolling, saveSection, rollbackSection } = useSectionActions();
@@ -122,6 +126,23 @@
 			messagesStore.initWorkflowSteps(updatedModules);
 		} catch (e) {
 			console.error("[SessionSidebar] updateSessionModules failed:", e);
+		}
+	}
+
+	// ── 生成原型稿（PRD 完成后的引导动作） ──────────────────────────────────────
+	const isCreatingPrototype = ref(false);
+
+	async function handleCreatePrototype() {
+		if (isCreatingPrototype.value) return;
+		isCreatingPrototype.value = true;
+		try {
+			const title = `${currentSession.value?.title || "未命名"} - 原型`;
+			// createPrototype 内部会跳转 /prototype/:id
+			await prototypesStore.createPrototype(title, props.sessionId);
+		} catch (e) {
+			console.error("[SessionSidebar] createPrototype failed:", e);
+		} finally {
+			isCreatingPrototype.value = false;
 		}
 	}
 
@@ -428,15 +449,32 @@
 							{{ msg.content.trim().length > 20 ? "继续生成" : "重新生成" }}
 						</button>
 					</div>
-					<!-- 结构化提问表单 -->
-					<QuestionForm
-						v-if="msg.formData"
-						:form="msg.formData"
-						:default-answers="msg.formAnswers"
-						:disabled="msg.formSubmitted || isSending"
-						@submit="(text) => handleFormSubmit(msg.id, text)"
-					/>
+				<!-- 结构化提问表单 -->
+				<QuestionForm
+					v-if="msg.formData"
+					:form="msg.formData"
+					:default-answers="msg.formAnswers"
+					:disabled="msg.formSubmitted || isSending"
+					@submit="(text) => handleFormSubmit(msg.id, text)"
+				/>
+				<!-- PRD 完成后的「生成原型稿」引导动作 -->
+				<div
+					v-if="msg.action?.type === 'create-prototype'"
+					class="action-bubble"
+				>
+					<span class="action-bubble__icon">🎨</span>
+					<button
+						type="button"
+						class="action-bubble__btn"
+						:disabled="isCreatingPrototype"
+						@click="handleCreatePrototype"
+					>
+						{{
+							isCreatingPrototype ? "正在创建原型…" : msg.action.label
+						}}
+					</button>
 				</div>
+			</div>
 				<div v-else-if="msg.role === 'user'" class="bubble user-bubble">
 					<span>{{ msg.content }}</span>
 				</div>
@@ -548,32 +586,33 @@
 							/>
 						</svg>
 					</button>
-					<!-- 生成中：停止按钮 -->
-					<button
-						v-if="isSending"
-						class="btn-stop"
-						title="停止生成"
-						@click="handleStop"
-					>
-						<span class="stop-icon"></span>
-					</button>
-					<!-- 待发送：发送按钮 -->
-					<button
-						v-else
-						class="btn-send"
-						:disabled="!inputText.trim()"
-						@click="handleSend"
-					>
-						<svg viewBox="0 0 16 16" fill="none">
-							<path
-								d="M8 12V4M4 8l4-4 4 4"
-								stroke="currentColor"
-								stroke-width="1.6"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							/>
-						</svg>
-					</button>
+					<div class="input-actions-right">
+						<ModelSelector />
+						<!-- 生成中：停止按钮 -->
+						<StopGenerateButton
+							v-if="isSending"
+							:size="30"
+							title="停止生成"
+							@click="handleStop"
+						/>
+						<!-- 待发送：发送按钮 -->
+						<button
+							v-else
+							class="btn-send"
+							:disabled="!inputText.trim()"
+							@click="handleSend"
+						>
+							<svg viewBox="0 0 16 16" fill="none">
+								<path
+									d="M8 12V4M4 8l4-4 4 4"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -842,6 +881,8 @@
 
 	/* ── Input ── */
 	.input-area {
+		position: relative;
+		z-index: 10;
 		padding: 12px 14px;
 		border-top: 1px solid var(--color-border);
 	}
@@ -867,6 +908,13 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 8px;
+	}
+	.input-actions-right {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
 	}
 	.input-icon-btn {
 		width: 24px;
@@ -933,34 +981,6 @@
 		svg {
 			width: 14px;
 			height: 14px;
-		}
-	}
-	.btn-stop {
-		width: 30px;
-		height: 30px;
-		border-radius: 8px;
-		background: #fff;
-		border: 1px solid #e5e7eb;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-		transition:
-			background 0.15s,
-			box-shadow 0.15s;
-		&:hover {
-			background: #fef2f2;
-			border-color: #fca5a5;
-			box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
-		}
-		.stop-icon {
-			width: 10px;
-			height: 10px;
-			border-radius: 2px;
-			background: #ef4444;
-			display: block;
 		}
 	}
 	.welcome-msg {

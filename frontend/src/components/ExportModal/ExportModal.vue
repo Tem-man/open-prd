@@ -51,15 +51,8 @@
 			<div class="modal-card">
 				<div class="modal-header">
 					<span class="modal-title">导出 PRD</span>
-					<button class="modal-close" @click="close">
-						<svg viewBox="0 0 16 16" fill="none">
-							<path
-								d="M4 4l8 8M12 4l-8 8"
-								stroke="currentColor"
-								stroke-width="1.5"
-								stroke-linecap="round"
-							/>
-						</svg>
+					<button class="modal-close" @click="close" title="关闭">
+						<icon-lucide-x />
 					</button>
 				</div>
 				<p class="modal-desc">选择导出格式，将 PRD 下载到本地：</p>
@@ -75,7 +68,9 @@
 							value="html"
 							v-model="exportFormat"
 						/>
-						<div class="format-icon">🌐</div>
+						<div class="format-icon html">
+							<icon-lucide-globe />
+						</div>
 						<div class="format-info">
 							<strong>HTML 网页</strong>
 							<span>完整的交互式网页，保留所有样式和图表</span>
@@ -96,7 +91,9 @@
 							value="markdown"
 							v-model="exportFormat"
 						/>
-						<div class="format-icon">📝</div>
+						<div class="format-icon markdown">
+							<icon-lucide-file-pen />
+						</div>
 						<div class="format-info">
 							<strong>Markdown</strong>
 							<span>纯文本格式，适合导入 Notion、GitHub 等</span>
@@ -109,7 +106,9 @@
 
 					<label class="format-item" :class="{ active: exportFormat === 'pdf' }">
 						<input type="radio" name="fmt" value="pdf" v-model="exportFormat" />
-						<div class="format-icon">📄</div>
+						<div class="format-icon pdf">
+							<icon-lucide-file-text />
+						</div>
 						<div class="format-info">
 							<strong>PDF 文档</strong>
 							<span>适合打印和正式交付的版式文档</span>
@@ -181,8 +180,8 @@
 		}
 
 		svg {
-			width: 14px;
-			height: 14px;
+			width: 16px;
+			height: 16px;
 		}
 	}
 
@@ -226,8 +225,29 @@
 	}
 
 	.format-icon {
-		font-size: 20px;
+		width: 20px;
+		height: 20px;
 		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		svg {
+			width: 20px;
+			height: 20px;
+		}
+
+		&.html {
+			color: #2563eb;
+		}
+
+		&.markdown {
+			color: #ea580c;
+		}
+
+		&.pdf {
+			color: var(--color-primary);
+		}
 	}
 
 	.format-info {

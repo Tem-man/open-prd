@@ -186,7 +186,20 @@ async function consumeStream(
 							"\n\n⚠️ 检测到以下潜在问题，部分图表可能无法正常渲染：\n" +
 							evt.warnings.map((w) => `• ${w}`).join("\n");
 					}
-					messagesStore.addStaticAssistantMessage(sessionId, successMsg);
+					// 会话包含「原型设计依据」模块时，引导用户据此生成原型稿
+					const hasPrototypeBasis = messagesStore.workflowSteps.some(
+						(s) => s.id === "prototype",
+					);
+					if (hasPrototypeBasis) {
+						successMsg +=
+							"\n\n💡 这份 PRD 已包含「原型设计依据」模块，可以直接据此生成原型稿。";
+						messagesStore.addStaticAssistantMessage(sessionId, successMsg, {
+							type: "create-prototype",
+							label: "使用此 PRD 生成原型稿",
+						});
+					} else {
+						messagesStore.addStaticAssistantMessage(sessionId, successMsg);
+					}
 				} else if (evt.type === "error" && evt.message) {
 					showToast(evt.message);
 					if (evt.retryable) {

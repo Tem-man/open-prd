@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watchEffect } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
 import { useWindowSize } from '@vueuse/core'
 import { tv } from 'tailwind-variants'
 
@@ -7,7 +7,7 @@ import { getFrameTransitionStyle } from '@open-pencil/core/prototype'
 import { useI18n } from '@open-pencil/vue'
 
 import { getActiveEditorStoreOrNull } from '@/app/editor/active-store'
-import { exitPresentMode } from '@/app/prototype/present-mode'
+import { exitPresentMode, type PresentZoomMode } from '@/app/prototype/present-mode'
 import { usePresentSession } from '@/app/prototype/session'
 import PrototypeFrame from '@/components/prototype/PrototypeFrame.vue'
 import PrototypeOverlay from '@/components/prototype/PrototypeOverlay.vue'
@@ -58,13 +58,47 @@ const styles = computed(() =>
   tv(theme)({ interactive: session?.isInteractiveHover.value ?? false })
 )
 
-/** Shrink oversized frames to fit the window. Baked into the Skia transform, so still crisp. */
+const zoomMode = ref<PresentZoomMode>('fit')
+/** A manual pick in the toolbar pins the mode and stops the per-frame smart default. */
+let zoomModePinned = false
+
+function setZoomMode(mode: PresentZoomMode) {
+  zoomMode.value = mode
+  zoomModePinned = true
+}
+
+function availableStageSize() {
+  return {
+    width: Math.max(1, windowWidth.value - STAGE_MARGIN * 2),
+    height: Math.max(1, windowHeight.value - STAGE_MARGIN * 2)
+  }
+}
+
+/*
+ * Frames still taller than the window at fit-width scale (long-scroll pages) default to
+ * fill-width so they stay readable; everything else defaults to fitting the whole window.
+ */
+watch(
+  currentFrameId,
+  () => {
+    if (zoomModePinned) return
+    const frame = currentFrame.value
+    if (!frame) return
+    const available = availableStageSize()
+    const fillWidthScale = Math.min(1, available.width / frame.width)
+    zoomMode.value = frame.height * fillWidthScale > available.height ? 'fill-width' : 'fit'
+  },
+  { immediate: true }
+)
+
+/** Never upscales except in `actual` mode. Baked into the Skia transform, so still crisp. */
 const scale = computed(() => {
   const frame = currentFrame.value
   if (!frame) return 1
-  const availableWidth = Math.max(1, windowWidth.value - STAGE_MARGIN * 2)
-  const availableHeight = Math.max(1, windowHeight.value - STAGE_MARGIN * 2)
-  return Math.min(1, availableWidth / frame.width, availableHeight / frame.height)
+  const available = availableStageSize()
+  if (zoomMode.value === 'actual') return 1
+  if (zoomMode.value === 'fill-width') return Math.min(1, available.width / frame.width)
+  return Math.min(1, available.width / frame.width, available.height / frame.height)
 })
 
 const stageStyle = computed(() => {
@@ -102,56 +136,60 @@ function onBaseFrameClick(x: number, y: number) {
 
 <template>
   <div data-test-id="present-root" :class="styles.root()">
-    <div
-      v-if="currentFrame"
-      data-slot="prototype-stage"
-      :class="styles.stage()"
-      :style="stageStyle"
-    >
-      <PrototypeFrame
-        v-if="previousFrame && transition"
-        class="absolute top-0 left-0"
-        :style="frameTransitionStyle('from')"
-        :frame-id="previousFrame.id"
-        :scale="scale"
-        :width="previousFrame.width"
-        :height="previousFrame.height"
-      />
-      <PrototypeFrame
-        class="absolute top-0 left-0"
-        :style="frameTransitionStyle('to')"
-        :frame-id="currentFrame.id"
-        :scale="scale"
-        :width="currentFrame.width"
-        :height="currentFrame.height"
-        @frame-click="onBaseFrameClick"
-        @frame-pointer-move="(x, y) => session?.onFramePointerMove(currentFrameId, x, y)"
-        @frame-pointer-leave="session?.onFramePointerLeave()"
-      />
+    <div :class="styles.scroll()">
+      <div
+        v-if="currentFrame"
+        data-slot="prototype-stage"
+        :class="styles.stage()"
+        :style="stageStyle"
+      >
+        <PrototypeFrame
+          v-if="previousFrame && transition"
+          class="absolute top-0 left-0"
+          :style="frameTransitionStyle('from')"
+          :frame-id="previousFrame.id"
+          :scale="scale"
+          :width="previousFrame.width"
+          :height="previousFrame.height"
+        />
+        <PrototypeFrame
+          class="absolute top-0 left-0"
+          :style="frameTransitionStyle('to')"
+          :frame-id="currentFrame.id"
+          :scale="scale"
+          :width="currentFrame.width"
+          :height="currentFrame.height"
+          @frame-click="onBaseFrameClick"
+          @frame-pointer-move="(x, y) => session?.onFramePointerMove(currentFrameId, x, y)"
+          @frame-pointer-leave="session?.onFramePointerLeave()"
+        />
 
-      <PrototypeOverlay
-        v-for="overlay in overlays"
-        :key="overlay.frameId"
-        :frame-id="overlay.frameId"
-        :position="overlay.position"
-        :scale="scale"
-        @backdrop-click="session?.onBackdropClick()"
-        @frame-click="(x, y) => session?.onFrameClick(overlay.frameId, x, y)"
-        @frame-pointer-move="(x, y) => session?.onFramePointerMove(overlay.frameId, x, y)"
-        @frame-pointer-leave="session?.onFramePointerLeave()"
-      />
+        <PrototypeOverlay
+          v-for="overlay in overlays"
+          :key="overlay.frameId"
+          :frame-id="overlay.frameId"
+          :position="overlay.position"
+          :scale="scale"
+          @backdrop-click="session?.onBackdropClick()"
+          @frame-click="(x, y) => session?.onFrameClick(overlay.frameId, x, y)"
+          @frame-pointer-move="(x, y) => session?.onFramePointerMove(overlay.frameId, x, y)"
+          @frame-pointer-leave="session?.onFramePointerLeave()"
+        />
+      </div>
+
+      <p v-else class="text-sm text-muted">{{ dialogs.noPrototypeFrames }}</p>
     </div>
-
-    <p v-else class="text-sm text-muted">{{ dialogs.noPrototypeFrames }}</p>
 
     <PrototypeToolbar
       v-if="session"
       :frames="frames"
       :current-frame-id="currentFrameId"
       :can-go-back="canGoBack"
+      :zoom-mode="zoomMode"
       @show-frame="session.showFrame"
       @back="session.back"
       @exit="exit"
+      @update-zoom-mode="setZoomMode"
     />
   </div>
 </template>

@@ -16,6 +16,7 @@ import * as architecture from "./modules/architecture.js";
 import * as flowchart from "./modules/flowchart.js";
 import * as infoArch from "./modules/infoArch.js";
 import * as dataModel from "./modules/dataModel.js";
+import * as prototypeBasis from "./modules/prototypeBasis.js";
 import * as custom from "./modules/custom.js";
 
 type Generator = { generate: (section: SectionOutline) => Promise<string> };
@@ -28,6 +29,7 @@ const BUILTIN_MODULE_MAP: Record<string, Generator> = {
 	flowchart,
 	infoArch,
 	dataModel,
+	prototypeBasis,
 };
 
 function resolveGenerator(sectionId: SectionId): Generator {

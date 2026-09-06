@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type {
 	Message,
+	MessageAction,
 	PipelineState,
 	Question,
 	QuestionForm,
@@ -20,6 +21,7 @@ const MODULE_TO_STEP_ID: Record<string, string> = {
 	flowchart: "flow",
 	infoArch: "infoarch",
 	dataModel: "datamodel",
+	prototypeBasis: "prototype",
 };
 
 /** section id（后端 outline key）→ WorkflowStep id */
@@ -31,6 +33,7 @@ const SECTION_TO_STEP: Record<string, string> = {
 	flowchart: "flow",
 	infoArch: "infoarch",
 	dataModel: "datamodel",
+	prototypeBasis: "prototype",
 };
 
 /** 中断标记正则（与后端 pipelineState.ts 保持一致） */
@@ -343,7 +346,11 @@ export const useMessagesStore = defineStore("messages", () => {
 		];
 	}
 
-	function addStaticAssistantMessage(sessionId: string, content: string) {
+	function addStaticAssistantMessage(
+		sessionId: string,
+		content: string,
+		action?: MessageAction,
+	) {
 		messages.value.push({
 			id: `sys-${Date.now()}`,
 			sessionId,
@@ -351,6 +358,7 @@ export const useMessagesStore = defineStore("messages", () => {
 			content,
 			createdAt: Date.now(),
 			isStreaming: false,
+			action,
 		});
 	}
 

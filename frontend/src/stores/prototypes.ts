@@ -40,11 +40,11 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 		return new Uint8Array(buf);
 	}
 
-	async function createPrototype(title = "") {
+	async function createPrototype(title = "", sessionId?: string) {
 		const res = await fetch("/api/prototypes", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ title }),
+			body: JSON.stringify(sessionId ? { title, sessionId } : { title }),
 		});
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({ error: "创建失败" }));

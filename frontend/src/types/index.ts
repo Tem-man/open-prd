@@ -87,6 +87,13 @@ export interface Message {
 	formSubmitted?: boolean;
 	/** 刷新后还原的已选答案（questionId → 选项或文本） */
 	formAnswers?: Record<string, string | string[]>;
+	/** 消息附带的动作按钮（如 PRD 完成后引导生成原型稿） */
+	action?: MessageAction;
+}
+
+export interface MessageAction {
+	type: "create-prototype";
+	label: string;
 }
 
 export interface PrdOutlineSection {
@@ -118,5 +125,6 @@ export const DEFAULT_WORKFLOW_STEPS: WorkflowStep[] = [
 	{ id: "flow", label: "业务流程", status: "pending" },
 	{ id: "infoarch", label: "信息架构", status: "pending" },
 	{ id: "datamodel", label: "数据模型", status: "pending" },
+	{ id: "prototype", label: "原型设计依据", status: "pending" },
 	{ id: "output", label: "输出 PRD", status: "pending" },
 ];

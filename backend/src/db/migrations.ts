@@ -118,4 +118,25 @@ export function runMigrations(db: Database.Database): void {
 		db.exec(CREATE_PROTOTYPES_UPDATED_INDEX);
 		db.pragma("user_version = 8");
 	}
+
+	if (version < 9) {
+		// 播种第 8 个内置模块「原型设计依据」（老库补插；新库 v1 已播种 id/name）
+		const description =
+			"面向原型设计 AI 代理的结构化设计依据：页面清单、页面详情、导航关系与设计规范";
+		db.prepare(
+			"INSERT OR IGNORE INTO module_templates (id, name, description, skill_name, render_type, is_builtin, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)",
+		).run(
+			"prototypeBasis",
+			"原型设计依据",
+			description,
+			"skill-prd-prototype",
+			"html",
+			Date.now(),
+		);
+		// 全新库路径：v1 播种仅写入 id/name，这里补齐 skill_name / render_type / description
+		db.prepare(
+			"UPDATE module_templates SET skill_name = ?, render_type = ?, description = ? WHERE id = ? AND is_builtin = 1",
+		).run("skill-prd-prototype", "html", description, "prototypeBasis");
+		db.pragma("user_version = 9");
+	}
 }
