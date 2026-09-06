@@ -263,21 +263,37 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
 > 具体设计稿参见 `docs/assets/images/`。
 
+### 图标
+
+- **优先使用 Lucide**，除Lucide 无对应图形时外。
+- **接入方式**：`unplugin-icons` + `@iconify-json/lucide`（构建期编译为内联 SVG，无 CDN / HTTPS 外链）。不要安装 `@lucide/vue` / `lucide-vue-next`。
+- **写法**：模板中直接使用自动导入标签，无需 `import`：
+
+```vue
+<icon-lucide-download />
+<icon-lucide-globe />
+<icon-lucide-x />
+```
+
+- 图标名与 [Lucide](https://lucide.dev/icons) / [Iconify lucide](https://icon-sets.iconify.design/lucide/) 一致，前缀固定为 `icon-lucide-`（如 `file-text` → `<icon-lucide-file-text />`）。
+- 自动导入范围见 `frontend/vite.config.ts` 的 `IconsResolver`（覆盖 `src/pencil/components` 与 `src/components`）。
+- 原型画布里插入的设计素材图标走 `packages/core` 的 Iconify API（`prefix:name`，如 `lucide:heart`），与上述 UI 图标链路不同，不要混用。
+
 ---
 
 ## PRD 文档结构
 
 生成的 PRD 包含以下 8 个模块（默认结构，支持用户自定义）：
 
-| #   | 模块         | 说明                                                         |
-| --- | ------------ | ------------------------------------------------------------ |
-| 1   | 背景与目标   | 业务痛点、SMART 目标                                         |
-| 2   | 用户与场景   | 用户画像、使用场景                                           |
-| 3   | 功能清单     | 功能模块 × 功能点 × 优先级表格                               |
-| 4   | 产品架构     | Mermaid `graph TB` 分层架构图                                |
-| 5   | 业务流程     | Mermaid `flowchart TD` 流程图                                |
-| 6   | 信息架构     | markmap.js 思维导图                                          |
-| 7   | 数据模型     | Mermaid `erDiagram` ER 图 + 实体说明表格                     |
+| #   | 模块         | 说明                                                                       |
+| --- | ------------ | -------------------------------------------------------------------------- |
+| 1   | 背景与目标   | 业务痛点、SMART 目标                                                       |
+| 2   | 用户与场景   | 用户画像、使用场景                                                         |
+| 3   | 功能清单     | 功能模块 × 功能点 × 优先级表格                                             |
+| 4   | 产品架构     | Mermaid `graph TB` 分层架构图                                              |
+| 5   | 业务流程     | Mermaid `flowchart TD` 流程图                                              |
+| 6   | 信息架构     | markmap.js 思维导图                                                        |
+| 7   | 数据模型     | Mermaid `erDiagram` ER 图 + 实体说明表格                                   |
 | 8   | 原型设计依据 | 页面清单、页面详情、导航关系与设计规范（供原型设计 AI 代理生成原型稿使用） |
 
 ---
@@ -380,6 +396,7 @@ CREATE TABLE prds (
 - 使用 TypeScript，开启严格模式（`strict: true`）
 - Vue 组件使用 Composition API + `<script setup>` 语法
 - 样式使用 CSS 变量管理主题色，遵循上方色彩系统
+- **图标优先使用 Lucide**（`<icon-lucide-*>`），详见「前端样式规范 / 图标」
 - 文件命名：组件使用 PascalCase，工具函数使用 camelCase
 - 代码书写要模块化，组件化
 - 提交前确保 `pnpm lint` 和 `pnpm typecheck` 通过
@@ -412,9 +429,9 @@ CREATE TABLE prds (
 
 ### 类型检查
 
-| 命令 | 范围 |
-| --- | --- |
-| `pnpm --filter frontend typecheck` | 业务代码（严格），会顺着导入一并检查用到的引擎源码 |
+| 命令                                      | 范围                                                              |
+| ----------------------------------------- | ----------------------------------------------------------------- |
+| `pnpm --filter frontend typecheck`        | 业务代码（严格），会顺着导入一并检查用到的引擎源码                |
 | `pnpm --filter frontend typecheck:pencil` | `packages/*/src` 与 `src/pencil` 全量（放宽了未使用变量等风格项） |
 
 ### 已知未完成项
