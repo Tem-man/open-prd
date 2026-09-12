@@ -43,6 +43,24 @@ export const usePrdEditStore = defineStore('prdEdit', () => {
     sections.value = list
   }
 
+  /**
+   * 从后端拉取当前工作区模块内容。
+   * PrdPanel 初始化与版本切换/新建/删除后均通过它刷新；会同时清理进行中的编辑态。
+   */
+  async function loadSections(sessionId: string) {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/prd/sections`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setSections(data.sections)
+      editingSection.value = null
+      editingHtml.value = null
+      htmlGetter.value = null
+    } catch (e) {
+      console.error('Failed to load sections:', e)
+    }
+  }
+
   function startEdit(sectionId: string) {
     const sec = sections.value.find((s) => s.sectionId === sectionId)
     if (!sec) return
@@ -144,6 +162,7 @@ export const usePrdEditStore = defineStore('prdEdit', () => {
     aiStreamBuffer,
     htmlGetter,
     setSections,
+    loadSections,
     startEdit,
     cancelEdit,
     setEditingHtml,

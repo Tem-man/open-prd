@@ -3,9 +3,11 @@
 	import { useRoute } from "vue-router";
 	import NavBar from "@/components/NavBar/NavBar.vue";
 	import ExportModal from "@/components/ExportModal/ExportModal.vue";
+	import VersionDrawer from "@/components/VersionDrawer.vue";
 	import PencilSettingsHost from "@/pencil/PencilSettingsHost.vue";
 
 	const showExport = ref(false);
+	const showVersions = ref(false);
 	const route = useRoute();
 	const showNavBar = computed(
 		() => route.name !== "prototype" && route.name !== "prototype-present",
@@ -14,11 +16,16 @@
 
 <template>
 	<div class="app">
-		<NavBar v-if="showNavBar" @open-export="showExport = true" />
+		<NavBar
+			v-if="showNavBar"
+			@open-export="showExport = true"
+			@open-versions="showVersions = true"
+		/>
 		<div class="g-body" :class="{ 'no-nav': !showNavBar }">
 			<RouterView />
 		</div>
 		<ExportModal v-model="showExport" />
+		<VersionDrawer v-model="showVersions" />
 		<PencilSettingsHost />
 	</div>
 </template>

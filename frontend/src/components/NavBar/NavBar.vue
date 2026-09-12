@@ -7,6 +7,7 @@
 
 	const emit = defineEmits<{
 		openExport: [];
+		openVersions: [];
 	}>();
 
 	const route = useRoute();
@@ -19,6 +20,8 @@
 	const hasPrd = computed(
 		() => !!messagesStore.prdReady && !!messagesStore.prdHtml,
 	);
+	/** 版本管理入口：只要求 PRD 记录存在（空白版本 html 为空也需可切回其他版本） */
+	const hasVersionsEntry = computed(() => !!messagesStore.prdReady);
 
 	const editingTitle = ref(false);
 	const titleRef = ref<HTMLElement | null>(null);
@@ -106,12 +109,20 @@
 		</div>
 
 		<div class="g-nav__right">
-			<template v-if="isSessionPage && hasPrd">
-				<button class="btn-export" @click="emit('openExport')">
-					<icon-lucide-download />
-					导出
-				</button>
-			</template>
+		<template v-if="isSessionPage">
+			<button
+				v-if="hasVersionsEntry"
+				class="btn-versions"
+				@click="emit('openVersions')"
+			>
+				<icon-lucide-history />
+				版本
+			</button>
+			<button v-if="hasPrd" class="btn-export" @click="emit('openExport')">
+				<icon-lucide-download />
+				导出
+			</button>
+		</template>
 
 			<button
 				v-if="!isSessionPage"
@@ -264,6 +275,32 @@
 		&.btn-back svg {
 			width: 15px;
 			height: 15px;
+		}
+	}
+
+	.btn-versions {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		padding: 6px 14px;
+		background: #fff;
+		color: var(--color-primary);
+		border: 1px solid var(--color-primary);
+		border-radius: var(--radius-btn-sm);
+		font-size: 13px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.15s;
+		white-space: nowrap;
+		flex-shrink: 0;
+
+		&:hover {
+			background: #eef2ff;
+		}
+
+		svg {
+			width: 14px;
+			height: 14px;
 		}
 	}
 

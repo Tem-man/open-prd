@@ -128,3 +128,15 @@ export const DEFAULT_WORKFLOW_STEPS: WorkflowStep[] = [
 	{ id: "prototype", label: "原型设计依据", status: "pending" },
 	{ id: "output", label: "输出 PRD", status: "pending" },
 ];
+
+// ─── PRD 版本管理（Figma Page 模型）──────────────────────────────────────────
+
+export interface PrdVersionMeta {
+	id: string;
+	version: number;
+	label: string;
+	source: "snapshot" | "blank" | "clone";
+	isActive: boolean;
+	createdAt: number;
+	updatedAt: number;
+}

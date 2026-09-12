@@ -41,6 +41,15 @@ import {
 } from "../services/llm.js";
 import { parse as parseHtml } from "node-html-parser";
 import { loadSkill } from "../services/skillLoader.js";
+import {
+	listPrdVersions,
+	getPrdVersionRow,
+	createPrdVersion,
+	activatePrdVersion,
+	forkSessionFromVersion,
+	deletePrdVersion,
+	renamePrdVersion,
+} from "../services/prdVersions.js";
 
 function readLlmFromBody(body: unknown): LlmRuntimeConfig | undefined {
 	const llm = (body as { llm?: unknown } | null | undefined)?.llm;
@@ -1050,6 +1059,114 @@ router.get("/:id/prd/sections", (req, res) => {
 			version: r.version,
 		})),
 	});
+});
+
+// ─── PRD 版本管理（Figma Page 模型，见 docs/plan-prd-version-management.md） ──
+
+/** 工具：取当前会话最新 PRD 的 id */
+function findPrdId(sessionId: string): string | undefined {
+	const db = getDb();
+	const prd = db
+		.prepare("SELECT id FROM prds WHERE session_id = ? ORDER BY created_at DESC LIMIT 1")
+		.get(sessionId) as { id: string } | undefined;
+	return prd?.id;
+}
+
+/** 工具：校验版本行属于该会话的 PRD，防止跨会话操作 */
+function findVersionInPrd(versionId: string, prdId: string) {
+	const row = getPrdVersionRow(versionId);
+	return row && row.prd_id === prdId ? row : undefined;
+}
+
+// GET /api/sessions/:id/prd/versions — 版本列表（version DESC）
+router.get("/:id/prd/versions", (req, res) => {
+	const sessionId = req.params.id;
+	const prdId = findPrdId(sessionId);
+	if (!prdId) {
+		res.status(404).json({ error: "PRD not found for this session" });
+		return;
+	}
+	res.json({ versions: listPrdVersions(prdId, sessionId) });
+});
+
+// POST /api/sessions/:id/prd/versions — 新增版本 { label?, mode: 'duplicate' | 'blank' }
+router.post("/:id/prd/versions", (req, res) => {
+	const sessionId = req.params.id;
+	const prdId = findPrdId(sessionId);
+	if (!prdId) {
+		res.status(404).json({ error: "PRD not found for this session" });
+		return;
+	}
+	const label = (req.body?.label as string | undefined)?.trim() ?? "";
+	const mode = req.body?.mode as string | undefined;
+	if (mode !== "duplicate" && mode !== "blank") {
+		res.status(400).json({ error: "mode must be 'duplicate' or 'blank'" });
+		return;
+	}
+	const result = createPrdVersion(prdId, sessionId, { label, mode });
+	res.json(result);
+});
+
+// POST /api/sessions/:id/prd/versions/:vid/activate — 切换版本（写回旧版本 + 重建工作区）
+router.post("/:id/prd/versions/:vid/activate", (req, res) => {
+	const sessionId = req.params.id;
+	const prdId = findPrdId(sessionId);
+	if (!prdId) {
+		res.status(404).json({ error: "PRD not found for this session" });
+		return;
+	}
+	if (!findVersionInPrd(req.params.vid, prdId)) {
+		res.status(404).json({ error: "Version not found" });
+		return;
+	}
+	res.json(activatePrdVersion(req.params.vid, sessionId));
+});
+
+// POST /api/sessions/:id/prd/versions/:vid/clone — 克隆为新会话
+router.post("/:id/prd/versions/:vid/clone", (req, res) => {
+	const sessionId = req.params.id;
+	const prdId = findPrdId(sessionId);
+	if (!prdId) {
+		res.status(404).json({ error: "PRD not found for this session" });
+		return;
+	}
+	if (!findVersionInPrd(req.params.vid, prdId)) {
+		res.status(404).json({ error: "Version not found" });
+		return;
+	}
+	res.json(forkSessionFromVersion(req.params.vid, sessionId));
+});
+
+// DELETE /api/sessions/:id/prd/versions/:vid — 物理删除版本
+router.delete("/:id/prd/versions/:vid", (req, res) => {
+	const sessionId = req.params.id;
+	const prdId = findPrdId(sessionId);
+	if (!prdId) {
+		res.status(404).json({ error: "PRD not found for this session" });
+		return;
+	}
+	if (!findVersionInPrd(req.params.vid, prdId)) {
+		res.status(404).json({ error: "Version not found" });
+		return;
+	}
+	res.json(deletePrdVersion(req.params.vid, sessionId));
+});
+
+// PATCH /api/sessions/:id/prd/versions/:vid — 重命名版本备注 { label }
+router.patch("/:id/prd/versions/:vid", (req, res) => {
+	const sessionId = req.params.id;
+	const prdId = findPrdId(sessionId);
+	if (!prdId) {
+		res.status(404).json({ error: "PRD not found for this session" });
+		return;
+	}
+	if (!findVersionInPrd(req.params.vid, prdId)) {
+		res.status(404).json({ error: "Version not found" });
+		return;
+	}
+	const label = (req.body?.label as string | undefined)?.trim() ?? "";
+	renamePrdVersion(req.params.vid, label);
+	res.json({ ok: true });
 });
 
 // ─── PATCH /api/sessions/:id/prd/sections/:sectionId ─────────────────────────

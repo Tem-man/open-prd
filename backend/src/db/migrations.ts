@@ -4,6 +4,9 @@ import {
 	BUILTIN_MODULES,
 	CREATE_PRD_SECTIONS_TABLE,
 	CREATE_PRD_SECTIONS_INDEX,
+	CREATE_PRD_VERSIONS_TABLE,
+	CREATE_PRD_VERSIONS_INDEX,
+	CREATE_PRD_VERSIONS_ACTIVE_INDEX,
 	CREATE_SKILL_VERSIONS_TABLE,
 	CREATE_SKILL_VERSIONS_INDEX,
 	CREATE_PROTOTYPES_TABLE,
@@ -138,5 +141,34 @@ export function runMigrations(db: Database.Database): void {
 			"UPDATE module_templates SET skill_name = ?, render_type = ?, description = ? WHERE id = ? AND is_builtin = 1",
 		).run("skill-prd-prototype", "html", description, "prototypeBasis");
 		db.pragma("user_version = 9");
+	}
+
+	if (version < 10) {
+		db.exec(CREATE_PRD_VERSIONS_TABLE);
+		db.exec(CREATE_PRD_VERSIONS_INDEX);
+		db.exec(CREATE_PRD_VERSIONS_ACTIVE_INDEX);
+		db.pragma("user_version = 10");
+	}
+
+	if (version < 11) {
+		// prd_versions 增加对话快照列（对话随版本走）；全新库的建表语句已含该列，需防重
+		const cols = db.prepare("PRAGMA table_info(prd_versions)").all() as Array<{
+			name: string;
+		}>;
+		if (!cols.some((c) => c.name === "messages_json")) {
+			db.exec(
+				"ALTER TABLE prd_versions ADD COLUMN messages_json TEXT NOT NULL DEFAULT '[]'",
+			);
+			// 回填：存量版本行用其会话当前对话近似（仅影响升级前创建的版本）
+			db.exec(`
+				UPDATE prd_versions SET messages_json = COALESCE((
+					SELECT json_group_array(json_object('role', m.role, 'content', m.content, 'created_at', m.created_at))
+					FROM (SELECT role, content, created_at FROM messages m
+					      WHERE m.session_id = prd_versions.session_id ORDER BY m.created_at ASC) AS m
+				), '[]')
+				WHERE messages_json = '[]'
+			`);
+		}
+		db.pragma("user_version = 11");
 	}
 }

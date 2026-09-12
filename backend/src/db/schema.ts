@@ -124,6 +124,56 @@ ON prd_sections (prd_id, section_id, is_current)
 `;
 
 /**
+ * PRD 版本表（Figma Page 模型：每个版本是一份独立文档）。
+ * is_active = 1 表示当前打开在工作区（prds.html + prd_sections）的版本；
+ * 非激活版本的权威内容存放于本行的 html + sections_json。
+ * 详见 docs/plan-prd-version-management.md。
+ */
+export const CREATE_PRD_VERSIONS_TABLE = `
+CREATE TABLE IF NOT EXISTS prd_versions (
+  id            TEXT    PRIMARY KEY,
+  prd_id        TEXT    NOT NULL REFERENCES prds(id) ON DELETE CASCADE,
+  session_id    TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  version       INTEGER NOT NULL,
+  label         TEXT    NOT NULL DEFAULT '',
+  source        TEXT    NOT NULL,
+  html          TEXT    NOT NULL,
+  sections_json TEXT    NOT NULL,
+  messages_json TEXT    NOT NULL DEFAULT '[]',
+  is_active     INTEGER NOT NULL DEFAULT 0,
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL
+)
+`;
+
+export const CREATE_PRD_VERSIONS_INDEX = `
+CREATE INDEX IF NOT EXISTS idx_prd_versions_lookup
+ON prd_versions (prd_id, version DESC)
+`;
+
+/** 每篇 PRD 至多一个激活版本（部分唯一索引） */
+export const CREATE_PRD_VERSIONS_ACTIVE_INDEX = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prd_versions_active
+ON prd_versions (prd_id) WHERE is_active = 1
+`;
+
+export interface PrdVersionRow {
+	id: string;
+	prd_id: string;
+	session_id: string;
+	version: number;
+	label: string;
+	source: "snapshot" | "blank" | "clone";
+	html: string;
+	sections_json: string;
+	/** 该版本的对话记录快照（对话随版本走，切换时随工作区一起重建） */
+	messages_json: string;
+	is_active: 0 | 1;
+	created_at: number;
+	updated_at: number;
+}
+
+/**
  * Skill 版本历史表。
  * 文件系统 SKILL.md 是运行时热副本；DB 存完整版本快照，支持回滚。
  * is_current=1 的记录与文件系统内容始终保持一致。
