@@ -169,6 +169,7 @@ export const useMessagesStore = defineStore("messages", () => {
 				msg.formData.questions,
 				nextUser.content,
 			);
+			nextUser.isFormAnswer = true;
 		}
 
 		messages.value = mapped;

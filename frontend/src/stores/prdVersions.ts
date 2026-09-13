@@ -101,8 +101,8 @@ export const usePrdVersionsStore = defineStore("prdVersions", () => {
 		}
 	}
 
-	/** 克隆为新会话，返回新会话 id */
-	async function cloneVersion(sessionId: string, versionId: string): Promise<string> {
+	/** 克隆为当前会话的新版本：只复制 PRD，不复制对话，并切换过去 */
+	async function cloneVersion(sessionId: string, versionId: string): Promise<void> {
 		mutating.value = true;
 		try {
 			const res = await fetch(
@@ -110,8 +110,9 @@ export const usePrdVersionsStore = defineStore("prdVersions", () => {
 				{ method: "POST" },
 			);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = (await res.json()) as { sessionId: string };
-			return data.sessionId;
+			const data = (await res.json()) as { assembledPrdHtml: string };
+			await refreshWorkspace(data.assembledPrdHtml, sessionId);
+			await fetchVersions(sessionId);
 		} finally {
 			mutating.value = false;
 		}

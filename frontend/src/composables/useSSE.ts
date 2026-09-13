@@ -247,7 +247,11 @@ async function fetchPrdHtml(
 export function useSSE() {
 	const messagesStore = useMessagesStore();
 
-	async function sendMessage(sessionId: string, text: string): Promise<void> {
+	async function sendMessage(
+		sessionId: string,
+		text: string,
+		options?: { isFormAnswer?: boolean },
+	): Promise<void> {
 		const llm = await requirePrdLlmPayload();
 		if (!llm) return;
 
@@ -264,6 +268,7 @@ export function useSSE() {
 			role: "user",
 			content: text,
 			createdAt: Date.now(),
+			isFormAnswer: options?.isFormAnswer || undefined,
 		};
 		messagesStore.addUserMessage(userMsg);
 

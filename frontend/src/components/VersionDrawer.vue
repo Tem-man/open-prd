@@ -2,11 +2,10 @@
 	/**
 	 * VersionDrawer — PRD 版本管理抽屉（左侧弹出）
 	 * Figma Page 模型：每个版本是独立文档，点击版本行即切换工作区内容。
-	 * 支持：切换版本、新增版本（复制当前/空白）、克隆为新会话、删除版本。
+	 * 支持：切换版本、新增版本（复制当前/空白）、克隆为新版本、删除版本。
 	 * 详见 docs/plan-prd-version-management.md
 	 */
 	import { ref, computed, watch, nextTick } from "vue";
-	import { useRouter } from "vue-router";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdVersionsStore } from "@/stores/prdVersions";
 	import type { PrdVersionMeta } from "@/types";
@@ -19,7 +18,6 @@
 		"update:modelValue": [value: boolean];
 	}>();
 
-	const router = useRouter();
 	const sessionsStore = useSessionsStore();
 	const versionsStore = usePrdVersionsStore();
 
@@ -208,16 +206,13 @@
 		}
 	}
 
-	// ── 克隆为新会话 ──
+	// ── 克隆为新版本（仅复制 PRD，不复制对话）──
 	async function confirmClone() {
 		const t = cloneTarget.value;
 		if (!t || !sessionId.value) return;
 		try {
-			const newId = await versionsStore.cloneVersion(sessionId.value, t.id);
+			await versionsStore.cloneVersion(sessionId.value, t.id);
 			cloneTarget.value = null;
-			close();
-			await sessionsStore.fetchSessions();
-			router.push(`/session/${newId}`);
 		} catch {
 			errorMsg.value = "克隆失败，请重试";
 			cloneTarget.value = null;
@@ -336,7 +331,7 @@
 						<div class="version-actions" @click.stop>
 							<button
 								class="icon-btn"
-								title="克隆为新会话"
+								title="克隆为新版本"
 								:disabled="versionsStore.mutating"
 								@click="cloneTarget = v"
 							>
@@ -466,10 +461,10 @@
 				@click.self="cloneTarget = null"
 			>
 				<div class="dialog">
-					<p class="dialog-title">克隆为新会话</p>
+					<p class="dialog-title">克隆为新版本</p>
 					<p class="dialog-text">
-						基于「{{ displayName(cloneTarget) }}」创建一个独立会话？
-						将复制该版本内容与对话记录，原会话不受影响。
+						基于「{{ displayName(cloneTarget) }}」复制 PRD 为新版本？
+						只复制文档内容，不复制对话记录；创建后将切换到该版本并开始空白对话。
 					</p>
 					<div class="dialog-actions">
 						<button class="btn-cancel" @click="cloneTarget = null">取消</button>

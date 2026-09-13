@@ -148,7 +148,18 @@ open-prd/
 ├── backend/                           # Node.js + Express 后端
 │   ├── data/                          # SQLite 库 prd.db（不提交 git）
 │   ├── src/
-│   │   ├── routes/                    # sessions.ts、modules.ts、prototypes.ts
+│   │   ├── routes/                    # Express 路由
+│   │   │   ├── sessions/              # 会话域（CRUD / SSE 对话 / PRD 读写与版本）
+│   │   │   │   ├── index.ts           # 按序 register 子模块，export default router
+│   │   │   │   ├── crud.ts            # 会话增删改查与 PATCH modules
+│   │   │   │   ├── messages.ts        # POST messages / retry（SSE）
+│   │   │   │   ├── prdRead.ts         # GET prd / GET sections
+│   │   │   │   ├── versions.ts        # PRD 版本 6 端点
+│   │   │   │   ├── sectionEdit.ts     # PATCH 模块 AI 改写（实体/元素/全模块）
+│   │   │   │   ├── sectionMutate.ts   # PUT content 与 rollback
+│   │   │   │   └── helpers/           # HTML 补丁、提问表单、section 持久化
+│   │   │   ├── modules.ts
+│   │   │   └── prototypes.ts
 │   │   ├── services/
 │   │   │   ├── agent.ts               # Agent 编排与对话流程
 │   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
@@ -341,7 +352,7 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 | GET  | `/api/sessions/:id/prd/versions` | 版本列表（version DESC）  |
 | POST | `/api/sessions/:id/prd/versions` | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
 | POST | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等） |
-| POST | `/api/sessions/:id/prd/versions/:vid/clone` | 克隆版本为新会话，返回新 `sessionId` |
+| POST | `/api/sessions/:id/prd/versions/:vid/clone` | 克隆为当前会话新版本（只复制 PRD，不复制对话） |
 | DELETE | `/api/sessions/:id/prd/versions/:vid` | 物理删除版本（删激活版本自动切到最新剩余版本） |
 | PATCH | `/api/sessions/:id/prd/versions/:vid` | 重命名版本备注 |
 

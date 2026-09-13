@@ -6,13 +6,13 @@
 > 1. 顶栏 NavBar「导出」**左侧**新增「版本」按钮，点击后从**左侧**弹出抽屉窗；
 > 2. 版本管理采用 **Figma Page 模型**（而非 git checkout 模型）：**每个版本都是一份独立的活文档**，平行共存、各自持续保存；点击版本记录 = 打开该版本（如同切换到另一个 Page），随后可直接在其上编辑；
 > 3. **版本只由用户手动创建**（「新增版本」= 复制当前内容或空白新建），AI 改写 / 手动编辑 / 全量生成等均**不自动产生版本**；唯一例外是**懒引导**——首次拉取版本列表时若 PRD 已有内容但无任何版本，自动物化当前内容为 v1「当前内容」（见 2.2）；
-> 4. 行内操作仅保留 **克隆、删除**，头部保留 **新增版本**。层级分工（与 Figma 一致）：**版本 = 会话内的 Page，会话 = File**——「新增版本」是文件内 Duplicate Page，「克隆」是文件级 Duplicate File，两者是同一复制操作在不同层级上的体现，不冗余（详见 2.3 分工表）：
+> 4. 行内操作仅保留 **克隆、删除**，头部保留 **新增版本**。分工（详见 2.3）：「新增版本」针对当前工作区（复制当前内容或空白）；「克隆」可针对**任意**版本行，只复制 PRD、不复制对话，并在本会话新建版本：
 >    - **点击切换（打开版本）**：工作区内容写回旧版本行后，把目标版本加载进工作区（PRD HTML + `prd_sections` + `selected_modules`），随后可正常 AI 对话改写 / 手动内联编辑 / 模块管理；切换永远无损，无需未保存确认框；
->    - **克隆为新会话（fork）**：以**任意**版本行为基础复制出一个独立新会话（含 PRD、对话记录、模块选择），当前会话不受影响，用于另起独立演进线；
+>    - **克隆为新版本**：以**任意**版本行为基础，只复制 PRD 内容（不复制对话）在本会话新建版本并打开，用于在同一份文档上另起空白对话继续改；
 >    - **新增版本**：作用于**当前工作区**，「空白版本」（默认）或「复制当前内容」（Figma Duplicate Page），创建后即打开；
 >    - **删除**：物理删除该版本记录（不可恢复）；删除激活版本时自动切换到最新剩余版本。
 >
-> 状态：**✅ 已实施**（2026-09-06 完成开发，含懒引导与空白默认两项迭代调整）
+> 状态：**✅ 已实施**（2026-09-06 完成开发；2026-09-12 克隆改为本会话新版本、只复制 PRD 不复制对话）
 
 ---
 
@@ -78,7 +78,7 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 | ---------- | ------------------------------ | -------- |
 | `snapshot` | 「新增版本」选复制当前内容     | 手动版本 |
 | `blank`    | 「新增版本」选空白版本         | 空白     |
-| `clone`    | 克隆 fork 出的新会话的初始版本 | 克隆     |
+| `clone`    | 行内「克隆」复制某版本 PRD 得到的新版本 | 克隆     |
 
 **为什么 `sections_json` 是权威内容而非只靠 `html`**：切换时要用模块数据重建 `prd_sections` 工作区，否则后续模块编辑触发 `reassemblePrd` 会把切换来的内容冲掉（`prd/index.ts` L152–208）；组装 HTML 中 panel 只有序号（见现状盘点），无法可靠反解。
 
@@ -88,7 +88,7 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 | ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | 抽屉「+ 新增版本」→ 复制当前内容     | `snapshot` | 以当前工作区内容为起点创建新版本并打开（Figma Duplicate Page）                                                                            |
 | 抽屉「+ 新增版本」→ 空白版本（默认） | `blank`    | 创建空版本并打开，可随后通过对话重新生成内容                                                                                              |
-| 克隆 fork 新会话的初始版本           | `clone`    | 2.6，新会话的 v1                                                                                                                          |
+| 行内「克隆」                         | `clone`    | 2.6，本会话新版本；只复制 PRD，对话为空                                                                                                   |
 | **懒引导**（`GET /prd/versions` 时） | `snapshot` | PRD 已有内容但无任何版本（如功能上线前的存量会话）时，自动把当前工作区物化为 v1「当前内容」并激活，保证「工作区总有激活版本」的模型一致性 |
 
 **明确不做**：全量生成、单模块重生成、AI 改写、手动内联编辑均**不**自动创建版本；`persistResults`、PATCH、PUT content 等既有链路**零改动**。不设自动保留上限——版本完全由用户创建与删除，规模可控。
@@ -99,21 +99,18 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 | ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------ |
 | **切换（打开版本）**     | 点击版本列表项     | swap：当前工作区写回旧版本行 → 目标版本加载进工作区 → 目标版本标记 `is_active=1`；随后可直接编辑                                                                                           | 是（无损切换）     |
 | **新增版本**             | 头部「+ 新增版本」 | **会话内复制**（Duplicate Page）：复制当前工作区内容（或空白）创建新版本并立即打开；旧版本内容已在此刻写回其版本行                                                                         | 切换到新版本       |
-| **克隆为新会话（fork）** | 行内「克隆」       | **跨会话复制**（Duplicate File）：以该版本为基础创建**独立新会话**（复制 PRD、对话记录、outline、模块选择），前端跳转到新会话；当前会话完全不受影响                                        | 否（作用于新会话） |
+| **克隆为新版本**         | 行内「克隆」       | **会话内复制 PRD**：以该版本的 HTML + 模块内容为基础创建新版本并立即打开；**不复制对话**（新版本 `messages_json = []`，工作区对话清空）；可作用于任意版本行（含历史版本，无需先切换） | 是（切换到新版本，对话为空） |
 | **删除**                 | 行内「删除」       | 物理删除版本行（**不可恢复**）；删除非激活版本不影响工作区；删除激活版本时自动激活最新剩余版本并 swap 过去；删除最后一个版本时工作区内容保留为「未版本化」状态（回到无任何版本的初始形态） | 删除激活版本时切换 |
 
-**「新增版本（复制当前内容）」与「克隆」的层级分工**（消除表象重合）：
+**「新增版本（复制当前内容）」与「克隆」的分工**：
 
-|               | 新增版本（复制当前内容）               | 克隆为新会话                                               |
+|               | 新增版本（复制当前内容）               | 克隆为新版本                                               |
 | ------------- | -------------------------------------- | ---------------------------------------------------------- |
-| Figma 类比    | Duplicate **Page**（文件内复制页面）   | Duplicate **File**（复制整个文件）                         |
-| 作用对象      | 仅当前工作区（激活版本）               | **任意**版本行（含历史版本，无需先切换、不打扰当前工作区） |
-| 对话记录      | 复制当前对话快照（此后各版本独立演进） | 复制该版本对话快照，在新会话中独立演进                     |
-| 结果位置      | 本会话版本列表                         | 历史会话列表中的新条目                                     |
-| 切换/访问成本 | 点击即换（无损秒切）                   | 跨会话跳转                                                 |
-| 典型场景      | 同一需求出 A/B 两版方案对比            | 基于 v{N} 另起一条独立演进线（衍生产品 / 独立需求）        |
-
-> 想基于某个旧版本在本会话内复制？先点击打开它（无损），再「+ 新增版本」即可——无需为此增设行内「另存为新版本」。
+| 作用对象      | 仅当前工作区（激活版本）               | **任意**版本行（含历史版本，无需先切换）                   |
+| 复制内容      | PRD + 当前对话快照                     | **只复制 PRD**，对话为空                                   |
+| 结果位置      | 本会话版本列表                         | 本会话版本列表                                             |
+| 创建后        | 打开新版本（对话沿用副本）             | 打开新版本（空白对话）                                     |
+| 典型场景      | 同一需求出 A/B 两版方案，接着同一路对话 | 基于某版 PRD 另起空白对话继续改，不带上旧讨论               |
 
 ### 2.4 切换（激活版本）设计
 
@@ -140,19 +137,14 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 4. 旧版本 `is_active=0`，新版本 `is_active=1`，`version = MAX(version)+1`；
 5. 响应 `{ id, version, assembledPrdHtml }`。
 
-### 2.6 克隆（fork 新会话）设计
+### 2.6 克隆（本会话新版本）设计
 
 `POST /:id/prd/versions/:vid/clone` 在**单个事务**内完成：
 
-1. 读取目标版本行（`html`、`sections_json`、`version`、`label`）；若克隆的是激活版本，先按 2.4 第 2 步写回，保证内容最新；
-2. 创建新会话：`id = uuid`，`title = 「{原会话标题}」v{N} 分支`，`created_at/updated_at = now`；
-3. **复制 `selected_modules`**：按 `sections_json` 重建（同 2.4 第 4 步）；
-4. **复制 `outline`**：深拷贝原会话 outline，`sessionId` 改为新 id，存在于该版本的模块 `status` 置 `'done'`；
-5. **复制对话记录**：以目标版本的 `messages_json` 快照为准（而非当前工作区 messages——克隆历史版本时带的是该版本自己的对话），写入新会话 `messages` 表（新 id、新 session_id、保持 `created_at` 原值）；末尾追加一条标记消息：`📌 本会话克隆自「{原会话标题}」的 v{N}，可在此基础上继续编辑。`，并一并计入新会话初始版本的 `messages_json`；
-6. 写入新 `prds` 行（`html` = 版本内容）；
-7. 按 `sections_json` 写入新 `prd_sections` 行（`version=1, is_current=1`）；
-8. 写入新会话的初始 `prd_versions` 行（`version=1, source='clone', label='克隆自 v{N}', is_active=1`）——新会话的版本库从 v1 重新开始，**不复制**原会话的版本历史（见「八、待确认决策点」D-2）；
-9. 响应 `{ sessionId }`，前端 `router.push({ name: "session", params: { id: sessionId } })` 跳转到新会话。
+1. 读取目标版本行（`html`、`sections_json`、`version`）；若存在未版本化工作区先 `preserveUnversionedWorkspace`；再按 2.4 第 2 步写回当前激活版本，保证源内容与当前工作区都已持久化；
+2. `version = MAX(version)+1`，写入新 `prd_versions` 行：`html` / `sections_json` 来自目标版本，**`messages_json = []`（不复制对话）**，`source='clone'`，`label='克隆自 v{N}'`，`is_active=1`；旧激活版本 `is_active=0`；
+3. 按 2.4 第 3–6 步用新版本重建工作区——PRD 与源版本一致，对话为空；
+4. 响应 `{ id, version, assembledPrdHtml }`，前端刷新版本列表与工作区（含清空后的对话），**不跳转会话**。
 
 ### 2.7 删除版本设计
 
@@ -174,7 +166,7 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 | GET    | `/api/sessions/:id/prd/versions`               | 版本列表（**不含 html / sections_json**，按 version 倒序）      | `{ versions: [{ id, version, label, source, isActive, createdAt, updatedAt }] }` |
 | POST   | `/api/sessions/:id/prd/versions`               | 新增版本（2.5），body `{ label, mode: "duplicate" \| "blank" }` | `{ id, version, assembledPrdHtml }`                                              |
 | POST   | `/api/sessions/:id/prd/versions/:vid/activate` | 打开（切换到）该版本（2.4）                                     | `{ assembledPrdHtml, activeVersion }`                                            |
-| POST   | `/api/sessions/:id/prd/versions/:vid/clone`    | 克隆 fork 新会话（2.6）                                         | `{ sessionId }`                                                                  |
+| POST   | `/api/sessions/:id/prd/versions/:vid/clone`    | 克隆为当前会话新版本（2.6，只复制 PRD）                     | `{ id, version, assembledPrdHtml }`                                              |
 | DELETE | `/api/sessions/:id/prd/versions/:vid`          | 删除版本（2.7）                                                 | `{ ok: true, activatedVersion?: number \| null, assembledPrdHtml?: string }`     |
 | PATCH  | `/api/sessions/:id/prd/versions/:vid`          | （可选）重命名 label，body `{ label }`                          | `{ version, label }`                                                             |
 
@@ -202,9 +194,9 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 - **版本抽屉**（新组件 `frontend/src/components/VersionDrawer.vue`）：`position: fixed; left: 0` 从左缘滑出（宽约 400px，z-index 高于侧栏），遮罩点击关闭；头部「版本记录」+「+ 新增版本」按钮；列表项含版本号、source 徽章、相对时间、label、`isActive` 时显示「当前」高亮徽章。
   - **点击列表项** → `activateVersion`（点当前项无操作）；抽屉保持打开，可连续点击在版本间切换对比；
   - **空状态**：无版本时显示「暂无版本。点击「+ 新增版本」把当前 PRD 存为第一个版本」；
-  - 行内操作（hover 显示）：「克隆为新会话」`<icon-lucide-copy-plus />`、「删除」`<icon-lucide-trash-2 />`（危险色 `#EF4444`）；
+  - 行内操作（hover 显示）：「克隆为新版本」`<icon-lucide-copy-plus />`、「删除」`<icon-lucide-trash-2 />`（危险色 `#EF4444`）；
   - **版本名称**：列表主标题显示 `label || v{N}`；有自定义名称时旁边附 `v{N}` 小徽章保持可追溯；**双击版本名称进入行内编辑**（输入框预填当前显示名并全选，Enter/失焦保存调 PATCH，Esc 取消；名称与默认 `v{N}` 一致时落库为空 label，展示层回退）；
-  - 「克隆为新会话」→ 确认框：「将以 v{N} 为基础创建**独立新会话**（含对话记录）并跳转，当前会话不受影响」→ 调 clone → 跳转新会话；
+  - 「克隆为新版本」→ 确认框：「将以该版本 PRD 为基础在本会话新建版本（不复制对话）并切换过去」→ 调 clone → 刷新列表与工作区；
   - 「删除」→ 确认框：「删除后不可恢复，确认删除 v{N}？」（删除激活版本时追加提示「将自动切换到 v{M}」）→ 调 DELETE → 刷新列表与工作区；
   - 「+ 新增版本」→ 弹窗：**版本名称输入框预填下一个默认名（如 `v5`）并自动聚焦全选，用户可立即输入覆盖**，回车可提交；方式选择（**空白版本**（默认，说明：「创建空白版本并切换过去，当前内容保留在原版本中」）/ **复制当前内容**（说明：「在本会话内创建内容相同的平行版本」））→ 调 POST versions。
 - **PrdPanel 无预览态**：不新增横幅与预览 iframe 分支；唯一改动是把 L28–57 拉取 sections 的逻辑下沉为 `prdEditStore.loadSections(sessionId)`，供其自身 watch 与切换/新增/删除后刷新复用。
@@ -242,7 +234,7 @@ if (version < 10) {
 - `listPrdVersions(prdId)`（不含 html / sections_json）；
 - `createPrdVersion(prdId, sessionId, { label, mode })`（2.5 事务全流程）；
 - `activatePrdVersion(versionId, sessionId)`（2.4 事务全流程：写回旧版本 → 重建工作区 → 同步 selected_modules / outline → 翻转 is_active）；
-- `forkSessionFromVersion(versionId, sessionId)`（2.6 事务全流程，返回新 sessionId）；
+- `clonePrdVersion(versionId, sessionId)`（2.6 事务全流程，返回新版本 id / version / assembledPrdHtml）；
 - `deletePrdVersion(versionId, sessionId)`（2.7 三分支）；
 - 内部工具：`writeBackActiveVersion(prdId)`（2.4 第 2 步）、`loadVersionIntoWorkspace(versionRow, sessionId)`（2.4 第 3–6 步）、`buildSelectedModules(sections)`、`syncOutlineStatus(sessionId, sectionIds | "all-pending")`。
 
@@ -288,9 +280,9 @@ if (version < 10) {
 
 ### Phase 4：克隆 / 新增 / 删除交互闭环
 
-#### 4.1 克隆（fork）
+#### 4.1 克隆为新版本
 
-行内「克隆」→ 确认框 → `cloneVersion` → `router.push` 跳转新会话。
+行内「克隆」→ 确认框 → `cloneVersion` → 刷新列表与工作区（PRD 已复制，对话为空）。
 
 #### 4.2 新增版本
 
@@ -331,7 +323,7 @@ if (version < 10) {
 
 | 文件                                        | 说明                                             |
 | ------------------------------------------- | ------------------------------------------------ |
-| `backend/src/services/prdVersions.ts`       | 版本创建 / 列表 / 激活（swap）/ 克隆 fork / 删除 |
+| `backend/src/services/prdVersions.ts`       | 版本创建 / 列表 / 激活（swap）/ 克隆为新版本 / 删除 |
 | `frontend/src/stores/prdVersions.ts`        | 版本列表、抽屉态、切换中状态管理                 |
 | `frontend/src/components/VersionDrawer.vue` | 左侧版本抽屉（列表 + 确认框 + 新增弹窗）         |
 | `docs/plan-prd-version-management.md`       | 本文件                                           |
@@ -386,7 +378,7 @@ Phase 6（文档同步）                        ← 最后收口
 | T-7  | 点击切换（无损）                   | 在 v2 上做过编辑（未手动存任何版本）→ 直接点 v1：① 无任何确认框；② 工作区切换为 v1 内容；③ 再点回 v2，之前的编辑**完整保留**（切换时已写回 v2 行）；④ `prd_versions` 无新行、对话无新消息                                     |
 | T-8  | 切换一致性                         | 切换后：① 右栏展示目标版本；② `prd_sections` 与目标版本一致（切换后再做模块编辑，内容不被冲掉）；③ `selected_modules` 与「模块管理」Tab 同步；④ 对话历史原样保留                                                              |
 | T-9  | 切换后继续编辑                     | 在打开的版本上执行 AI 改写 / 手动编辑，正常生效并写入工作区；**不自动**产生新版本；切换到其他版本再切回，编辑内容仍在                                                                                                         |
-| T-10 | 克隆（fork）                       | 克隆后跳转到新会话：① 标题为「{原标题}」v{N} 分支；② PRD 内容与目标版本一致；③ 对话记录完整复制且末尾有克隆标记消息；④ 模块管理与原版本一致；⑤ 新会话版本库从 v1（`source='clone'`、`is_active=1`）开始；⑥ 原会话一切数据不变 |
+| T-10 | 克隆为新版本                       | 克隆后仍在本会话：① 版本列表新增 `source='clone'` 行并激活；② PRD 内容与源版本一致；③ 对话记录为空（不复制源版本 messages）；④ 源版本及其对话完整保留；⑤ 可对非激活的历史版本直接克隆，无需先切换 |
 | T-11 | 删除版本                           | ① 删除非激活版本：行消失，工作区不变；② 删除激活版本：自动切换到最新剩余版本并刷新工作区；③ 删除最后一个版本：工作区内容保留，会话回到「无版本」状态；④ 版本号不重排（列表出现空洞）；⑤ 取消确认框则不产生任何变化            |
 | T-12 | 编辑态保护                         | 有未保存的内联编辑时切换 / 新增 / 删除激活版本，先弹确认「切换将丢弃未保存的编辑」                                                                                                                                            |
 | T-13 | 激活唯一性                         | 任意时刻每篇 PRD 至多一个 `is_active=1` 的版本（部分唯一索引兜底，并发/异常下也不会出现两个）                                                                                                                                 |
@@ -404,7 +396,7 @@ Phase 6（文档同步）                        ← 最后收口
 | 误删版本                    | 删除为物理删除，不可恢复                                                          | 确认框二次确认并用危险色强调；删除激活版本时明确提示将自动切换；验收 T-11 覆盖                                                         |
 | 切换后 sections 不一致      | 只覆盖 `prds.html` 会被后续 `reassemblePrd` 冲掉                                  | 2.4 事务内重建 `prd_sections` 工作区 + 同步 `selected_modules` / outline 状态；验收 T-8②③ 覆盖                                         |
 | 空白版本后 AI 再生成        | 空白版本工作区为空，需 outline 状态为 `pending` 才能全量重新生成                  | 2.4 第 5 步置 `'pending'`；验收 T-6 覆盖                                                                                               |
-| 克隆复制对话的体积          | messages 全量复制，长会话有一定体积                                               | 本地 SQLite，量级可忽略；复制在同一事务内完成                                                                                          |
+| 克隆后对话被清空            | 克隆只复制 PRD，工作区 messages 重建为空                                          | 预期行为；确认框明示「不复制对话、创建后开始空白对话」；源版本对话已写回其版本行，切回去可恢复 |
 | 左侧抽屉遮挡对话侧栏        | 抽屉从视口左缘滑出会盖住 SessionSidebar                                           | 需求明确要求左侧弹出；遮罩点击即关闭；抽屉保持打开时可连续点击版本对比（右栏不被遮挡）                                                 |
 | Electron 环境               | 无额外风险：纯 HTTP API + 本地 SQLite，与现有 PRD 链路相同                        | 无需特殊处理                                                                                                                           |
 
@@ -415,7 +407,7 @@ Phase 6（文档同步）                        ← 最后收口
 | #   | 决策点                                 | 本计划默认选择                                                                    | 备选                                                 |
 | --- | -------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | D-1 | ~~版本管理模型~~                       | **已确认**：Figma Page 模型——版本为平行独立文档，点击即打开并可直接编辑，切换无损 | —                                                    |
-| D-2 | 克隆出的新会话是否携带原会话的版本历史 | 不携带，新会话版本库从 v1（`source='clone'`）重新开始                             | 全量复制版本历史（实现直接但新会话列表一开始就很长） |
+| D-2 | 克隆是否复制对话 / 是否开新会话        | **已确认**（2026-09-12）：克隆在本会话新建版本，只复制 PRD，不复制对话，不创建新会话 | 旧方案：fork 新会话并复制对话 |
 | D-3 | ~~是否需要「删除版本」~~               | **已确认**：本期实现，物理删除 + 确认框                                           | —                                                    |
 | D-4 | ~~版本产生方式~~                       | **已确认**：纯手动（「新增版本」/ 克隆），无任何自动快照钩子                      | —                                                    |
 | D-5 | 新增版本的默认方式                     | 「空白版本」为默认选项，「复制当前内容」为可选项（2026-09-06 按用户要求调整）     | 仅支持复制当前内容                                   |

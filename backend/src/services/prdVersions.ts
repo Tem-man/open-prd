@@ -52,9 +52,9 @@ function rowToMeta(row: PrdVersionRow): PrdVersionMeta {
 
 export function getPrdVersionRow(versionId: string): PrdVersionRow | undefined {
 	const db = getDb();
-	return db.prepare("SELECT * FROM prd_versions WHERE id = ?").get(versionId) as
-		| PrdVersionRow
-		| undefined;
+	return db
+		.prepare("SELECT * FROM prd_versions WHERE id = ?")
+		.get(versionId) as PrdVersionRow | undefined;
 }
 
 /**
@@ -90,17 +90,25 @@ function bootstrapFirstVersion(prdId: string, sessionId: string): void {
 	);
 }
 
-export function listPrdVersions(prdId: string, sessionId: string): PrdVersionMeta[] {
+export function listPrdVersions(
+	prdId: string,
+	sessionId: string,
+): PrdVersionMeta[] {
 	bootstrapFirstVersion(prdId, sessionId);
 	const db = getDb();
 	const rows = db
-		.prepare("SELECT * FROM prd_versions WHERE prd_id = ? ORDER BY version DESC")
+		.prepare(
+			"SELECT * FROM prd_versions WHERE prd_id = ? ORDER BY version DESC",
+		)
 		.all(prdId) as PrdVersionRow[];
 	return rows.map(rowToMeta);
 }
 
 /** 读取当前工作区内容（按 selected_modules 顺序，未覆盖模块追加在末尾） */
-function readWorkspaceSections(prdId: string, sessionId: string): VersionSection[] {
+function readWorkspaceSections(
+	prdId: string,
+	sessionId: string,
+): VersionSection[] {
 	const db = getDb();
 	type Row = { section_id: string; title: string; html_content: string };
 	const rows = db
@@ -133,7 +141,10 @@ function readWorkspaceMessages(sessionId: string): VersionMessage[] {
 }
 
 /** 用版本对话快照重建工作区 messages 表（id 重新生成，避免跨会话主键冲突） */
-function writeMessagesIntoWorkspace(sessionId: string, messages: VersionMessage[]): void {
+function writeMessagesIntoWorkspace(
+	sessionId: string,
+	messages: VersionMessage[],
+): void {
 	const db = getDb();
 	db.prepare("DELETE FROM messages WHERE session_id = ?").run(sessionId);
 	const insert = db.prepare(
@@ -159,7 +170,13 @@ function writeBackActiveVersion(prdId: string, sessionId: string): void {
 	const messages = readWorkspaceMessages(sessionId);
 	db.prepare(
 		"UPDATE prd_versions SET html = ?, sections_json = ?, messages_json = ?, updated_at = ? WHERE id = ?",
-	).run(prd.html, JSON.stringify(sections), JSON.stringify(messages), Date.now(), active.id);
+	).run(
+		prd.html,
+		JSON.stringify(sections),
+		JSON.stringify(messages),
+		Date.now(),
+		active.id,
+	);
 }
 
 /**
@@ -214,7 +231,10 @@ function buildSelectedModules(sections: VersionSection[]): SelectedModule[] {
 }
 
 /** 同步大纲模块状态：命中的模块置 done；'all-pending' 表示全部重置 */
-function syncOutlineStatus(sessionId: string, sectionIds: string[] | "all-pending"): void {
+function syncOutlineStatus(
+	sessionId: string,
+	sectionIds: string[] | "all-pending",
+): void {
 	const outline = getOutline(sessionId);
 	if (!outline) return;
 	const sections = outline.sections.map((s) => ({
@@ -227,39 +247,51 @@ function syncOutlineStatus(sessionId: string, sectionIds: string[] | "all-pendin
 					: s.status,
 	}));
 	const db = getDb();
-	db.prepare("UPDATE sessions SET outline = ?, updated_at = ? WHERE id = ?").run(
-		JSON.stringify({ ...outline, sections }),
-		Date.now(),
-		sessionId,
-	);
+	db.prepare(
+		"UPDATE sessions SET outline = ?, updated_at = ? WHERE id = ?",
+	).run(JSON.stringify({ ...outline, sections }), Date.now(), sessionId);
 }
 
 /** 用版本内容重建工作区（prd_sections + messages + selected_modules + outline 状态 + prds.html） */
-function loadVersionIntoWorkspace(version: PrdVersionRow, sessionId: string): void {
+function loadVersionIntoWorkspace(
+	version: PrdVersionRow,
+	sessionId: string,
+): void {
 	const db = getDb();
 	const now = Date.now();
 
 	// 清空工作区（section 级撤回历史随版本切换重置，见 plan 风险表）
 	db.prepare("DELETE FROM prd_sections WHERE prd_id = ?").run(version.prd_id);
 
-	const sections = JSON.parse(version.sections_json || "[]") as VersionSection[];
+	const sections = JSON.parse(
+		version.sections_json || "[]",
+	) as VersionSection[];
 	for (const s of sections) {
 		db.prepare(
 			`INSERT INTO prd_sections (id, prd_id, session_id, section_id, title, html_content, version, is_current, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
-		).run(uuidv4(), version.prd_id, sessionId, s.section_id, s.title, s.html_content, now, now);
+		).run(
+			uuidv4(),
+			version.prd_id,
+			sessionId,
+			s.section_id,
+			s.title,
+			s.html_content,
+			now,
+			now,
+		);
 	}
 
 	// 对话记录随版本走：用版本快照重建 messages 表
-	const messages = JSON.parse(version.messages_json || "[]") as VersionMessage[];
+	const messages = JSON.parse(
+		version.messages_json || "[]",
+	) as VersionMessage[];
 	writeMessagesIntoWorkspace(sessionId, messages);
 
 	if (sections.length > 0) {
-		db.prepare("UPDATE sessions SET selected_modules = ?, updated_at = ? WHERE id = ?").run(
-			JSON.stringify(buildSelectedModules(sections)),
-			now,
-			sessionId,
-		);
+		db.prepare(
+			"UPDATE sessions SET selected_modules = ?, updated_at = ? WHERE id = ?",
+		).run(JSON.stringify(buildSelectedModules(sections)), now, sessionId);
 		syncOutlineStatus(
 			sessionId,
 			sections.map((s) => s.section_id),
@@ -267,10 +299,9 @@ function loadVersionIntoWorkspace(version: PrdVersionRow, sessionId: string): vo
 	} else {
 		// 空白版本：模块选择保持现状；大纲清空（= 全新会话的待规划状态，
 		// 避免全 pending 被 computePipelineState 误判为「生成中断」而弹出重试气泡）
-		db.prepare("UPDATE sessions SET outline = NULL, updated_at = ? WHERE id = ?").run(
-			now,
-			sessionId,
-		);
+		db.prepare(
+			"UPDATE sessions SET outline = NULL, updated_at = ? WHERE id = ?",
+		).run(now, sessionId);
 	}
 
 	db.prepare("UPDATE prds SET html = ?, updated_at = ? WHERE id = ?").run(
@@ -278,7 +309,10 @@ function loadVersionIntoWorkspace(version: PrdVersionRow, sessionId: string): vo
 		now,
 		version.prd_id,
 	);
-	db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(now, sessionId);
+	db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
+		now,
+		sessionId,
+	);
 }
 
 /** 新增版本：duplicate=复制当前内容；blank=空白版本并切换工作区为空壳 */
@@ -312,7 +346,9 @@ export function createPrdVersion(
 			html = "";
 			source = "blank";
 		} else {
-			const prd = db.prepare("SELECT html FROM prds WHERE id = ?").get(prdId) as {
+			const prd = db
+				.prepare("SELECT html FROM prds WHERE id = ?")
+				.get(prdId) as {
 				html: string;
 			};
 			html = prd.html;
@@ -322,19 +358,37 @@ export function createPrdVersion(
 		}
 
 		const id = uuidv4();
-		db.prepare("UPDATE prd_versions SET is_active = 0 WHERE prd_id = ?").run(prdId);
+		db.prepare("UPDATE prd_versions SET is_active = 0 WHERE prd_id = ?").run(
+			prdId,
+		);
 		db.prepare(
 			`INSERT INTO prd_versions (id, prd_id, session_id, version, label, source, html, sections_json, messages_json, is_active, created_at, updated_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-		).run(id, prdId, sessionId, nextVersion, opts.label ?? "", source, html, JSON.stringify(sections), JSON.stringify(messages), now, now);
+		).run(
+			id,
+			prdId,
+			sessionId,
+			nextVersion,
+			opts.label ?? "",
+			source,
+			html,
+			JSON.stringify(sections),
+			JSON.stringify(messages),
+			now,
+			now,
+		);
 
 		// 空白版本：工作区切换为空壳
 		if (opts.mode === "blank") {
-			const row = db.prepare("SELECT * FROM prd_versions WHERE id = ?").get(id) as PrdVersionRow;
+			const row = db
+				.prepare("SELECT * FROM prd_versions WHERE id = ?")
+				.get(id) as PrdVersionRow;
 			loadVersionIntoWorkspace(row, sessionId);
 		}
 
-		const prdAfter = db.prepare("SELECT html FROM prds WHERE id = ?").get(prdId) as {
+		const prdAfter = db
+			.prepare("SELECT html FROM prds WHERE id = ?")
+			.get(prdId) as {
 			html: string;
 		};
 		return { id, version: nextVersion, assembledPrdHtml: prdAfter.html };
@@ -351,7 +405,9 @@ export function activatePrdVersion(
 		const target = getPrdVersionRow(versionId);
 		if (!target) throw new Error("Version not found");
 		if (target.is_active === 1) {
-			const prd = db.prepare("SELECT html FROM prds WHERE id = ?").get(target.prd_id) as {
+			const prd = db
+				.prepare("SELECT html FROM prds WHERE id = ?")
+				.get(target.prd_id) as {
 				html: string;
 			};
 			return { assembledPrdHtml: prd.html, activeVersion: target.version };
@@ -362,117 +418,61 @@ export function activatePrdVersion(
 		loadVersionIntoWorkspace(target, sessionId);
 
 		const now = Date.now();
-		db.prepare("UPDATE prd_versions SET is_active = 0 WHERE prd_id = ?").run(target.prd_id);
-		db.prepare("UPDATE prd_versions SET is_active = 1, updated_at = ? WHERE id = ?").run(
-			now,
-			target.id,
+		db.prepare("UPDATE prd_versions SET is_active = 0 WHERE prd_id = ?").run(
+			target.prd_id,
 		);
+		db.prepare(
+			"UPDATE prd_versions SET is_active = 1, updated_at = ? WHERE id = ?",
+		).run(now, target.id);
 		return { assembledPrdHtml: target.html, activeVersion: target.version };
 	})();
 }
 
-/** 克隆版本为新会话：复制对话记录 + 大纲 + 模块选择，新会话从该版本内容起步 */
-export function forkSessionFromVersion(
+/** 克隆版本：仅复制 PRD 为当前会话的新版本，不复制对话，创建后切换过去 */
+export function clonePrdVersion(
 	versionId: string,
 	sessionId: string,
-): { sessionId: string } {
+): { id: string; version: number; assembledPrdHtml: string } {
 	const db = getDb();
 	return db.transaction(() => {
 		const target = getPrdVersionRow(versionId);
 		if (!target) throw new Error("Version not found");
 
-		// 克隆激活版本时先写回，保证内容最新
-		if (target.is_active === 1) writeBackActiveVersion(target.prd_id, sessionId);
+		preserveUnversionedWorkspace(target.prd_id, sessionId);
+		writeBackActiveVersion(target.prd_id, sessionId);
 		const fresh = getPrdVersionRow(versionId) as PrdVersionRow;
-		const sections = JSON.parse(fresh.sections_json || "[]") as VersionSection[];
-
-		const srcSession = db
-			.prepare("SELECT title, outline, selected_modules FROM sessions WHERE id = ?")
-			.get(sessionId) as {
-			title: string;
-			outline: string | null;
-			selected_modules: string | null;
-		};
 
 		const now = Date.now();
-		const newSessionId = uuidv4();
-		const srcTitle = srcSession.title || "未命名 PRD";
-		const newTitle = `「${srcTitle}」v${fresh.version} 分支`;
+		const maxRow = db
+			.prepare("SELECT MAX(version) AS maxV FROM prd_versions WHERE prd_id = ?")
+			.get(fresh.prd_id) as { maxV: number | null };
+		const nextVersion = (maxRow.maxV ?? 0) + 1;
+		const id = uuidv4();
 
-		// selected_modules：按版本内容重建；空版本沿用原会话
-		const selectedModules =
-			sections.length > 0
-				? JSON.stringify(buildSelectedModules(sections))
-				: srcSession.selected_modules;
-
-		// outline：深拷贝并换 sessionId，版本内存在的模块置 done
-		let outlineJson: string | null = null;
-		if (srcSession.outline) {
-			try {
-				const outline = JSON.parse(srcSession.outline) as {
-					sessionId?: string;
-					sections: Array<{ id: string; status: string }>;
-					[key: string]: unknown;
-				};
-				outline.sessionId = newSessionId;
-				const present = new Set(sections.map((s) => s.section_id));
-				outline.sections = outline.sections.map((s) =>
-					present.has(s.id) ? { ...s, status: "done" } : s,
-				);
-				outlineJson = JSON.stringify(outline);
-			} catch {
-				outlineJson = srcSession.outline;
-			}
-		}
-
-		db.prepare(
-			"INSERT INTO sessions (id, title, outline, selected_modules, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-		).run(newSessionId, newTitle, outlineJson, selectedModules, now, now);
-
-		// 复制该版本的对话记录（对话随版本走），末尾追加克隆标记消息
-		const versionMessages = JSON.parse(fresh.messages_json || "[]") as VersionMessage[];
-		const markerContent = `📌 本会话克隆自「${srcTitle}」的 v${fresh.version}，可在此基础上继续编辑。`;
-		const insertMsg = db.prepare(
-			"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+		db.prepare("UPDATE prd_versions SET is_active = 0 WHERE prd_id = ?").run(
+			fresh.prd_id,
 		);
-		for (const m of versionMessages) {
-			insertMsg.run(uuidv4(), newSessionId, m.role, m.content, m.created_at);
-		}
-		insertMsg.run(uuidv4(), newSessionId, "assistant", markerContent, now);
-		const newMessagesJson = JSON.stringify([
-			...versionMessages,
-			{ role: "assistant", content: markerContent, created_at: now },
-		]);
-
-		// 新 prds 行 + 新 prd_sections 行
-		const newPrdId = uuidv4();
-		db.prepare(
-			"INSERT INTO prds (id, session_id, html, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-		).run(newPrdId, newSessionId, fresh.html, now, now);
-		for (const s of sections) {
-			db.prepare(
-				`INSERT INTO prd_sections (id, prd_id, session_id, section_id, title, html_content, version, is_current, created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
-			).run(uuidv4(), newPrdId, newSessionId, s.section_id, s.title, s.html_content, now, now);
-		}
-
-		// 新会话初始版本 v1（激活，含对话快照）
 		db.prepare(
 			`INSERT INTO prd_versions (id, prd_id, session_id, version, label, source, html, sections_json, messages_json, is_active, created_at, updated_at)
-			 VALUES (?, ?, ?, 1, ?, 'clone', ?, ?, ?, 1, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?, 'clone', ?, ?, '[]', 1, ?, ?)`,
 		).run(
-			uuidv4(),
-			newPrdId,
-			newSessionId,
+			id,
+			fresh.prd_id,
+			sessionId,
+			nextVersion,
 			`克隆自 v${fresh.version}`,
 			fresh.html,
 			fresh.sections_json,
-			newMessagesJson,
 			now,
 			now,
 		);
 
-		return { sessionId: newSessionId };
+		const row = db
+			.prepare("SELECT * FROM prd_versions WHERE id = ?")
+			.get(id) as PrdVersionRow;
+		loadVersionIntoWorkspace(row, sessionId);
+
+		return { id, version: nextVersion, assembledPrdHtml: row.html };
 	})();
 }
 
@@ -498,7 +498,9 @@ export function deletePrdVersion(
 		// 激活版本：工作区内容随删除丢弃（用户已显式确认），切换到最新剩余版本
 		db.prepare("DELETE FROM prd_versions WHERE id = ?").run(versionId);
 		const next = db
-			.prepare("SELECT * FROM prd_versions WHERE prd_id = ? ORDER BY version DESC LIMIT 1")
+			.prepare(
+				"SELECT * FROM prd_versions WHERE prd_id = ? ORDER BY version DESC LIMIT 1",
+			)
 			.get(target.prd_id) as PrdVersionRow | undefined;
 
 		if (!next) {
@@ -506,23 +508,26 @@ export function deletePrdVersion(
 		}
 
 		loadVersionIntoWorkspace(next, sessionId);
-		db.prepare("UPDATE prd_versions SET is_active = 1, updated_at = ? WHERE id = ?").run(
-			Date.now(),
-			next.id,
-		);
-		const prd = db.prepare("SELECT html FROM prds WHERE id = ?").get(target.prd_id) as {
+		db.prepare(
+			"UPDATE prd_versions SET is_active = 1, updated_at = ? WHERE id = ?",
+		).run(Date.now(), next.id);
+		const prd = db
+			.prepare("SELECT html FROM prds WHERE id = ?")
+			.get(target.prd_id) as {
 			html: string;
 		};
-		return { ok: true as const, activatedVersion: next.version, assembledPrdHtml: prd.html };
+		return {
+			ok: true as const,
+			activatedVersion: next.version,
+			assembledPrdHtml: prd.html,
+		};
 	})();
 }
 
 /** 重命名版本备注 */
 export function renamePrdVersion(versionId: string, label: string): void {
 	const db = getDb();
-	db.prepare("UPDATE prd_versions SET label = ?, updated_at = ? WHERE id = ?").run(
-		label,
-		Date.now(),
-		versionId,
-	);
+	db.prepare(
+		"UPDATE prd_versions SET label = ?, updated_at = ? WHERE id = ?",
+	).run(label, Date.now(), versionId);
 }
