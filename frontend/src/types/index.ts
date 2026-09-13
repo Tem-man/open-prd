@@ -87,6 +87,8 @@ export interface Message {
 	formSubmitted?: boolean;
 	/** 刷新后还原的已选答案（questionId → 选项或文本） */
 	formAnswers?: Record<string, string | string[]>;
+	/** 结构化提问表单的提交记录，对话窗不展示（答案已反映在表单选中态） */
+	isFormAnswer?: boolean;
 	/** 消息附带的动作按钮（如 PRD 完成后引导生成原型稿） */
 	action?: MessageAction;
 }
@@ -128,3 +130,15 @@ export const DEFAULT_WORKFLOW_STEPS: WorkflowStep[] = [
 	{ id: "prototype", label: "原型设计依据", status: "pending" },
 	{ id: "output", label: "输出 PRD", status: "pending" },
 ];
+
+// ─── PRD 版本管理（Figma Page 模型）──────────────────────────────────────────
+
+export interface PrdVersionMeta {
+	id: string;
+	version: number;
+	label: string;
+	source: "snapshot" | "blank" | "clone";
+	isActive: boolean;
+	createdAt: number;
+	updatedAt: number;
+}

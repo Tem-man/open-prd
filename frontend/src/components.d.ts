@@ -162,7 +162,6 @@ declare module 'vue' {
     IconLucideRows2: typeof import('~icons/lucide/rows2')['default']
     IconLucideRows3: typeof import('~icons/lucide/rows3')['default']
     IconLucideSearch: typeof import('~icons/lucide/search')['default']
-    IconLucideSend: typeof import('~icons/lucide/send')['default']
     IconLucideSeparatorHorizontal: typeof import('~icons/lucide/separator-horizontal')['default']
     IconLucideSeparatorVertical: typeof import('~icons/lucide/separator-vertical')['default']
     IconLucideSettings: typeof import('~icons/lucide/settings')['default']
@@ -203,8 +202,6 @@ declare module 'vue' {
     MobileDrawer: typeof import('./pencil/components/MobileDrawer.vue')['default']
     MobileFileMenu: typeof import('./pencil/components/MobileHud/MobileFileMenu.vue')['default']
     MobileHud: typeof import('./pencil/components/MobileHud/MobileHud.vue')['default']
-    MobilePresencePopover: typeof import('./pencil/components/MobileHud/MobilePresencePopover.vue')['default']
-    MobileShareButton: typeof import('./pencil/components/MobileHud/MobileShareButton.vue')['default']
     MobileToolbar: typeof import('./pencil/components/Toolbar/MobileToolbar.vue')['default']
     MobileUndoRedo: typeof import('./pencil/components/MobileHud/MobileUndoRedo.vue')['default']
     ModelSelector: typeof import('./components/ModelSelector.vue')['default']
@@ -273,6 +270,7 @@ declare module 'vue' {
     VariablesDialog: typeof import('./pencil/components/variables/VariablesDialog.vue')['default']
     VariablesSection: typeof import('./pencil/components/properties/VariablesSection.vue')['default']
     VectorizeSettingsSection: typeof import('./pencil/components/settings/vectorize/VectorizeSettingsSection.vue')['default']
+    VersionDrawer: typeof import('./components/VersionDrawer.vue')['default']
     ZoomDropdown: typeof import('./pencil/components/editor/ZoomDropdown.vue')['default']
   }
 }

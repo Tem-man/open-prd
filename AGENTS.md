@@ -91,6 +91,7 @@ open-prd/
 │   │   │   ├── ModuleBuilderPanel.vue # 自定义模块构建
 │   │   │   ├── SkillEditorPanel.vue   # Skill 编辑
 │   │   │   ├── HistoryDrawer.vue      # 历史会话抽屉
+│   │   │   ├── VersionDrawer.vue      # PRD 版本管理抽屉（左侧弹出）
 │   │   │   ├── QuestionForm.vue       # AI 信息收集表单
 │   │   │   ├── ModelSelector.vue      # PRD 对话输入框模型切换
 │   │   │   └── …
@@ -117,7 +118,7 @@ open-prd/
 │   │   │   │   └── components/        # Sidebar、PrdPanel、ProgressSteps 等
 │   │   │   └── prototype/             # 原型设计页：挂载 PencilEditor
 │   │   │       └── PrototypeView.vue
-│   │   ├── stores/                    # Pinia（sessions、messages、prdEdit、modules、prototypes）
+│   │   ├── stores/                    # Pinia（sessions、messages、prdEdit、prdVersions、modules、prototypes）
 │   │   ├── composables/               # useSSE、useMermaidZoom、useSectionActions 等
 │   │   ├── router/                    # Vue Router
 │   │   ├── styles/                    # variables.css、prd-content.scss
@@ -147,7 +148,18 @@ open-prd/
 ├── backend/                           # Node.js + Express 后端
 │   ├── data/                          # SQLite 库 prd.db（不提交 git）
 │   ├── src/
-│   │   ├── routes/                    # sessions.ts、modules.ts、prototypes.ts
+│   │   ├── routes/                    # Express 路由
+│   │   │   ├── sessions/              # 会话域（CRUD / SSE 对话 / PRD 读写与版本）
+│   │   │   │   ├── index.ts           # 按序 register 子模块，export default router
+│   │   │   │   ├── crud.ts            # 会话增删改查与 PATCH modules
+│   │   │   │   ├── messages.ts        # POST messages / retry（SSE）
+│   │   │   │   ├── prdRead.ts         # GET prd / GET sections
+│   │   │   │   ├── versions.ts        # PRD 版本 6 端点
+│   │   │   │   ├── sectionEdit.ts     # PATCH 模块 AI 改写（实体/元素/全模块）
+│   │   │   │   ├── sectionMutate.ts   # PUT content 与 rollback
+│   │   │   │   └── helpers/           # HTML 补丁、提问表单、section 持久化
+│   │   │   ├── modules.ts
+│   │   │   └── prototypes.ts
 │   │   ├── services/
 │   │   │   ├── agent.ts               # Agent 编排与对话流程
 │   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
@@ -160,6 +172,7 @@ open-prd/
 │   │   │   ├── sse.ts                 # SSE 流式推送
 │   │   │   ├── prdOutline.ts          # PRD 大纲规划
 │   │   │   ├── prdValidator.ts        # PRD 产出校验
+│   │   │   ├── prdVersions.ts         # PRD 版本管理（Figma Page 模型）
 │   │   │   └── prd/                   # PRD 生成与 HTML 渲染
 │   │   │       ├── modules/           # 各章节生成器（background、architecture…）
 │   │   │       ├── renderer.ts        # 单文件 HTML 组装
@@ -336,6 +349,17 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 | GET  | `/api/sessions/:id`          | 获取会话信息及消息历史        |
 | POST | `/api/sessions/:id/messages` | 发送消息，触发 SSE 流式响应   |
 | GET  | `/api/sessions/:id/prd`      | 获取该会话最新生成的 PRD HTML |
+| GET  | `/api/sessions/:id/prd/versions` | 版本列表（version DESC）  |
+| POST | `/api/sessions/:id/prd/versions` | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
+| POST | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等） |
+| POST | `/api/sessions/:id/prd/versions/:vid/clone` | 克隆为当前会话新版本（只复制 PRD，不复制对话） |
+| DELETE | `/api/sessions/:id/prd/versions/:vid` | 物理删除版本（删激活版本自动切到最新剩余版本） |
+| PATCH | `/api/sessions/:id/prd/versions/:vid` | 重命名版本备注 |
+
+> 版本管理采用 Figma Page 模型：每个版本是独立文档，`prds.html` + `prd_sections` + `messages` 为当前工作区；
+> 切换/新建时先把旧激活版本写回其版本行，再用目标版本重建工作区（对话记录随版本走，空白版本即空对话）。
+> 版本仅由用户显式创建，AI 编辑与手动编辑不产生自动快照；唯一例外是懒引导——首次拉取版本列表时
+> 若 PRD 已有内容但无任何版本，自动把当前工作区物化为 v1「当前内容」。详见 `docs/plan-prd-version-management.md`。
 
 ### SSE 流式响应规范
 
@@ -385,6 +409,25 @@ CREATE TABLE prds (
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+-- PRD 版本表（Figma Page 模型，详见 docs/plan-prd-version-management.md）
+CREATE TABLE prd_versions (
+  id            TEXT    PRIMARY KEY,
+  prd_id        TEXT    NOT NULL REFERENCES prds(id) ON DELETE CASCADE,
+  session_id    TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  version       INTEGER NOT NULL,           -- 从 1 递增
+  label         TEXT    NOT NULL DEFAULT '', -- 用户备注
+  source        TEXT    NOT NULL,           -- snapshot / blank / clone
+  html          TEXT    NOT NULL,           -- 该版本的完整 HTML
+  sections_json TEXT    NOT NULL,           -- 该版本的结构化模块内容（权威数据源）
+  messages_json TEXT    NOT NULL DEFAULT '[]', -- 该版本的对话快照（对话随版本走）
+  is_active     INTEGER NOT NULL DEFAULT 0, -- 1 = 当前打开在工作区的版本
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL
+);
+CREATE INDEX idx_prd_versions_lookup ON prd_versions (prd_id, version DESC);
+-- 每篇 PRD 至多一个激活版本（部分唯一索引）
+CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_active = 1;
 ```
 
 > 数据库文件路径：`backend/data/prd.db`（不提交 git，加入 `.gitignore`）。

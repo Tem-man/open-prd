@@ -262,7 +262,7 @@
 		inputText.value = "";
 		isSending.value = true;
 		try {
-			await sendMessage(props.sessionId, answersText);
+			await sendMessage(props.sessionId, answersText, { isFormAnswer: true });
 			await sessionsStore.fetchSession(props.sessionId);
 		} finally {
 			isSending.value = false;
@@ -415,6 +415,7 @@
 				:data-msg-id="msg.id"
 				class="msg-row"
 				:class="msg.role"
+				v-show="!msg.isFormAnswer"
 			>
 				<div v-if="msg.role === 'assistant'" class="avatar ai">AI</div>
 				<div class="assistant-msg-wrap" v-if="msg.role === 'assistant'">
@@ -449,32 +450,30 @@
 							{{ msg.content.trim().length > 20 ? "继续生成" : "重新生成" }}
 						</button>
 					</div>
-				<!-- 结构化提问表单 -->
-				<QuestionForm
-					v-if="msg.formData"
-					:form="msg.formData"
-					:default-answers="msg.formAnswers"
-					:disabled="msg.formSubmitted || isSending"
-					@submit="(text) => handleFormSubmit(msg.id, text)"
-				/>
-				<!-- PRD 完成后的「生成原型稿」引导动作 -->
-				<div
-					v-if="msg.action?.type === 'create-prototype'"
-					class="action-bubble"
-				>
-					<span class="action-bubble__icon">🎨</span>
-					<button
-						type="button"
-						class="action-bubble__btn"
-						:disabled="isCreatingPrototype"
-						@click="handleCreatePrototype"
+					<!-- 结构化提问表单 -->
+					<QuestionForm
+						v-if="msg.formData"
+						:form="msg.formData"
+						:default-answers="msg.formAnswers"
+						:disabled="msg.formSubmitted || isSending"
+						@submit="(text) => handleFormSubmit(msg.id, text)"
+					/>
+					<!-- PRD 完成后的「生成原型稿」引导动作 -->
+					<div
+						v-if="msg.action?.type === 'create-prototype'"
+						class="action-bubble"
 					>
-						{{
-							isCreatingPrototype ? "正在创建原型…" : msg.action.label
-						}}
-					</button>
+						<span class="action-bubble__icon">🎨</span>
+						<button
+							type="button"
+							class="action-bubble__btn"
+							:disabled="isCreatingPrototype"
+							@click="handleCreatePrototype"
+						>
+							{{ isCreatingPrototype ? "正在创建原型…" : msg.action.label }}
+						</button>
+					</div>
 				</div>
-			</div>
 				<div v-else-if="msg.role === 'user'" class="bubble user-bubble">
 					<span>{{ msg.content }}</span>
 				</div>

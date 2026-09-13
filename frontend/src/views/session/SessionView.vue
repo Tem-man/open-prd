@@ -28,18 +28,26 @@
 		// 根据会话已选模块初始化进度步骤
 		messagesStore.initWorkflowSteps(data?.selectedModules);
 
-		// 若该会话已有生成的 PRD，直接恢复展示
+		// 若该会话已有生成的 PRD，直接恢复展示。
+		// 空白版本 html 为空串：保留 prdReady（顶栏「版本」入口可用），
+		// 进度条显式重置为未勾选，PrdPanel 呈现「新建 PRD」空状态。
+		let hasContent = false;
 		if (prdRes.ok) {
 			const prd = await prdRes.json();
-			if (prd?.id && prd?.html) {
-				messagesStore.setPrdReady(prd.id);
-				messagesStore.setPrdHtml(prd.html);
+			if (prd?.id) {
+				hasContent = !!prd.html;
+				messagesStore.setPrdReady(prd.id, hasContent);
+				messagesStore.setPrdHtml(prd.html ?? "");
 			}
 		}
 
 		// 恢复 pipeline 状态（中断态、PRD 进度等），供 ProgressSteps 展示继续按钮
-		// 注意：已有完整 PRD 时不需要展示重试提示
-		if (data?.pipelineState && data.pipelineState.phase !== "done") {
+		// 空白版本不套用旧版本的流水线进度，避免步骤被勾选
+		if (
+			hasContent &&
+			data?.pipelineState &&
+			data.pipelineState.phase !== "done"
+		) {
 			messagesStore.applyPipelineState(data.pipelineState);
 		}
 	});

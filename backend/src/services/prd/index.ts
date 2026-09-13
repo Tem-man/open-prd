@@ -56,6 +56,8 @@ function loadCachedSection(sessionId: string, sectionId: SectionId): string | nu
 
 /**
  * 写入/更新 prd_sections 中的单个模块内容（断点写入）。
+ * 版本化写入：旧行 is_current=0 + 新行 version+1，与 AI 编辑/手动保存路径一致，
+ * 保证「↩ 撤回」在重新生成后也可用（此前为原地 UPDATE，version 永远停在 1）。
  */
 function upsertPrdSection(
 	db: ReturnType<typeof getDb>,
@@ -65,18 +67,30 @@ function upsertPrdSection(
 	title: string,
 	content: string,
 ): void {
-	type Row = { id: string };
+	type Row = { id: string; version: number };
 	const existing = db
 		.prepare(
-			"SELECT id FROM prd_sections WHERE prd_id = ? AND section_id = ? AND is_current = 1",
+			"SELECT id, version FROM prd_sections WHERE prd_id = ? AND section_id = ? AND is_current = 1",
 		)
 		.get(finalPrdId, sectionId) as Row | undefined;
 
 	const ts = Date.now();
 	if (existing) {
+		db.prepare("UPDATE prd_sections SET is_current = 0 WHERE id = ?").run(existing.id);
 		db.prepare(
-			"UPDATE prd_sections SET html_content = ?, updated_at = ? WHERE id = ?",
-		).run(content, ts, existing.id);
+			`INSERT INTO prd_sections (id, prd_id, session_id, section_id, title, html_content, version, is_current, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+		).run(
+			uuidv4(),
+			finalPrdId,
+			sessionId,
+			sectionId,
+			title,
+			content,
+			existing.version + 1,
+			ts,
+			ts,
+		);
 	} else {
 		db.prepare(
 			`INSERT INTO prd_sections (id, prd_id, session_id, section_id, title, html_content, version, is_current, created_at, updated_at)

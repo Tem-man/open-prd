@@ -25,33 +25,13 @@
 	const hasEditableSections = computed(() => prdEditStore.sections.length > 0);
 	const sessionId = computed(() => currentSession.value?.id ?? "");
 
-	// PRD 就绪后拉取 sections（prdReady 变化时触发）
+	// PRD 就绪后拉取 sections（prdReady 变化时触发；版本切换由 prdVersions store 复用同一入口）
 	watch(
 		() => messagesStore.prdReady,
-		async (prdId) => {
+		(prdId) => {
 			if (!prdId || !sessionId.value) return;
 			prdEditStore.reset();
-			try {
-				const res = await fetch(
-					`/api/sessions/${sessionId.value}/prd/sections`,
-				);
-				if (!res.ok) return;
-				const data = (await res.json()) as {
-					prdId: string;
-					sections: Array<{
-						id: string;
-						sectionId: string;
-						title: string;
-						html: string;
-						version: number;
-					}>;
-				};
-				if (data.sections.length > 0) {
-					prdEditStore.setSections(data.sections);
-				}
-			} catch {
-				// 静默失败，降级展示 iframe
-			}
+			prdEditStore.loadSections(sessionId.value);
 		},
 		{ immediate: true },
 	);

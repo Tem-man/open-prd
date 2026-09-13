@@ -2,7 +2,7 @@ import "dotenv/config";
 import express from "express";
 import type { Express } from "express";
 import { getDb } from "./db/client.js";
-import sessionsRouter from "./routes/sessions.js";
+import sessionsRouter from "./routes/sessions/index.js";
 import modulesRouter from "./routes/modules.js";
 import prototypesRouter, { putPrototypeFig } from "./routes/prototypes.js";
 import { ensurePrototypesDir } from "./services/prototypeStore.js";

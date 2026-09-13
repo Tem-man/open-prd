@@ -169,6 +169,7 @@ export const useMessagesStore = defineStore("messages", () => {
 				msg.formData.questions,
 				nextUser.content,
 			);
+			nextUser.isFormAnswer = true;
 		}
 
 		messages.value = mapped;
@@ -256,10 +257,26 @@ export const useMessagesStore = defineStore("messages", () => {
 		}
 	}
 
-	function setPrdReady(prdId: string) {
+	/**
+	 * 标记 PRD 就绪。
+	 * @param markStepsDone 是否把进度步骤全部置为完成；
+	 *        空白版本传 false——显式把所有步骤重置为 pending（未勾选）
+	 */
+	function setPrdReady(prdId: string, markStepsDone = true) {
 		prdReady.value = prdId;
-		workflowSteps.value.forEach((s) => (s.status = "done"));
-		activeStepIndex.value = workflowSteps.value.length - 1;
+		if (markStepsDone) {
+			workflowSteps.value = workflowSteps.value.map((s) => ({
+				...s,
+				status: "done" as WorkflowStepStatus,
+			}));
+			activeStepIndex.value = workflowSteps.value.length - 1;
+		} else {
+			workflowSteps.value = workflowSteps.value.map((s) => ({
+				...s,
+				status: "pending" as WorkflowStepStatus,
+			}));
+			activeStepIndex.value = -1;
+		}
 		pipelineState.value = null;
 	}
 
