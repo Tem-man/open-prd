@@ -93,6 +93,7 @@ open-prd/
 │   │   │   ├── HistoryDrawer.vue      # 历史会话抽屉
 │   │   │   ├── VersionDrawer.vue      # PRD 版本管理抽屉（左侧弹出）
 │   │   │   ├── QuestionForm.vue       # AI 信息收集表单
+│   │   │   ├── ThinkingBlock.vue      # PRD 对话思考过程折叠块
 │   │   │   ├── ModelSelector.vue      # PRD 对话输入框模型切换
 │   │   │   └── …
 │   │   ├── pencil/                    # 原型设计编辑器界面层（见下方专章）
@@ -163,6 +164,7 @@ open-prd/
 │   │   ├── services/
 │   │   │   ├── agent.ts               # Agent 编排与对话流程
 │   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
+│   │   │   ├── llmStream.ts           # 流式 chunk 拆成可见回复 / 思考
 │   │   │   ├── prompts.ts             # 系统/阶段 Prompt
 │   │   │   ├── contextManager.ts      # 上下文与 Token 管理
 │   │   │   ├── skillLoader.ts         # 加载 skills/ 下图表 Skill
@@ -342,19 +344,19 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
 ### HTTP API 端点
 
-| 方法 | 路径                         | 说明                          |
-| ---- | ---------------------------- | ----------------------------- |
-| POST | `/api/sessions`              | 创建新会话，返回 `session_id` |
-| GET  | `/api/sessions`              | 获取会话列表                  |
-| GET  | `/api/sessions/:id`          | 获取会话信息及消息历史        |
-| POST | `/api/sessions/:id/messages` | 发送消息，触发 SSE 流式响应   |
-| GET  | `/api/sessions/:id/prd`      | 获取该会话最新生成的 PRD HTML |
-| GET  | `/api/sessions/:id/prd/versions` | 版本列表（version DESC）  |
-| POST | `/api/sessions/:id/prd/versions` | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
-| POST | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等） |
-| POST | `/api/sessions/:id/prd/versions/:vid/clone` | 克隆为当前会话新版本（只复制 PRD，不复制对话） |
-| DELETE | `/api/sessions/:id/prd/versions/:vid` | 物理删除版本（删激活版本自动切到最新剩余版本） |
-| PATCH | `/api/sessions/:id/prd/versions/:vid` | 重命名版本备注 |
+| 方法   | 路径                                           | 说明                                                    |
+| ------ | ---------------------------------------------- | ------------------------------------------------------- |
+| POST   | `/api/sessions`                                | 创建新会话，返回 `session_id`                           |
+| GET    | `/api/sessions`                                | 获取会话列表                                            |
+| GET    | `/api/sessions/:id`                            | 获取会话信息及消息历史                                  |
+| POST   | `/api/sessions/:id/messages`                   | 发送消息，触发 SSE 流式响应                             |
+| GET    | `/api/sessions/:id/prd`                        | 获取该会话最新生成的 PRD HTML                           |
+| GET    | `/api/sessions/:id/prd/versions`               | 版本列表（version DESC）                                |
+| POST   | `/api/sessions/:id/prd/versions`               | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
+| POST   | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等）               |
+| POST   | `/api/sessions/:id/prd/versions/:vid/clone`    | 克隆为当前会话新版本（只复制 PRD，不复制对话）          |
+| DELETE | `/api/sessions/:id/prd/versions/:vid`          | 物理删除版本（删激活版本自动切到最新剩余版本）          |
+| PATCH  | `/api/sessions/:id/prd/versions/:vid`          | 重命名版本备注                                          |
 
 > 版本管理采用 Figma Page 模型：每个版本是独立文档，`prds.html` + `prd_sections` + `messages` 为当前工作区；
 > 切换/新建时先把旧激活版本写回其版本行，再用目标版本重建工作区（对话记录随版本走，空白版本即空对话）。
@@ -367,6 +369,13 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
 - **请求**：`POST /api/sessions/:id/messages`，`Content-Type: application/json`
 - **响应**：`Content-Type: text/event-stream; charset=utf-8`，关闭 Nginx 缓冲
+- **事件 `data.type`**：
+  - `delta`：可见回复增量，写入 `Message.content`
+  - `thinking`：模型思考 / reasoning 增量，写入 `Message.thinking`（仅展示，下次请求不回传 LLM）
+  - `prd_progress` / `prd_ready` / `error` / `done`：进度、完成与错误
+  - 命名事件 `event: form`：结构化提问表单
+
+思考内容落在 `messages.thinking`，`loadHistory` 只读 `role, content`。
 
 ---
 
@@ -398,6 +407,7 @@ CREATE TABLE messages (
   session_id TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   role       TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
   content    TEXT    NOT NULL,
+  thinking   TEXT    NOT NULL DEFAULT '', -- 模型思考过程（仅 UI，不回传 LLM）
   created_at INTEGER NOT NULL
 );
 

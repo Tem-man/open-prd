@@ -171,4 +171,16 @@ export function runMigrations(db: Database.Database): void {
 		}
 		db.pragma("user_version = 11");
 	}
+
+	if (version < 12) {
+		const cols = db.prepare("PRAGMA table_info(messages)").all() as Array<{
+			name: string;
+		}>;
+		if (!cols.some((c) => c.name === "thinking")) {
+			db.exec(
+				"ALTER TABLE messages ADD COLUMN thinking TEXT NOT NULL DEFAULT ''",
+			);
+		}
+		db.pragma("user_version = 12");
+	}
 }

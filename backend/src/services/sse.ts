@@ -58,6 +58,18 @@ export function writeDelta(res: Response, content: string, seq?: number): void {
 	flushRes(res);
 }
 
+/**
+ * Push a thinking / reasoning increment. Same framing as writeDelta so
+ * Last-Event-ID replay can restore both channels in order.
+ */
+export function writeThinking(res: Response, content: string, seq?: number): void {
+	if (seq !== undefined) {
+		res.write(`id: ${seq}\n`);
+	}
+	res.write(`data: ${JSON.stringify({ type: "thinking", content })}\n\n`);
+	flushRes(res);
+}
+
 /** 流结束，关闭连接 */
 export function writeDone(res: Response, prdGenerated = false): void {
 	res.write(`event: done\n`);

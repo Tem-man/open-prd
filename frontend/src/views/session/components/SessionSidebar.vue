@@ -21,6 +21,7 @@
 	import HistoryDrawer from "@/components/HistoryDrawer.vue";
 	import ModuleManager from "@/components/ModuleManager.vue";
 	import QuestionForm from "@/components/QuestionForm.vue";
+	import ThinkingBlock from "@/components/ThinkingBlock.vue";
 	import StopGenerateButton from "@/components/StopGenerateButton.vue";
 	import ModelSelector from "@/components/ModelSelector.vue";
 
@@ -419,9 +420,18 @@
 			>
 				<div v-if="msg.role === 'assistant'" class="avatar ai">AI</div>
 				<div class="assistant-msg-wrap" v-if="msg.role === 'assistant'">
-					<!-- 流式开始前（内容为空）显示打字动画 -->
+					<ThinkingBlock
+						v-if="msg.thinking"
+						:thinking="msg.thinking"
+						:streaming="!!msg.isThinkingStreaming"
+					/>
+					<!-- 流式开始前（内容为空且尚无思考）显示打字动画 -->
 					<div
-						v-if="msg.isStreaming && !stripFormBlock(msg.content)"
+						v-if="
+							msg.isStreaming &&
+							!stripFormBlock(msg.content) &&
+							!msg.thinking
+						"
 						class="bubble assistant-bubble"
 					>
 						<TypingIndicator />

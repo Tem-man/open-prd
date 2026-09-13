@@ -40,6 +40,7 @@ async function requirePrdLlmPayload(): Promise<PrdLlmPayload | null> {
 interface SseEvent {
 	type:
 		| "delta"
+		| "thinking"
 		| "done"
 		| "prd_ready"
 		| "prd_progress"
@@ -167,6 +168,8 @@ async function consumeStream(
 
 				if (evt.type === "delta" && evt.content) {
 					messagesStore.appendDelta(tempId, evt.content);
+				} else if (evt.type === "thinking" && evt.content) {
+					messagesStore.appendThinking(tempId, evt.content);
 				} else if (evt.type === "prd_progress" && evt.sectionId && evt.status) {
 					messagesStore.setPrdSectionStatus(evt.sectionId, evt.status);
 				} else if (evt.type === "done") {

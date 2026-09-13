@@ -91,6 +91,10 @@ export interface Message {
 	isFormAnswer?: boolean;
 	/** 消息附带的动作按钮（如 PRD 完成后引导生成原型稿） */
 	action?: MessageAction;
+	/** 模型思考过程（仅展示，不回传 LLM） */
+	thinking?: string;
+	/** 思考是否仍在流式写入（折叠块 spinner / 默认展开） */
+	isThinkingStreaming?: boolean;
 }
 
 export interface MessageAction {

@@ -14,6 +14,7 @@ import {
 	writeError,
 	writeForm,
 	writePrdProgress,
+	writeThinking,
 } from "../../services/sse.js";
 import {
 	appendInterruptMarker,
@@ -30,6 +31,9 @@ type RetryMode =
 	| "continue_agent"
 	| "continue_prd"
 	| "retry_section";
+
+const INSERT_MESSAGE_SQL =
+	"INSERT INTO messages (id, session_id, role, content, thinking, created_at) VALUES (?, ?, ?, ?, ?, ?)";
 
 export function registerMessages(router: IRouter): void {
 	// ─── POST /api/sessions/:id/messages ─────────────────────────────────────
@@ -51,10 +55,10 @@ export function registerMessages(router: IRouter): void {
 		// ── 断线重连：客户端携带 Last-Event-ID 时重放最近已完成消息 ──────────
 		const lastEventId = req.headers["last-event-id"];
 		if (lastEventId !== undefined && lastEventId !== "") {
-			type AssistantRow = { id: string; content: string };
+			type AssistantRow = { id: string; content: string; thinking: string };
 			const latestAssistant = db
 				.prepare(
-					`SELECT id, content FROM messages
+					`SELECT id, content, thinking FROM messages
          WHERE session_id = ? AND role = 'assistant'
          ORDER BY created_at DESC LIMIT 1`,
 				)
@@ -62,7 +66,9 @@ export function registerMessages(router: IRouter): void {
 
 			if (latestAssistant) {
 				initSse(res);
-				// 将完整消息拆成若干 chunk 重放，客户端按 messageId 去重即可
+				if (latestAssistant.thinking) {
+					writeThinking(res, latestAssistant.thinking);
+				}
 				writeDelta(res, latestAssistant.content);
 				writeDone(res, false);
 				return;
@@ -89,9 +95,14 @@ export function registerMessages(router: IRouter): void {
 		// 写入用户消息
 		const userMsgId = uuidv4();
 		const now = Date.now();
-		db.prepare(
-			"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-		).run(userMsgId, sessionId, "user", userContent, now);
+		db.prepare(INSERT_MESSAGE_SQL).run(
+			userMsgId,
+			sessionId,
+			"user",
+			userContent,
+			"",
+			now,
+		);
 
 		// 自动更新会话标题（首条消息摘要）
 		const existingCount = (
@@ -117,18 +128,21 @@ export function registerMessages(router: IRouter): void {
 
 		// 用于流中断时安全落库
 		let partialReply = "";
+		let partialThinking = "";
 		let streamFinished = false;
 
 		// 客户端提前断开时，保存已累积的部分回复（带中断标记）
 		req.on("close", () => {
-			if (!streamFinished && partialReply.length > 20) {
-				db.prepare(
-					"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-				).run(
+			if (
+				!streamFinished &&
+				(partialReply.length > 20 || partialThinking.length > 0)
+			) {
+				db.prepare(INSERT_MESSAGE_SQL).run(
 					uuidv4(),
 					sessionId,
 					"assistant",
 					appendInterruptMarker(partialReply, "connection_lost"),
+					partialThinking,
 					Date.now(),
 				);
 			}
@@ -138,15 +152,19 @@ export function registerMessages(router: IRouter): void {
 			runAgentStream(
 				sessionId,
 				userContent,
-				// onDelta
 				(chunk, seq) => {
 					partialReply += chunk;
 					if (!res.writableEnded) {
 						writeDelta(res, chunk, seq);
 					}
 				},
-				// onDone
-				async (reply, shouldGeneratePrd) => {
+				(chunk, seq) => {
+					partialThinking += chunk;
+					if (!res.writableEnded) {
+						writeThinking(res, chunk, seq);
+					}
+				},
+				async (reply, shouldGeneratePrd, thinking) => {
 					streamFinished = true;
 
 					// 提取问题表单（存在时推送 form 事件；落库保留标记块以便刷新后还原）
@@ -155,12 +173,16 @@ export function registerMessages(router: IRouter): void {
 						writeForm(res, formData);
 					}
 
-					// 写入完整助手回复（含 QUESTION_FORM 标记块）
 					const assistantMsgId = uuidv4();
 					const finishedAt = Date.now();
-					db.prepare(
-						"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-					).run(assistantMsgId, sessionId, "assistant", reply, finishedAt);
+					db.prepare(INSERT_MESSAGE_SQL).run(
+						assistantMsgId,
+						sessionId,
+						"assistant",
+						reply,
+						thinking,
+						finishedAt,
+					);
 
 					db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
 						finishedAt,
@@ -190,23 +212,20 @@ export function registerMessages(router: IRouter): void {
 						writeDone(res, false);
 					}
 				},
-				// onError —— idle 超时等异常，保存 partial 并返回 retryable 错误
 				(err) => {
 					streamFinished = true;
 					stopHeartbeat();
 
-					// 保存 partial（带标记，供续写使用）
-					if (partialReply.length > 20) {
+					if (partialReply.length > 20 || partialThinking.length > 0) {
 						const reason = err.message.includes("idle")
 							? "idle_timeout"
 							: "agent_error";
-						db.prepare(
-							"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-						).run(
+						db.prepare(INSERT_MESSAGE_SQL).run(
 							uuidv4(),
 							sessionId,
 							"assistant",
 							appendInterruptMarker(partialReply, reason),
+							partialThinking,
 							Date.now(),
 						);
 						db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
@@ -276,23 +295,26 @@ export function registerMessages(router: IRouter): void {
 			}
 
 			// 取出并删除带中断标记的 assistant 消息（若有）
-			const partialContent = removeLastInterruptedAssistant(sessionId);
-			// retry_last = 丢弃 partial 重来；continue_agent = 续写
+			const interrupted = removeLastInterruptedAssistant(sessionId);
 			const partialForResume =
-				mode === "continue_agent" ? (partialContent ?? undefined) : undefined;
+				mode === "continue_agent" ? (interrupted?.content ?? undefined) : undefined;
 
 			let partialReply = partialForResume ?? "";
+			let partialThinking =
+				mode === "continue_agent" ? (interrupted?.thinking ?? "") : "";
 			let streamFinished = false;
 
 			req.on("close", () => {
-				if (!streamFinished && partialReply.length > 20) {
-					db.prepare(
-						"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-					).run(
+				if (
+					!streamFinished &&
+					(partialReply.length > 20 || partialThinking.length > 0)
+				) {
+					db.prepare(INSERT_MESSAGE_SQL).run(
 						uuidv4(),
 						sessionId,
 						"assistant",
 						appendInterruptMarker(partialReply, "connection_lost"),
+						partialThinking,
 						Date.now(),
 					);
 				}
@@ -306,15 +328,28 @@ export function registerMessages(router: IRouter): void {
 						partialReply += chunk;
 						if (!res.writableEnded) writeDelta(res, chunk, seq);
 					},
-					async (reply, shouldGeneratePrd) => {
+					(chunk, seq) => {
+						partialThinking += chunk;
+						if (!res.writableEnded) writeThinking(res, chunk, seq);
+					},
+					async (reply, shouldGeneratePrd, thinking) => {
 						streamFinished = true;
 						const { formData } = extractQuestionForm(reply);
 						if (formData !== null && !res.writableEnded)
 							writeForm(res, formData);
 
-						db.prepare(
-							"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-						).run(uuidv4(), sessionId, "assistant", reply, Date.now());
+						const savedThinking =
+							mode === "continue_agent"
+								? (interrupted?.thinking ?? "")
+								: "";
+						db.prepare(INSERT_MESSAGE_SQL).run(
+							uuidv4(),
+							sessionId,
+							"assistant",
+							reply,
+							savedThinking + thinking,
+							Date.now(),
+						);
 						db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
 							Date.now(),
 							sessionId,
@@ -352,14 +387,13 @@ export function registerMessages(router: IRouter): void {
 						const reason = err.message.includes("idle")
 							? "idle_timeout"
 							: "agent_error";
-						if (partialReply.length > 20) {
-							db.prepare(
-								"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-							).run(
+						if (partialReply.length > 20 || partialThinking.length > 0) {
+							db.prepare(INSERT_MESSAGE_SQL).run(
 								uuidv4(),
 								sessionId,
 								"assistant",
 								appendInterruptMarker(partialReply, reason),
+								partialThinking,
 								Date.now(),
 							);
 							db.prepare(

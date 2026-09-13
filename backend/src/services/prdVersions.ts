@@ -26,6 +26,7 @@ export interface VersionMessage {
 	role: "user" | "assistant";
 	content: string;
 	created_at: number;
+	thinking?: string;
 }
 
 export interface PrdVersionMeta {
@@ -135,7 +136,7 @@ function readWorkspaceMessages(sessionId: string): VersionMessage[] {
 	const db = getDb();
 	return db
 		.prepare(
-			"SELECT role, content, created_at FROM messages WHERE session_id = ? ORDER BY created_at ASC",
+			"SELECT role, content, thinking, created_at FROM messages WHERE session_id = ? ORDER BY created_at ASC",
 		)
 		.all(sessionId) as VersionMessage[];
 }
@@ -148,10 +149,17 @@ function writeMessagesIntoWorkspace(
 	const db = getDb();
 	db.prepare("DELETE FROM messages WHERE session_id = ?").run(sessionId);
 	const insert = db.prepare(
-		"INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+		"INSERT INTO messages (id, session_id, role, content, thinking, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 	);
 	for (const m of messages) {
-		insert.run(uuidv4(), sessionId, m.role, m.content, m.created_at);
+		insert.run(
+			uuidv4(),
+			sessionId,
+			m.role,
+			m.content,
+			m.thinking ?? "",
+			m.created_at,
+		);
 	}
 }
 

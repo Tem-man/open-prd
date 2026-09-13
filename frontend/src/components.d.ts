@@ -258,6 +258,7 @@ declare module 'vue' {
     StopGenerateButton: typeof import('./components/StopGenerateButton.vue')['default']
     StrokeSection: typeof import('./pencil/components/properties/StrokeSection.vue')['default']
     TextResizingControl: typeof import('./pencil/components/properties/LayoutSection/TextResizingControl.vue')['default']
+    ThinkingBlock: typeof import('./components/ThinkingBlock.vue')['default']
     Tip: typeof import('./pencil/components/ui/Tip.vue')['default']
     Toolbar: typeof import('./pencil/components/Toolbar/Toolbar.vue')['default']
     ToolbarActionGroup: typeof import('./pencil/components/Toolbar/ToolbarActionGroup.vue')['default']

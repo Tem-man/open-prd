@@ -11,6 +11,7 @@ import { trimHistory } from "./contextManager.js";
 import { buildSkillBlock } from "./skillLoader.js";
 import { getSessionModules } from "./prdOutline.js";
 import { INTERRUPT_MARKER_RE } from "./pipelineState.js";
+import { extractStreamParts } from "./llmStream.js";
 
 export interface AgentStreamResult {
 	reply: string;
@@ -57,6 +58,7 @@ function loadHistory(
 	const db = getDb();
 	const rows = db
 		.prepare(
+			// Never SELECT thinking — it is UI-only and must not return to the LLM.
 			"SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC",
 		)
 		.all(sessionId) as MsgRow[];
@@ -89,15 +91,17 @@ function loadHistory(
  *
  * @param sessionId   当前会话 ID
  * @param userMessage 用户当前输入（已写入 DB）
- * @param onDelta     每收到一个增量 chunk 时触发，携带内容和序号
- * @param onDone      流正常结束时触发，携带完整回复和 shouldGeneratePrd 标志
+ * @param onDelta     可见回复增量（不含思考）
+ * @param onThinking  思考 / reasoning 增量（不含可见回复）
+ * @param onDone      流正常结束；thinking 只给 UI 落库，不得回传模型
  * @param onError     流异常时触发
  */
 export async function runAgentStream(
 	sessionId: string,
 	userMessage: string,
 	onDelta: (chunk: string, seq: number) => void,
-	onDone: (reply: string, shouldGeneratePrd: boolean) => void,
+	onThinking: (chunk: string, seq: number) => void,
+	onDone: (reply: string, shouldGeneratePrd: boolean, thinking: string) => void,
 	onError: (err: Error) => void,
 	options: AgentStreamOptions = {},
 ): Promise<void> {
@@ -160,6 +164,7 @@ export async function runAgentStream(
 		// 4. 流式调用 LLM
 		const model = createChatModel();
 		let fullReply = "";
+		let fullThinking = "";
 		let seq = 0;
 
 		// 启动首 chunk 等待计时器（等同于 idle timeout，首个 chunk 到达前也适用）
@@ -176,17 +181,19 @@ export async function runAgentStream(
 
 		try {
 			for await (const chunk of stream) {
-				// 每收到 chunk 就重置 idle 计时器
+				const { text, thinking } = extractStreamParts(chunk);
+				if (!text && !thinking) continue;
+
+				// thinking 增量也算活动，避免长思考被 idle timeout 误杀
 				resetIdleTimer();
 
-				const delta =
-					typeof chunk.content === "string"
-						? chunk.content
-						: JSON.stringify(chunk.content);
-
-				if (delta) {
-					fullReply += delta;
-					onDelta(delta, seq++);
+				if (thinking) {
+					fullThinking += thinking;
+					onThinking(thinking, seq++);
+				}
+				if (text) {
+					fullReply += text;
+					onDelta(text, seq++);
 				}
 			}
 		} finally {
@@ -200,7 +207,7 @@ export async function runAgentStream(
 		const shouldGeneratePrd = mergedReply.includes(PRD_TRIGGER);
 		const cleanReply = mergedReply.replaceAll(PRD_TRIGGER, "").trimEnd();
 
-		onDone(cleanReply, shouldGeneratePrd);
+		onDone(cleanReply, shouldGeneratePrd, fullThinking);
 	} catch (err) {
 		clearIdleTimer();
 		const error = err instanceof Error ? err : new Error(String(err));

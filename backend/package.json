@@ -12,7 +12,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/services/llmStream.test.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.4.0",

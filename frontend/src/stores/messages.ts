@@ -142,6 +142,7 @@ export const useMessagesStore = defineStore("messages", () => {
 			role: string;
 			content: string;
 			created_at: number;
+			thinking?: string;
 		}>,
 	) {
 		const mapped: Message[] = raw.map((m) => {
@@ -155,6 +156,7 @@ export const useMessagesStore = defineStore("messages", () => {
 				createdAt: m.created_at,
 				interrupted: interrupted || undefined,
 				formData: formData ?? undefined,
+				thinking: m.thinking || undefined,
 			};
 		});
 
@@ -180,7 +182,11 @@ export const useMessagesStore = defineStore("messages", () => {
 	}
 
 	function startStreamingMessage(msg: Message) {
-		messages.value.push({ ...msg, isStreaming: true });
+		messages.value.push({
+			...msg,
+			isStreaming: true,
+			isThinkingStreaming: false,
+		});
 		if (activeStepIndex.value === -1) {
 			activeStepIndex.value = 0;
 			workflowSteps.value[0].status = "active";
@@ -192,15 +198,26 @@ export const useMessagesStore = defineStore("messages", () => {
 		if (msg) msg.content += chunk;
 	}
 
+	function appendThinking(msgId: string, chunk: string) {
+		const msg = messages.value.find((m) => m.id === msgId);
+		if (!msg) return;
+		msg.thinking = (msg.thinking ?? "") + chunk;
+		msg.isThinkingStreaming = true;
+	}
+
 	function clearStreamingContent(msgId: string) {
 		const msg = messages.value.find((m) => m.id === msgId);
-		if (msg) msg.content = "";
+		if (!msg) return;
+		msg.content = "";
+		msg.thinking = "";
+		msg.isThinkingStreaming = false;
 	}
 
 	function finalizeMessage(msgId: string) {
 		const msg = messages.value.find((m) => m.id === msgId);
 		if (!msg) return;
 		msg.isStreaming = false;
+		msg.isThinkingStreaming = false;
 		msg.interrupted = false;
 
 		if (activeStepIndex.value >= 0) {
@@ -218,6 +235,7 @@ export const useMessagesStore = defineStore("messages", () => {
 		const msg = messages.value.find((m) => m.id === msgId);
 		if (!msg) return;
 		msg.isStreaming = false;
+		msg.isThinkingStreaming = false;
 		msg.interrupted = true;
 	}
 
@@ -227,6 +245,7 @@ export const useMessagesStore = defineStore("messages", () => {
 		if (!msg) return;
 		msg.isStreaming = true;
 		msg.interrupted = false;
+		msg.isThinkingStreaming = false;
 	}
 
 	/** 收到 prd_progress SSE 事件时更新对应 WorkflowStep 状态 */
@@ -412,6 +431,7 @@ export const useMessagesStore = defineStore("messages", () => {
 		addUserMessage,
 		startStreamingMessage,
 		appendDelta,
+		appendThinking,
 		clearStreamingContent,
 		finalizeMessage,
 		markMessageInterrupted,
