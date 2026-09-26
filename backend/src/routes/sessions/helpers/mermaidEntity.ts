@@ -12,7 +12,8 @@ export function extractEntityBlock(sectionHtml: string, entityName: string): str
 	);
 	if (!mermaidMatch) return "";
 	const mermaidText = mermaidMatch[1];
-	const regex = new RegExp(`\\b${entityName}\\s*\\{[^}]*\\}`, "s");
+	const escaped = entityName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const regex = new RegExp(`\\b${escaped}\\s*\\{[^}]*\\}`, "s");
 	return mermaidText.match(regex)?.[0].trim() ?? "";
 }
 

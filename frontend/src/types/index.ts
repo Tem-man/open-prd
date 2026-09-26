@@ -70,8 +70,44 @@ export interface Question {
 	placeholder?: string;
 }
 
+export interface QuestionFormAction {
+	token: string;
+	kind: "regenerate_prd";
+}
+
+export type ConfirmDecision = "save_version_then_regenerate" | "overwrite" | "cancel";
+
+/** 确认卡片选项下标 → 决策（与后端 pendingActions 顺序一致） */
+export const CONFIRM_DECISIONS: ConfirmDecision[] = [
+	"save_version_then_regenerate",
+	"overwrite",
+	"cancel",
+];
+
 export interface QuestionForm {
 	questions: Question[];
+	intro?: string;
+	/** 存在时为服务端确认卡片，提交时携带 token */
+	action?: QuestionFormAction;
+}
+
+export interface MessageEdit {
+	sectionId: string;
+	sectionTitle: string;
+	elementLabel?: string;
+	resultVersion: number;
+	rolledBack?: boolean;
+}
+
+export interface MessageMeta {
+	kind?: "prd_edit";
+	edits?: MessageEdit[];
+	pendingAction?: {
+		token: string;
+		status: "pending" | "consumed" | "cancelled";
+		expiresAt: number;
+	};
+	citation?: { sectionId: string; sectionTitle?: string; elementLabel?: string };
 }
 
 export interface Message {
@@ -95,6 +131,8 @@ export interface Message {
 	thinking?: string;
 	/** 思考是否仍在流式写入（折叠块 spinner / 默认展开） */
 	isThinkingStreaming?: boolean;
+	/** 后端落库的元数据（编辑记录、待确认动作等） */
+	meta?: MessageMeta;
 }
 
 export interface MessageAction {

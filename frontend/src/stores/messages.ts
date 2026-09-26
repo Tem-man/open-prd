@@ -3,6 +3,8 @@ import { ref } from "vue";
 import type {
 	Message,
 	MessageAction,
+	MessageEdit,
+	MessageMeta,
 	PipelineState,
 	Question,
 	QuestionForm,
@@ -76,7 +78,14 @@ export function extractQuestionForm(content: string): {
 		if (!parsed || !Array.isArray(parsed.questions)) {
 			return { clean: content, formData: null };
 		}
-		return { clean, formData: { questions: parsed.questions } };
+		return {
+			clean,
+			formData: {
+				questions: parsed.questions,
+				...(parsed.intro ? { intro: parsed.intro } : {}),
+				...(parsed.action ? { action: parsed.action } : {}),
+			},
+		};
 	} catch {
 		return { clean: content, formData: null };
 	}
@@ -125,6 +134,16 @@ export function parseFormAnswers(
 	return answers;
 }
 
+function parseMessageMeta(raw: string | undefined): MessageMeta | undefined {
+	if (!raw || raw === "{}") return undefined;
+	try {
+		const parsed = JSON.parse(raw) as MessageMeta;
+		return parsed && typeof parsed === "object" ? parsed : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export const useMessagesStore = defineStore("messages", () => {
 	const messages = ref<Message[]>([]);
 	const prdReady = ref<string | null>(null);
@@ -143,11 +162,18 @@ export const useMessagesStore = defineStore("messages", () => {
 			content: string;
 			created_at: number;
 			thinking?: string;
+			meta?: string;
 		}>,
 	) {
 		const mapped: Message[] = raw.map((m) => {
 			const { clean: withoutForm, formData } = extractQuestionForm(m.content);
 			const { clean, interrupted } = stripInterruptMarker(withoutForm);
+			const meta = parseMessageMeta(m.meta);
+			const pending = meta?.pendingAction;
+			// 确认卡片已处理或过期时不可再操作
+			const settled =
+				!!formData?.action &&
+				(!pending || pending.status !== "pending" || pending.expiresAt < Date.now());
 			return {
 				id: m.id,
 				sessionId: m.session_id,
@@ -156,7 +182,9 @@ export const useMessagesStore = defineStore("messages", () => {
 				createdAt: m.created_at,
 				interrupted: interrupted || undefined,
 				formData: formData ?? undefined,
+				formSubmitted: settled || undefined,
 				thinking: m.thinking || undefined,
+				meta,
 			};
 		});
 
@@ -412,6 +440,45 @@ export const useMessagesStore = defineStore("messages", () => {
 		if (msg) msg.formSubmitted = true;
 	}
 
+	/** 对话中工具改完模块后记录到对应助手气泡（与后端 meta.edits 同构） */
+	function recordEdit(msgId: string, edit: MessageEdit) {
+		const msg = messages.value.find((m) => m.id === msgId);
+		if (!msg) return;
+		const meta = msg.meta ?? {};
+		meta.kind = "prd_edit";
+		meta.edits = [...(meta.edits ?? []), edit];
+		msg.meta = meta;
+	}
+
+	/** 流结束后用后端落库 id 替换临时 id（撤回需凭真实 id 持久化） */
+	function adoptMessageId(tempId: string, realId: string) {
+		const msg = messages.value.find((m) => m.id === tempId);
+		if (msg) msg.id = realId;
+	}
+
+	function removeMessages(ids: string[]) {
+		messages.value = messages.value.filter((m) => !ids.includes(m.id));
+	}
+
+	/** 对话中新增章节后补齐进度步骤（不重置已有步骤状态） */
+	function syncWorkflowModules(selectedModules: Array<{ id: string; name: string }>) {
+		const outputIdx = workflowSteps.value.findIndex((s) => s.id === "output");
+		for (const m of selectedModules) {
+			const stepId = MODULE_TO_STEP_ID[m.id] ?? m.id;
+			if (workflowSteps.value.some((s) => s.id === stepId)) continue;
+			const step: WorkflowStep = { id: stepId, label: m.name, status: "pending" };
+			if (outputIdx === -1) workflowSteps.value.push(step);
+			else workflowSteps.value.splice(outputIdx, 0, step);
+		}
+	}
+
+	function markEditRolledBack(msgId: string, sectionId: string, version: number) {
+		const edit = messages.value
+			.find((m) => m.id === msgId)
+			?.meta?.edits?.find((e) => e.sectionId === sectionId && e.resultVersion === version);
+		if (edit) edit.rolledBack = true;
+	}
+
 	function reset() {
 		messages.value = [];
 		prdReady.value = null;
@@ -442,6 +509,11 @@ export const useMessagesStore = defineStore("messages", () => {
 		initWorkflowSteps,
 		attachFormToLastMessage,
 		markFormSubmitted,
+		recordEdit,
+		adoptMessageId,
+		removeMessages,
+		syncWorkflowModules,
+		markEditRolledBack,
 		addStaticAssistantMessage,
 		updatePrdHtmlAfterEdit,
 		applyPipelineState,

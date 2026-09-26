@@ -36,6 +36,16 @@ function resolveGenerator(sectionId: SectionId): Generator {
 	return BUILTIN_MODULE_MAP[sectionId] ?? custom;
 }
 
+/** 按大纲生成单个模块 HTML，不落库；失败直接抛出（供对话式重写 / 新增章节使用）。 */
+export async function generateSectionHtml(
+	sessionId: string,
+	sectionId: SectionId,
+): Promise<string> {
+	const section = getOutline(sessionId)?.sections.find((s) => s.id === sectionId);
+	if (!section) throw new Error(`[prd] Outline 中不存在模块 ${sectionId}`);
+	return resolveGenerator(sectionId).generate(section);
+}
+
 /**
  * 从 prd_sections 读取已生成模块的 HTML（断点续传用）。
  * 优先用当前会话最新版本；找不到时返回 null，触发重新生成。
@@ -246,6 +256,7 @@ function getOrderedSections(
 export async function generateFullPrd(
 	sessionId: string,
 	onProgress?: ProgressCallback,
+	signal?: AbortSignal,
 ): Promise<string> {
 	const db = getDb();
 
@@ -266,6 +277,8 @@ export async function generateFullPrd(
 
 	for (const section of orderedSections) {
 		const sectionId = section.id;
+		// 已完成模块保持 done，中止后可由 continue_prd 续传
+		if (signal?.aborted) throw new Error("[prd] 生成已中止");
 
 		// 断点续传：已完成且有缓存的模块直接跳过
 		if (section.status === "done") {

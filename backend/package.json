@@ -13,20 +13,24 @@
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/services/llmStream.test.ts"
+    "test": "tsx --test src/services/llmStream.test.ts src/services/agent/orchestrator.test.ts",
+    "test:intent": "tsx src/services/agent/__tests__/intentEval.ts"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.4.0",
-    "@langchain/core": "^1.1.47",
+    "@langchain/core": "^1.2.12",
+    "@langchain/langgraph": "^1.4.18",
     "@langchain/ollama": "^1.2.7",
     "@langchain/openai": "^1.4.6",
     "better-sqlite3": "^12.10.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "langchain": "^1.5.12",
     "multer": "^2.1.1",
     "nanoid": "^5.1.11",
     "node-html-parser": "^7.1.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

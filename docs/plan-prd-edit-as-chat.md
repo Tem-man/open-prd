@@ -2,6 +2,10 @@
 
 > 状态：草稿 | 创建时间：2026-09-13
 >
+> **更新（2026-09-26）**：§2.1「前端路由器 + 两条 Agent」与 §6.1「独立摘要 LLM 调用」已被
+> [`plan-orchestrator-agent.md`](./plan-orchestrator-agent.md) 取代：编辑意图由编排 Agent 判定，改动说明由 Agent 的回复承担。
+> 本文的 chip 交互、`messages.meta`、撤回栏与气泡形态仍然有效。
+>
 > 范围：会话页左侧 `SessionSidebar` 的 PRD Agent 对话流 + 右侧模块/元素 AI 编辑。
 > 取代 `docs/plan-section-ai-edit-to-sidebar.md` 里「专用输入区盖住对话框」的交互（实现可保留内部自动保存，UI 不再走那套）。
 
@@ -107,29 +111,29 @@ PRD 有两条互不相通的 AI 编辑入口，且都**不进聊天记录**：
 
 ```ts
 type Route =
-	| { agent: "generate"; prompt: "collect" | "postPrdChat" | "postPrdRegen" }
-	| { agent: "edit"; target: ComposerTarget }
-	| { agent: "clarify"; sections: PrdSection[] }; // 本地表单，不调用 LLM
+  | { agent: "generate"; prompt: "collect" | "postPrdChat" | "postPrdRegen" }
+  | { agent: "edit"; target: ComposerTarget }
+  | { agent: "clarify"; sections: PrdSection[] }; // 本地表单，不调用 LLM
 
 function routePrdTurn(text, ctx): Route {
-	if (ctx.chip) return { agent: "edit", target: ctx.chip };
-	if (!ctx.prdReady) return { agent: "generate", prompt: "collect" };
-	if (looksLikeFullRegenerate(text))
-		return { agent: "generate", prompt: "postPrdRegen" };
+  if (ctx.chip) return { agent: "edit", target: ctx.chip };
+  if (!ctx.prdReady) return { agent: "generate", prompt: "collect" };
+  if (looksLikeFullRegenerate(text))
+    return { agent: "generate", prompt: "postPrdRegen" };
 
-	if (looksLikeEdit(text)) {
-		const hit =
-			matchSectionByTitle(text, ctx.sections) ??
-			matchSectionByBody(text, ctx.sections);
-		if (hit)
-			return {
-				agent: "edit",
-				target: { sectionId: hit.id, sectionTitle: hit.title },
-			};
-		return { agent: "clarify", sections: ctx.sections };
-	}
+  if (looksLikeEdit(text)) {
+    const hit =
+      matchSectionByTitle(text, ctx.sections) ??
+      matchSectionByBody(text, ctx.sections);
+    if (hit)
+      return {
+        agent: "edit",
+        target: { sectionId: hit.id, sectionTitle: hit.title },
+      };
+    return { agent: "clarify", sections: ctx.sections };
+  }
 
-	return { agent: "generate", prompt: "postPrdChat" };
+  return { agent: "generate", prompt: "postPrdChat" };
 }
 ```
 
@@ -389,13 +393,13 @@ meta?: PrdEditMeta | Record<string, unknown>
 
 ```ts
 interface ComposerTarget {
-	sectionId: string;
-	sectionTitle: string;
-	elementLabel?: string;
-	/** 交给 editSection 的 patch 参数；整模块时全空 */
-	selectedElementHtml?: string;
-	entityName?: string;
-	tablePath?: TableElementPath;
+  sectionId: string;
+  sectionTitle: string;
+  elementLabel?: string;
+  /** 交给 editSection 的 patch 参数；整模块时全空 */
+  selectedElementHtml?: string;
+  entityName?: string;
+  tablePath?: TableElementPath;
 }
 
 composerTarget: Ref<ComposerTarget | null>;
@@ -416,8 +420,8 @@ composerDraft: Ref<string>;
 
 ```ts
 async function submitPrdEdit(
-	sessionId: string,
-	instruction: string,
+  sessionId: string,
+  instruction: string,
 ): Promise<void>;
 ```
 

@@ -14,7 +14,12 @@
 		nextTick,
 	} from "vue";
 	import { usePrdEditStore } from "@/stores/prdEdit";
-	import { useSectionEdit, type TableElementPath } from "@/composables/useSSE";
+	import { useMessagesStore } from "@/stores/messages";
+	import {
+		useSSE,
+		type ComposerTarget,
+		type TableElementPath,
+	} from "@/composables/useSSE";
 
 	const props = defineProps<{
 		sessionId: string;
@@ -47,7 +52,8 @@
 	}>();
 
 	const prdEditStore = usePrdEditStore();
-	const { editSection } = useSectionEdit();
+	const messagesStore = useMessagesStore();
+	const { sendMessage } = useSSE();
 
 	const instruction = ref("");
 	const panelRef = ref<HTMLDivElement | null>(null);
@@ -215,67 +221,51 @@
 	const isAiEditing = computed(
 		() => prdEditStore.aiEditingSection === props.sectionId,
 	);
-	const busy = computed(() => isAiEditing.value);
+	const busy = computed(
+		() => isAiEditing.value || messagesStore.messages.some((m) => m.isStreaming),
+	);
 
-	/**
-	 *  提交AI指令
-	 */
+	function cleanOuterHtml(el: HTMLElement): string {
+		const clone = el.cloneNode(true) as HTMLElement;
+		clone.classList.remove("el-selected", "el-selected-cell");
+		clone.querySelectorAll(".el-selected, .el-selected-cell").forEach((child) => {
+			child.classList.remove("el-selected", "el-selected-cell");
+		});
+		return clone.outerHTML;
+	}
+
+	/** 点选产生的精确定位参数随 target 发送，由对话 Agent 的 edit_section 消费 */
+	function buildTarget(el: HTMLElement): ComposerTarget {
+		const target: ComposerTarget = {
+			sectionId: props.sectionId,
+			sectionTitle: prdEditStore.sections.find((s) => s.sectionId === props.sectionId)?.title,
+			elementLabel: elementLabel.value || undefined,
+		};
+		if (props.entityName) return { ...target, entityName: props.entityName };
+		// Mermaid 区域未识别出实体：整模块改写，绝不发 SVG
+		if (el.classList.contains("mermaid")) return { ...target, elementLabel: "图表" };
+		if (isMultiCell.value && props.selectedCells) {
+			return {
+				...target,
+				selectedElementHtml: props.selectedCells.map(cleanOuterHtml).join("\n"),
+				tablePath: getTablePath(el, props.selectedCells) ?? undefined,
+				elementLabel: `${props.selectedCells.length}个单元格`,
+			};
+		}
+		return {
+			...target,
+			selectedElementHtml: cleanOuterHtml(el),
+			tablePath: getTablePath(el) ?? undefined,
+		};
+	}
+
 	async function handleSubmit() {
 		const text = instruction.value.trim();
 		if (!text || busy.value || !props.selectedEl) return;
 		instruction.value = "";
-
-		if (props.entityName) {
-			// ER 图实体模式：传 entityName，绝不传 SVG outerHTML
-			await editSection(
-				props.sessionId,
-				props.sectionId,
-				text,
-				undefined,
-				props.entityName,
-			);
-		} else if (props.selectedEl.classList.contains("mermaid")) {
-			// 点到 Mermaid 区域但未识别出具体实体：做整节重写，不发 SVG
-			await editSection(props.sessionId, props.sectionId, text);
-		} else if (isMultiCell.value && props.selectedCells) {
-			// 多格选中：只发选中格的 HTML 拼接作为上下文，精确 patch
-			const cellsHtml = props.selectedCells
-				.map((cell) => {
-					const clone = cell.cloneNode(true) as HTMLElement;
-					clone.classList.remove("el-selected-cell");
-					return clone.outerHTML;
-				})
-				.join("\n");
-			await editSection(
-				props.sessionId,
-				props.sectionId,
-				text,
-				cellsHtml,
-				undefined,
-				getTablePath(props.selectedEl, props.selectedCells) ?? undefined,
-			);
-		} else {
-			// 普通 HTML 元素：发 outerHTML 做元素补丁；表格内部元素额外附带坐标
-			// 克隆后去掉选中态 class，防止残留到后端
-			const clone = props.selectedEl.cloneNode(true) as HTMLElement;
-			clone.classList.remove("el-selected");
-			clone.classList.remove("el-selected-cell");
-			clone
-				.querySelectorAll(".el-selected, .el-selected-cell")
-				.forEach((el) => {
-					el.classList.remove("el-selected");
-					el.classList.remove("el-selected-cell");
-				});
-			await editSection(
-				props.sessionId,
-				props.sectionId,
-				text,
-				clone.outerHTML,
-				undefined,
-				getTablePath(props.selectedEl) ?? undefined,
-			);
-		}
+		const target = buildTarget(props.selectedEl);
 		emit("close");
+		await sendMessage(props.sessionId, text, { target });
 	}
 
 	// ── 进入文本编辑模式 ──────────────────────────────────────────────────────────

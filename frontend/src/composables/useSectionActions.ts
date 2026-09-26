@@ -40,13 +40,22 @@ export function useSectionActions() {
 		}
 	}
 
-	async function rollbackSection(sessionId: string, sectionId: string) {
+	/** @param messageId 对话式编辑的助手消息 id，后端据此持久化「已撤回」 */
+	async function rollbackSection(
+		sessionId: string,
+		sectionId: string,
+		messageId?: string,
+	) {
 		if (rolling.value) return;
 		rolling.value = true;
 		try {
 			const res = await fetch(
 				`/api/sessions/${sessionId}/prd/sections/${sectionId}/rollback`,
-				{ method: "POST" },
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ messageId }),
+				},
 			);
 			if (!res.ok) throw new Error(`回滚失败 ${res.status}`);
 			const data = (await res.json()) as {

@@ -1,6 +1,14 @@
 import { useMessagesStore } from "@/stores/messages";
 import { usePrdEditStore } from "@/stores/prdEdit";
-import type { Message, PipelineState, QuestionForm, RetryMode } from "@/types";
+import { usePrdVersionsStore } from "@/stores/prdVersions";
+import { useSessionsStore } from "@/stores/sessions";
+import type {
+	ConfirmDecision,
+	Message,
+	PipelineState,
+	QuestionForm,
+	RetryMode,
+} from "@/types";
 import {
 	resolvePrdLlmPayload,
 	type PrdLlmPayload,
@@ -45,9 +53,12 @@ interface SseEvent {
 		| "prd_ready"
 		| "prd_progress"
 		| "error"
+		| "section_element_patch_start"
 		| "section_edit_delta"
 		| "section_edit_done"
-		| "section_edit_error";
+		| "section_edit_error"
+		| "session_modules_updated"
+		| "prd_versions_changed";
 	content?: string;
 	prdGenerated?: boolean;
 	prdId?: string;
@@ -65,10 +76,24 @@ interface SseEvent {
 	assembledPrdHtml?: string;
 }
 
-/** form 事件数据格式 */
-interface FormEventData {
-	questions: QuestionForm["questions"];
+/** 对话中指向 PRD 模块 / 元素的编辑目标（chip） */
+export interface ComposerTarget {
+	sectionId: string;
+	sectionTitle?: string;
+	elementLabel?: string;
+	selectedElementHtml?: string;
+	entityName?: string;
+	tablePath?: TableElementPath;
 }
+
+export interface SendMessageOptions {
+	isFormAnswer?: boolean;
+	target?: ComposerTarget;
+	confirmAction?: { token: string; decision: ConfirmDecision };
+}
+
+/** form 事件数据格式 */
+type FormEventData = QuestionForm;
 
 /** 当前活跃的 AbortController，用于中止 SSE 流 */
 let activeAbortController: AbortController | null = null;
@@ -143,6 +168,8 @@ async function consumeStream(
 						if (formData.questions) {
 							messagesStore.attachFormToLastMessage({
 								questions: formData.questions,
+								...(formData.intro ? { intro: formData.intro } : {}),
+								...(formData.action ? { action: formData.action } : {}),
 							});
 						}
 					} catch {
@@ -155,6 +182,12 @@ async function consumeStream(
 				// 处理 done 命名事件
 				if (currentEventName === "done") {
 					messagesStore.finalizeMessage(tempId);
+					try {
+						const done = JSON.parse(raw) as { messageId?: string };
+						if (done.messageId) messagesStore.adoptMessageId(tempId, done.messageId);
+					} catch {
+						/* 旧格式 done 无 messageId */
+					}
 					currentEventName = null;
 					continue;
 				}
@@ -170,6 +203,8 @@ async function consumeStream(
 					messagesStore.appendDelta(tempId, evt.content);
 				} else if (evt.type === "thinking" && evt.content) {
 					messagesStore.appendThinking(tempId, evt.content);
+				} else if (handleEditEvent(evt, sessionId, tempId, messagesStore)) {
+					continue;
 				} else if (evt.type === "prd_progress" && evt.sectionId && evt.status) {
 					messagesStore.setPrdSectionStatus(evt.sectionId, evt.status);
 				} else if (evt.type === "done") {
@@ -247,13 +282,74 @@ async function fetchPrdHtml(
 	if (data.html) messagesStore.setPrdHtml(data.html);
 }
 
+/**
+ * 对话流中的 PRD 编辑类事件（编排 Agent 工具产生）。
+ * @returns 是否已处理
+ */
+function handleEditEvent(
+	evt: SseEvent & { selectedModules?: unknown },
+	sessionId: string,
+	tempId: string,
+	messagesStore: ReturnType<typeof useMessagesStore>,
+): boolean {
+	const prdEditStore = usePrdEditStore();
+	switch (evt.type) {
+		case "section_element_patch_start":
+			if (evt.sectionId) prdEditStore.startAiEditing(evt.sectionId);
+			return true;
+		case "section_edit_delta":
+			if (evt.sectionId && evt.content) {
+				prdEditStore.onAiEditDelta(evt.sectionId, evt.content);
+			}
+			return true;
+		case "section_edit_done":
+			if (evt.sectionId && evt.newHtml !== undefined && evt.version !== undefined) {
+				const known = prdEditStore.sections.find((s) => s.sectionId === evt.sectionId);
+				if (known) prdEditStore.onAiEditDone(evt.sectionId, evt.newHtml, evt.version);
+				else void prdEditStore.loadSections(sessionId);
+				if (evt.assembledPrdHtml) {
+					messagesStore.updatePrdHtmlAfterEdit(evt.assembledPrdHtml);
+				}
+				const lastUser = [...messagesStore.messages].reverse().find((m) => m.role === "user");
+				const citation = lastUser?.meta?.citation;
+				messagesStore.recordEdit(tempId, {
+					sectionId: evt.sectionId,
+					sectionTitle: known?.title ?? evt.sectionId,
+					resultVersion: evt.version,
+					...(citation?.sectionId === evt.sectionId && citation.elementLabel
+						? { elementLabel: citation.elementLabel }
+						: {}),
+				});
+			}
+			return true;
+		case "section_edit_error":
+			showToast(evt.message || "编辑失败，请重试");
+			prdEditStore.cancelEdit();
+			prdEditStore.aiEditingSection = null;
+			return true;
+		case "session_modules_updated":
+			if (Array.isArray(evt.selectedModules)) {
+				messagesStore.syncWorkflowModules(
+					evt.selectedModules as Array<{ id: string; name: string }>,
+				);
+			}
+			void useSessionsStore().fetchSession(sessionId);
+			return true;
+		case "prd_versions_changed":
+			void usePrdVersionsStore().fetchVersions(sessionId);
+			return true;
+		default:
+			return false;
+	}
+}
+
 export function useSSE() {
 	const messagesStore = useMessagesStore();
 
 	async function sendMessage(
 		sessionId: string,
 		text: string,
-		options?: { isFormAnswer?: boolean },
+		options?: SendMessageOptions,
 	): Promise<void> {
 		const llm = await requirePrdLlmPayload();
 		if (!llm) return;
@@ -272,6 +368,17 @@ export function useSSE() {
 			content: text,
 			createdAt: Date.now(),
 			isFormAnswer: options?.isFormAnswer || undefined,
+			...(options?.target
+				? {
+						meta: {
+							citation: {
+								sectionId: options.target.sectionId,
+								sectionTitle: options.target.sectionTitle,
+								elementLabel: options.target.elementLabel,
+							},
+						},
+					}
+				: {}),
 		};
 		messagesStore.addUserMessage(userMsg);
 
@@ -285,14 +392,21 @@ export function useSSE() {
 		};
 		messagesStore.startStreamingMessage(aiMsg);
 
+		const requestBody = JSON.stringify({
+			content: text,
+			llm,
+			target: options?.target,
+			confirmAction: options?.confirmAction,
+		});
+
 		try {
-			// ── 首次请求 ──────────────────────────────────────────────────────────
+			// ── 首次请求 ────────────────────────────────────────────────────────────────────────
 			let res: Response;
 			try {
 				res = await fetch(`/api/sessions/${sessionId}/messages`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ content: text, llm }),
+					body: requestBody,
 					signal,
 				});
 			} catch (err) {
@@ -312,7 +426,8 @@ export function useSSE() {
 					/* keep status text */
 				}
 				showToast(detail);
-				messagesStore.finalizeMessage(tempId);
+				// 请求被拒时后端未落库，撤掉乐观插入的两条气泡
+				messagesStore.removeMessages([userMsg.id, tempId]);
 				return;
 			}
 
@@ -344,7 +459,7 @@ export function useSSE() {
 							"Content-Type": "application/json",
 							"Last-Event-ID": lastEventId,
 						},
-						body: JSON.stringify({ content: text, llm }),
+						body: requestBody,
 						signal,
 					});
 				} catch (err) {
@@ -509,108 +624,3 @@ export function useSSE() {
 	return { sendMessage, retrySession, stopGeneration };
 }
 
-/**
- * 单独的 section 编辑 SSE composable（不依赖主对话流，独立开连接）。
- * 调用 editSection() 触发 AI 重写，结果通过 prdEditStore 分发。
- */
-export function useSectionEdit() {
-	const messagesStore = useMessagesStore();
-	const prdEditStore = usePrdEditStore();
-
-	async function editSection(
-		sessionId: string,
-		sectionId: string,
-		instruction: string,
-		selectedElementHtml?: string,
-		entityName?: string,
-		tablePath?: TableElementPath,
-	): Promise<void> {
-		const llm = await requirePrdLlmPayload();
-		if (!llm) return;
-
-		const res = await fetch(
-			`/api/sessions/${sessionId}/prd/sections/${sectionId}`,
-			{
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					instruction,
-					selectedElementHtml,
-					entityName,
-					tablePath,
-					llm,
-				}),
-			},
-		);
-
-		if (!res.ok || !res.body) {
-			showToast(`请求失败：${res.status}`);
-			return;
-		}
-
-		const reader = res.body.getReader();
-		const decoder = new TextDecoder();
-		let buffer = "";
-
-		try {
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop() ?? "";
-
-				for (const line of lines) {
-					if (line.startsWith(":") || line === "") continue;
-					if (!line.startsWith("data: ")) continue;
-					const raw = line.slice(6).trim();
-					if (!raw) continue;
-
-					let evt: {
-						type: string;
-						sectionId?: string;
-						content?: string;
-						newHtml?: string;
-						version?: number;
-						assembledPrdHtml?: string;
-						message?: string;
-					};
-					try {
-						evt = JSON.parse(raw);
-					} catch {
-						continue;
-					}
-
-					if (evt.type === "section_element_patch_start" && evt.sectionId) {
-						// Element Patch 模式：只标记 AI 处理中，不更新 section html
-						prdEditStore.startAiEditing(evt.sectionId);
-					} else if (
-						evt.type === "section_edit_delta" &&
-						evt.sectionId &&
-						evt.content
-					) {
-						prdEditStore.onAiEditDelta(evt.sectionId, evt.content);
-					} else if (
-						evt.type === "section_edit_done" &&
-						evt.sectionId &&
-						evt.newHtml !== undefined &&
-						evt.version !== undefined
-					) {
-						prdEditStore.onAiEditDone(evt.sectionId, evt.newHtml, evt.version);
-						if (evt.assembledPrdHtml) {
-							messagesStore.updatePrdHtmlAfterEdit(evt.assembledPrdHtml);
-						}
-					} else if (evt.type === "section_edit_error" && evt.message) {
-						showToast(evt.message || "编辑失败，请重试");
-						prdEditStore.cancelEdit();
-					}
-				}
-			}
-		} finally {
-			reader.releaseLock();
-		}
-	}
-
-	return { editSection };
-}

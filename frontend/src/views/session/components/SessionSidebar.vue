@@ -15,7 +15,7 @@
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdEditStore } from "@/stores/prdEdit";
 	import { usePrototypesStore } from "@/stores/prototypes";
-	import { useSSE, useSectionEdit } from "@/composables/useSSE";
+	import { useSSE, type ComposerTarget } from "@/composables/useSSE";
 	import { useSectionActions } from "@/composables/useSectionActions";
 	import TypingIndicator from "@/components/TypingIndicator.vue";
 	import HistoryDrawer from "@/components/HistoryDrawer.vue";
@@ -24,6 +24,7 @@
 	import ThinkingBlock from "@/components/ThinkingBlock.vue";
 	import StopGenerateButton from "@/components/StopGenerateButton.vue";
 	import ModelSelector from "@/components/ModelSelector.vue";
+	import { CONFIRM_DECISIONS, type Message, type MessageEdit } from "@/types";
 
 	const props = defineProps<{ sessionId: string }>();
 
@@ -32,7 +33,6 @@
 	const prdEditStore = usePrdEditStore();
 	const prototypesStore = usePrototypesStore();
 	const { sendMessage, retrySession, stopGeneration } = useSSE();
-	const { editSection } = useSectionEdit();
 	const { saving, rolling, saveSection, rollbackSection } = useSectionActions();
 
 	type Tab = "chat" | "modules" | "history";
@@ -67,14 +67,29 @@
 	const moduleEditBusy = computed(
 		() => isAiRewriting.value || saving.value || rolling.value,
 	);
-	const moduleInstruction = ref("");
+	const isStreaming = computed(() =>
+		messagesStore.messages.some((m) => m.isStreaming),
+	);
+	const inputBusy = computed(() => isSending.value || isStreaming.value);
 
-	async function handleModuleAiRewrite() {
-		const text = moduleInstruction.value.trim();
-		if (!text || moduleEditBusy.value || !prdEditStore.editingSection) return;
-		moduleInstruction.value = "";
-		await editSection(props.sessionId, prdEditStore.editingSection, text);
-	}
+	// 选中模块后输入框出现 chip，AI 修改走对话
+	const composerTarget = computed<ComposerTarget | null>(() =>
+		prdEditStore.editingSection
+			? {
+					sectionId: prdEditStore.editingSection,
+					sectionTitle: editingSectionTitle.value ?? undefined,
+				}
+			: null,
+	);
+
+	const inputPlaceholder = computed(() => {
+		if (composerTarget.value) {
+			return `告诉 AI 如何修改「${composerTarget.value.sectionTitle ?? "该模块"}」…`;
+		}
+		return hasPrd.value
+			? "继续对话，或直接说要改 PRD 的哪里..."
+			: "描述你的产品需求...";
+	});
 
 	async function handleModuleSave() {
 		if (moduleEditBusy.value || !prdEditStore.editingSection) return;
@@ -83,13 +98,38 @@
 		);
 	}
 
-	async function handleModuleRollback() {
-		if (moduleEditBusy.value || !prdEditStore.editingSection) return;
-		await rollbackSection(props.sessionId, prdEditStore.editingSection);
-	}
-
 	function handleModuleCancel() {
 		prdEditStore.cancelEdit();
+	}
+
+	function citationLabel(msg: Message): string {
+		const c = msg.meta?.citation;
+		if (!c) return "";
+		const title = c.sectionTitle ?? c.sectionId;
+		return c.elementLabel ? `${title} · ${c.elementLabel}` : title;
+	}
+
+	function editLabel(edit: MessageEdit): string {
+		return edit.elementLabel
+			? `${edit.sectionTitle} · ${edit.elementLabel}`
+			: edit.sectionTitle;
+	}
+
+	/** 只有模块仍停在这次编辑产生的版本时才能撤回，避免覆盖之后的修改 */
+	function canUndo(edit: MessageEdit): boolean {
+		if (edit.rolledBack) return false;
+		const sec = prdEditStore.sections.find((s) => s.sectionId === edit.sectionId);
+		return !!sec && sec.version === edit.resultVersion;
+	}
+
+	async function handleUndoEdit(msg: Message, edit: MessageEdit) {
+		if (!canUndo(edit) || rolling.value || inputBusy.value) return;
+		try {
+			await rollbackSection(props.sessionId, edit.sectionId, msg.id);
+			messagesStore.markEditRolledBack(msg.id, edit.sectionId, edit.resultVersion);
+		} catch (e) {
+			console.error("[SessionSidebar] rollback failed:", e);
+		}
 	}
 
 	function openHistory() {
@@ -173,12 +213,14 @@
 
 	async function handleSend() {
 		const text = inputText.value.trim();
-		if (!text || isSending.value) return;
+		if (!text || inputBusy.value) return;
 		inputText.value = "";
 		nextTick(resetTextareaHeight);
 		isSending.value = true;
 		try {
-			await sendMessage(props.sessionId, text);
+			await sendMessage(props.sessionId, text, {
+				target: composerTarget.value ?? undefined,
+			});
 			await sessionsStore.fetchSession(props.sessionId);
 		} finally {
 			isSending.value = false;
@@ -256,14 +298,31 @@
 		}
 	}
 
-	async function handleFormSubmit(msgId: string, answersText: string) {
+	async function handleFormSubmit(
+		msgId: string,
+		answersText: string,
+		answers: Record<string, string | string[]>,
+	) {
 		// 标记表单已提交（禁用该表单）
 		messagesStore.markFormSubmitted(msgId);
-		// 将整合好的答案文本作为普通用户消息发送
+		const form = messagesStore.messages.find((m) => m.id === msgId)?.formData;
+		const action = form?.action;
+		// 确认卡片：按选项下标映射决策，凭 token 让后端直接执行
+		const question = form?.questions[0];
+		const choice = question ? answers[question.id] : undefined;
+		const decisionIdx =
+			typeof choice === "string" ? (question?.options ?? []).indexOf(choice) : -1;
+		const decision = decisionIdx >= 0 ? CONFIRM_DECISIONS[decisionIdx] : undefined;
 		inputText.value = "";
 		isSending.value = true;
 		try {
-			await sendMessage(props.sessionId, answersText, { isFormAnswer: true });
+			if (action && decision) {
+				await sendMessage(props.sessionId, typeof choice === "string" ? choice : answersText, {
+					confirmAction: { token: action.token, decision },
+				});
+			} else {
+				await sendMessage(props.sessionId, answersText, { isFormAnswer: true });
+			}
 			await sessionsStore.fetchSession(props.sessionId);
 		} finally {
 			isSending.value = false;
@@ -466,8 +525,34 @@
 						:form="msg.formData"
 						:default-answers="msg.formAnswers"
 						:disabled="msg.formSubmitted || isSending"
-						@submit="(text) => handleFormSubmit(msg.id, text)"
+						@submit="(text, answers) => handleFormSubmit(msg.id, text, answers)"
 					/>
+					<!-- 对话式编辑的改动记录 + 撤回 -->
+					<div
+						v-if="msg.meta?.edits?.length && !msg.isStreaming"
+						class="edit-record"
+					>
+						<div
+							v-for="edit in msg.meta.edits"
+							:key="`${edit.sectionId}-${edit.resultVersion}`"
+							class="edit-record__row"
+						>
+							<span class="cite-chip"># {{ editLabel(edit) }}</span>
+							<span class="edit-record__version">v{{ edit.resultVersion }}</span>
+							<span v-if="edit.rolledBack" class="edit-record__state">已撤回</span>
+							<button
+								v-else
+								type="button"
+								class="edit-record__undo"
+								:disabled="!canUndo(edit) || rolling || inputBusy"
+								:title="canUndo(edit) ? '撤回这次修改' : '模块之后又有修改，无法撤回'"
+								@click="handleUndoEdit(msg, edit)"
+							>
+								<icon-lucide-undo-2 />
+								{{ rolling ? "撤回中…" : "撤回" }}
+							</button>
+						</div>
+					</div>
 					<!-- PRD 完成后的「生成原型稿」引导动作 -->
 					<div
 						v-if="msg.action?.type === 'create-prototype'"
@@ -485,6 +570,9 @@
 					</div>
 				</div>
 				<div v-else-if="msg.role === 'user'" class="bubble user-bubble">
+					<span v-if="msg.meta?.citation" class="cite-chip cite-chip--user"
+						># {{ citationLabel(msg) }}</span
+					>
 					<span>{{ msg.content }}</span>
 				</div>
 				<!-- PRD 生成/模块失败的系统气泡（显示在消息流末尾） -->
@@ -513,54 +601,10 @@
 			</div>
 		</div>
 
-		<!-- ── 模块编辑控制区（编辑模式激活时替换普通输入框） ── -->
-		<div v-if="isModuleEditing" class="input-area module-edit-area">
-			<!-- 上下文标题 -->
-			<div class="module-edit-context">
-				<span class="module-edit-icon">✏</span>
-				<span class="module-edit-label">正在编辑：</span>
-				<span class="module-edit-title">{{ editingSectionTitle }}</span>
-			</div>
-
-			<!-- AI 指令输入 -->
-			<div class="input-box" :class="{ disabled: moduleEditBusy }">
-				<textarea
-					v-model="moduleInstruction"
-					class="input-textarea"
-					placeholder="输入指令让 AI 重写整个模块…"
-					:disabled="moduleEditBusy"
-					@keydown.enter.exact.prevent="handleModuleAiRewrite"
-					rows="1"
-					@input="autoResize"
-				></textarea>
-				<div class="input-actions">
-					<button
-						class="btn-rewrite"
-						:disabled="!moduleInstruction.trim() || moduleEditBusy"
-						@click="handleModuleAiRewrite"
-					>
-						<span v-if="isAiRewriting" class="module-spinner" />
-						<span v-else>AI 重写</span>
-					</button>
-				</div>
-			</div>
-
-			<!-- 操作按钮行 -->
-			<div class="module-edit-actions">
-				<button
-					class="mod-btn mod-btn-ghost"
-					:disabled="moduleEditBusy"
-					@click="handleModuleCancel"
-				>
-					取消
-				</button>
-				<button
-					class="mod-btn mod-btn-ghost mod-btn-warning"
-					:disabled="moduleEditBusy"
-					@click="handleModuleRollback"
-				>
-					{{ rolling ? "回滚中…" : "↩ 撤回" }}
-				</button>
+		<!-- ── 对话输入区（选中模块时带 chip，AI 修改同样走对话） ── -->
+		<div class="input-area">
+			<div v-if="isModuleEditing" class="module-edit-actions">
+				<span class="module-edit-hint">正在编辑模块，可直接修改文字后保存，或在下方告诉 AI 如何修改</span>
 				<button
 					class="mod-btn mod-btn-outline"
 					:disabled="moduleEditBusy"
@@ -569,16 +613,26 @@
 					{{ saving ? "保存中…" : "保存文案" }}
 				</button>
 			</div>
-		</div>
-
-		<!-- ── 普通对话输入区（默认） ── -->
-		<div v-else class="input-area">
-			<div class="input-box" :class="{ disabled: isSending }">
+			<div class="input-box" :class="{ disabled: inputBusy }">
+				<div v-if="composerTarget" class="composer-chips">
+					<span class="cite-chip">
+						# {{ composerTarget.sectionTitle ?? composerTarget.sectionId }}
+						<button
+							type="button"
+							class="cite-chip__close"
+							title="取消引用并退出编辑"
+							:disabled="moduleEditBusy"
+							@click="handleModuleCancel"
+						>
+							<icon-lucide-x />
+						</button>
+					</span>
+				</div>
 				<textarea
 					ref="textareaRef"
 					v-model="inputText"
-					:placeholder="hasPrd ? '继续对话...' : '描述你的产品需求...'"
-					:disabled="isSending"
+					:placeholder="inputPlaceholder"
+					:disabled="inputBusy"
 					@keydown="onKeydown"
 					@input="autoResize"
 					rows="1"
@@ -599,7 +653,7 @@
 						<ModelSelector />
 						<!-- 生成中：停止按钮 -->
 						<StopGenerateButton
-							v-if="isSending"
+							v-if="inputBusy"
 							:size="30"
 							title="停止生成"
 							@click="handleStop"
@@ -997,36 +1051,102 @@
 	}
 
 	/* ── 模块编辑控制区 ── */
-	.module-edit-area {
-		background: #eef2ff;
-		border-top: 2px solid var(--color-primary);
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
+	.module-edit-hint {
+		flex: 1;
+		font-size: 12px;
+		color: var(--color-text-muted);
+		align-self: center;
 	}
 
-	.module-edit-context {
+	.composer-chips {
 		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.cite-chip {
+		display: inline-flex;
 		align-items: center;
 		gap: 4px;
+		max-width: 100%;
+		padding: 2px 8px;
 		font-size: 12px;
-		color: var(--color-text-secondary);
+		font-weight: 500;
+		color: var(--color-primary);
+		background: #eef2ff;
+		border-radius: 6px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 
-		.module-edit-icon {
-			font-size: 13px;
-			flex-shrink: 0;
+		&--user {
+			display: flex;
+			width: fit-content;
+			margin-bottom: 4px;
 		}
 
-		.module-edit-label {
-			flex-shrink: 0;
+		&__close {
+			display: inline-flex;
+			padding: 0;
+			border: none;
+			background: transparent;
+			color: inherit;
+			cursor: pointer;
+			opacity: 0.7;
+
+			&:hover:not(:disabled) {
+				opacity: 1;
+			}
+		}
+	}
+
+	.edit-record {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin-top: 6px;
+		padding: 6px 10px;
+		background: var(--color-bg-secondary, #f8fafc);
+		border: 1px solid var(--color-border);
+		border-radius: 8px;
+		max-width: 420px;
+
+		&__row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-size: 12px;
 		}
 
-		.module-edit-title {
-			font-weight: 600;
-			color: var(--color-primary);
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
+		&__version {
+			flex: 1;
+			color: var(--color-text-muted);
+		}
+
+		&__state {
+			color: var(--color-text-muted);
+		}
+
+		&__undo {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			padding: 2px 8px;
+			font-size: 12px;
+			color: #b45309;
+			background: transparent;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+
+			&:hover:not(:disabled) {
+				background: rgba(180, 83, 9, 0.08);
+			}
+
+			&:disabled {
+				opacity: 0.45;
+				cursor: not-allowed;
+			}
 		}
 	}
 
@@ -1034,6 +1154,7 @@
 		display: flex;
 		gap: 6px;
 		justify-content: flex-end;
+		margin-bottom: 8px;
 	}
 
 	.mod-btn {
@@ -1054,24 +1175,6 @@
 		}
 	}
 
-	.mod-btn-ghost {
-		background: transparent;
-		color: #64748b;
-
-		&:not(:disabled):hover {
-			background: rgba(79, 70, 229, 0.08);
-		}
-	}
-
-	.mod-btn-warning {
-		color: #b45309;
-
-		&:not(:disabled):hover {
-			color: #92400e;
-			background: rgba(180, 83, 9, 0.08);
-		}
-	}
-
 	.mod-btn-outline {
 		background: #fff;
 		border: 1.5px solid var(--color-primary);
@@ -1079,46 +1182,6 @@
 
 		&:not(:disabled):hover {
 			background: #eef2ff;
-		}
-	}
-
-	.btn-rewrite {
-		height: 30px;
-		padding: 0 12px;
-		border-radius: 15px;
-		background: var(--color-primary);
-		border: none;
-		cursor: pointer;
-		color: #fff;
-		font-size: 12px;
-		font-weight: 500;
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex-shrink: 0;
-
-		&:hover:not(:disabled) {
-			background: var(--color-primary-hover);
-		}
-
-		&:disabled {
-			background: var(--color-text-muted);
-			cursor: not-allowed;
-		}
-	}
-
-	.module-spinner {
-		width: 12px;
-		height: 12px;
-		border: 2px solid rgba(255, 255, 255, 0.4);
-		border-top-color: #fff;
-		border-radius: 50%;
-		animation: module-spin 0.7s linear infinite;
-	}
-
-	@keyframes module-spin {
-		to {
-			transform: rotate(360deg);
 		}
 	}
 </style>

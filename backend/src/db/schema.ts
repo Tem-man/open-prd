@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS messages (
   role       TEXT    NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
   content    TEXT    NOT NULL,
   thinking   TEXT    NOT NULL DEFAULT '',
+  meta       TEXT    NOT NULL DEFAULT '{}',
   created_at INTEGER NOT NULL
 )
 `;
