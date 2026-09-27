@@ -1,6 +1,7 @@
 import type { IRouter } from "express";
 import { getDb } from "../../db/client.js";
 import { getSessionModules } from "../../services/prdOutline.js";
+import { getFreshPrdHtml } from "../../services/prd/index.js";
 import { findLatestPrdId } from "./helpers/sectionPersist.js";
 
 export function registerPrdRead(router: IRouter): void {
@@ -11,14 +12,14 @@ export function registerPrdRead(router: IRouter): void {
 			.prepare(
 				"SELECT * FROM prds WHERE session_id = ? ORDER BY created_at DESC LIMIT 1",
 			)
-			.get(req.params.id);
+			.get(req.params.id) as { id: string; html: string } | undefined;
 
 		if (!prd) {
 			res.status(404).json({ error: "PRD not found for this session" });
 			return;
 		}
 
-		res.json(prd);
+		res.json({ ...prd, html: getFreshPrdHtml(prd.id, req.params.id) });
 	});
 
 	// ─── GET /api/sessions/:id/prd/sections ───────────────────────────────────

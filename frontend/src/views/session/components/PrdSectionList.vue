@@ -5,6 +5,7 @@
 	 * 支持 tab 切换
 	 */
 	import { ref, computed, onMounted } from "vue";
+	import { preloadDiagramLibraries } from "@prd-runtime/prd-runtime.js";
 	import { usePrdEditStore } from "@/stores/prdEdit";
 	import PrdSectionItem from "./PrdSectionItem.vue";
 
@@ -19,6 +20,7 @@
 	const hasEditable = computed(() => sections.value.length > 0);
 
 	onMounted(async () => {
+		void preloadDiagramLibraries();
 		if (sections.value.length === 0) {
 			await fetchSections();
 		}

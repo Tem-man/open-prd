@@ -15,6 +15,7 @@
       "@/constants": ["./src/pencil/constants.ts"],
       "@/*": ["./src/*"],
       "@pencil/*": ["./src/pencil/*"],
+      "@prd-runtime/*": ["../backend/src/services/prd/runtime/*"],
 
       "@open-pencil/core": ["../packages/core/src/index.ts"],
       "@open-pencil/core/*": ["../packages/core/src/*"],

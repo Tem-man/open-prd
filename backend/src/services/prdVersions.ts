@@ -3,7 +3,8 @@
  *
  * 核心语义：每个版本是一份独立文档；prds.html + prd_sections 是"当前工作区"。
  * - 切换/新建版本：先把旧激活版本的工作区内容写回其版本行，再用目标版本重建工作区；
- * - 非激活版本的权威内容存放于其行的 html + sections_json；
+ * - 非激活版本的权威内容是其行的 sections_json；行内 html 仅作快照留存，载入时从模块重新渲染，
+ *   只有无模块记录的存量版本才回退使用；
  * - 版本仅由用户显式创建（新增/克隆），AI 编辑与手动编辑不产生自动快照。
  *
  * 详见 docs/plan-prd-version-management.md。
@@ -12,6 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getDb } from "../db/client.js";
 import { BUILTIN_MODULES, type PrdVersionRow } from "../db/schema.js";
 import { getSessionModules, getOutline } from "./prdOutline.js";
+import { getFreshPrdHtml, renderWorkspacePrd } from "./prd/index.js";
 import type { SelectedModule } from "./prompts.js";
 
 /** 版本内存储的单个模块内容（sections_json 元素） */
@@ -314,11 +316,16 @@ function loadVersionIntoWorkspace(
 		).run(now, sessionId);
 	}
 
-	db.prepare("UPDATE prds SET html = ?, updated_at = ? WHERE id = ?").run(
-		version.html,
-		now,
-		version.prd_id,
-	);
+	if (sections.length > 0) {
+		renderWorkspacePrd(version.prd_id, sessionId, { touchSession: false });
+	} else {
+		// 空白版本为空串（前端据此呈现空状态）；存量版本无模块记录，只能沿用快照 HTML
+		db.prepare("UPDATE prds SET html = ?, updated_at = ? WHERE id = ?").run(
+			version.html,
+			now,
+			version.prd_id,
+		);
+	}
 	db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
 		now,
 		sessionId,
@@ -396,12 +403,8 @@ export function createPrdVersion(
 			loadVersionIntoWorkspace(row, sessionId);
 		}
 
-		const prdAfter = db
-			.prepare("SELECT html FROM prds WHERE id = ?")
-			.get(prdId) as {
-			html: string;
-		};
-		return { id, version: nextVersion, assembledPrdHtml: prdAfter.html };
+		const assembledPrdHtml = getFreshPrdHtml(prdId, sessionId);
+		return { id, version: nextVersion, assembledPrdHtml };
 	})();
 }
 
@@ -415,12 +418,10 @@ export function activatePrdVersion(
 		const target = getPrdVersionRow(versionId);
 		if (!target) throw new Error("Version not found");
 		if (target.is_active === 1) {
-			const prd = db
-				.prepare("SELECT html FROM prds WHERE id = ?")
-				.get(target.prd_id) as {
-				html: string;
+			return {
+				assembledPrdHtml: getFreshPrdHtml(target.prd_id, sessionId),
+				activeVersion: target.version,
 			};
-			return { assembledPrdHtml: prd.html, activeVersion: target.version };
 		}
 
 		preserveUnversionedWorkspace(target.prd_id, sessionId);
@@ -434,7 +435,10 @@ export function activatePrdVersion(
 		db.prepare(
 			"UPDATE prd_versions SET is_active = 1, updated_at = ? WHERE id = ?",
 		).run(now, target.id);
-		return { assembledPrdHtml: target.html, activeVersion: target.version };
+		return {
+			assembledPrdHtml: getFreshPrdHtml(target.prd_id, sessionId),
+			activeVersion: target.version,
+		};
 	})();
 }
 
@@ -482,7 +486,11 @@ export function clonePrdVersion(
 			.get(id) as PrdVersionRow;
 		loadVersionIntoWorkspace(row, sessionId);
 
-		return { id, version: nextVersion, assembledPrdHtml: row.html };
+		return {
+			id,
+			version: nextVersion,
+			assembledPrdHtml: getFreshPrdHtml(row.prd_id, sessionId),
+		};
 	})();
 }
 
@@ -521,15 +529,10 @@ export function deletePrdVersion(
 		db.prepare(
 			"UPDATE prd_versions SET is_active = 1, updated_at = ? WHERE id = ?",
 		).run(Date.now(), next.id);
-		const prd = db
-			.prepare("SELECT html FROM prds WHERE id = ?")
-			.get(target.prd_id) as {
-			html: string;
-		};
 		return {
 			ok: true as const,
 			activatedVersion: next.version,
-			assembledPrdHtml: prd.html,
+			assembledPrdHtml: getFreshPrdHtml(target.prd_id, sessionId),
 		};
 	})();
 }

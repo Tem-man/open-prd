@@ -19,9 +19,10 @@ ${skillBlock}
 
   const markdown = await invokeModule(sys, user);
 
-  // Markdown 以 JSON 存入隐藏 script 标签，由 renderer.ts 中的 initMarkmap() 读取并渲染
-  // 使用 <\/script> 防止 HTML 解析器误判标签结束
-  return `<script type="application/json" id="markmap-data">${JSON.stringify(markdown)}<\/script>
+  // Markdown 以 JSON 存入隐藏 script 标签，由 runtime/prd-runtime.js 读取并渲染
+  // 转义 < ：模型输出里的 </script> 会提前截断脚本块
+  const json = JSON.stringify(markdown).replace(/</g, "\\u003c");
+  return `<script type="application/json" id="markmap-data">${json}<\/script>
 <div class="markmap-wrap">
   <svg id="markmap-svg" style="width:100%;height:560px;display:block;"></svg>
 </div>`;

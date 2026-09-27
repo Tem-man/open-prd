@@ -8,7 +8,7 @@ import {
 	type SectionId,
 	type SectionOutline,
 } from "../prdOutline.js";
-import { renderPrd, type RendererSection } from "./renderer.js";
+import { isCurrentRender, renderPrd, type RendererSection } from "./renderer.js";
 import * as background from "./modules/background.js";
 import * as userScenario from "./modules/userScenario.js";
 import * as featureList from "./modules/featureList.js";
@@ -168,15 +168,17 @@ export type ProgressCallback = (
 ) => void;
 
 // ─── 工具：从 prd_sections 重新组装并更新 prds.html ──────────────────────────
+// prd_sections 是权威数据；prds.html 只是渲染缓存，渲染器升级后由 getFreshPrdHtml 按需刷新。
 
 /**
- * 从 `prd_sections` 表中读取指定 prd 的所有当前版本模块，
- * 按 session 的 selected_modules 顺序重新组装 HTML，并更新 `prds` 表中的 html 字段。
+ * 从 `prd_sections` 读取当前模块，按 session 的 selected_modules 顺序渲染并写回 `prds.html`。
+ * touchSession=false 用于纯缓存刷新，避免会话列表因只读访问而重新排序。
  */
-export async function reassemblePrd(
+export function renderWorkspacePrd(
 	prdId: string,
 	sessionId: string,
-): Promise<string> {
+	opts: { touchSession?: boolean } = {},
+): string {
 	const db = getDb();
 
 	const titleRow = db
@@ -223,12 +225,42 @@ export async function reassemblePrd(
 		now,
 		prdId,
 	);
-	db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
-		now,
-		sessionId,
-	);
+	if (opts.touchSession !== false) {
+		db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
+			now,
+			sessionId,
+		);
+	}
 
 	return html;
+}
+
+export async function reassemblePrd(
+	prdId: string,
+	sessionId: string,
+): Promise<string> {
+	return renderWorkspacePrd(prdId, sessionId);
+}
+
+/** 读取工作区 PRD HTML；缓存由旧渲染器生成时从 prd_sections 重新渲染 */
+export function getFreshPrdHtml(prdId: string, sessionId: string): string {
+	const db = getDb();
+	const row = db.prepare("SELECT html FROM prds WHERE id = ?").get(prdId) as
+		| { html: string }
+		| undefined;
+	if (!row) return "";
+	// 空串 = 空白版本的空状态，保持原样
+	if (!row.html.trim() || isCurrentRender(row.html)) return row.html;
+
+	const { c } = db
+		.prepare(
+			"SELECT COUNT(*) AS c FROM prd_sections WHERE prd_id = ? AND is_current = 1",
+		)
+		.get(prdId) as { c: number };
+	// 早于模块化存储的存量 PRD 没有 prd_sections，只能沿用旧 HTML
+	if (c === 0) return row.html;
+
+	return renderWorkspacePrd(prdId, sessionId, { touchSession: false });
 }
 
 /** 按 selectedModules 顺序构建有序 section 列表 */

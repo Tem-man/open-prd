@@ -9,10 +9,10 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs');const d='dist/services/prd/runtime';fs.rmSync(d,{recursive:true,force:true});fs.cpSync('src/services/prd/runtime',d,{recursive:true})\"",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.runtime.json",
     "test": "tsx --test src/services/llmStream.test.ts src/services/agent/orchestrator.test.ts",
     "test:intent": "tsx src/services/agent/__tests__/intentEval.ts"
   },

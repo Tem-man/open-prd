@@ -38,7 +38,13 @@
 		downloadMarkmapMarkdown,
 		hasMarkmapContent,
 	} from "@/utils/markmapExport";
-	import { useMermaidZoom } from "@/composables/useMermaidZoom";
+	import {
+		DIAGRAM_MAX_HEIGHT,
+		initZoomIn,
+		renderDiagrams,
+		runMermaid,
+		waitFrames,
+	} from "@prd-runtime/prd-runtime.js";
 
 	const props = defineProps<{
 		sessionId: string;
@@ -65,18 +71,17 @@
 			hasMarkmapContent(props.html),
 	);
 
-	const { initZoom, destroyAll: destroyZoom } = useMermaidZoom();
+	// 缩放清理函数：重置 innerHTML 或卸载前必须全部执行
+	const zoomCleanups: Array<() => void> = [];
+	function initZoom(container: HTMLElement, maxHeight?: number) {
+		zoomCleanups.push(...initZoomIn(container, maxHeight));
+	}
+	function destroyZoom() {
+		zoomCleanups.splice(0).forEach((cleanup) => cleanup());
+	}
 
-	/**
-	 * 各 sectionId 对应的画布最大高度（px）。
-	 * 有后续内容的模块（如数据模型下方有实体说明表）需要限高，避免把内容挤出视口。
-	 * 产品架构、业务流程独占画面，不传 maxHeight（undefined = 不截断）。
-	 */
-	const SECTION_ZOOM_MAX_HEIGHT: Record<string, number> = {
-		dataModel: 430,
-	};
 	const zoomMaxHeight = computed<number | undefined>(
-		() => SECTION_ZOOM_MAX_HEIGHT[props.sectionId],
+		() => DIAGRAM_MAX_HEIGHT[props.sectionId],
 	);
 	const isAiEditing = computed(
 		() => prdEditStore.aiEditingSection === props.sectionId,
@@ -157,155 +162,26 @@
 		if (!ok) showLocalToast("未找到思维导图数据");
 	}
 
-	// ── Mermaid / markmap 渲染 ──────────────────────────────────────────────────
+	// ── Mermaid / markmap 渲染（复用导出页同一份运行时） ───────────────────────
 
-	/**
-	 * 等待 n 个浏览器渲染帧。
-	 * Mermaid ER 图在 SVG 挂载后需要浏览器完成 layout 才能调 getBBox()，
-	 * nextTick() 只等 Vue diff，不足以保证浏览器排版完成，需额外等帧。
-	 */
-	function waitFrames(n: number): Promise<void> {
-		return new Promise((resolve) => {
-			const step = (remaining: number) => {
-				if (remaining <= 0) resolve();
-				else requestAnimationFrame(() => step(remaining - 1));
-			};
-			step(n);
-		});
-	}
-
-	/** 动态加载外部脚本（幂等，已存在则跳过） */
-	function loadScript(src: string): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (document.querySelector(`script[src="${src}"]`)) {
-				resolve();
-				return;
-			}
-			const s = document.createElement("script");
-			s.src = src;
-			s.onload = () => resolve();
-			s.onerror = () => reject(new Error(`脚本加载失败: ${src}`));
-			document.head.appendChild(s);
-		});
-	}
-
-	/** 根据模块 renderType 或 HTML 内容特征，按需加载 Mermaid / Markmap CDN */
-	async function ensureDiagramCdn() {
-		const win = window as unknown as {
-			mermaid?: unknown;
-			markmap?: unknown;
-		};
-		const needsMermaid =
-			props.renderType === "mermaid" ||
-			contentRef.value?.querySelector(".mermaid") !== null;
-		const needsMarkmap =
-			props.renderType === "markmap" ||
-			contentRef.value?.querySelector("#markmap-svg") !== null;
-
-		if (needsMermaid && !win.mermaid) {
-			try {
-				await loadScript(
-					"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
-				);
-				(
-					win as unknown as {
-						mermaid: { initialize: (o: object) => void };
-					}
-				).mermaid.initialize({
-					startOnLoad: false,
-					theme: "default",
-					securityLevel: "loose",
-				});
-			} catch (e) {
-				console.warn("[PrdSectionItem] Mermaid CDN 加载失败", e);
-			}
-		}
-
-		if (needsMarkmap && !win.markmap) {
-			try {
-				await loadScript("https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js");
-				await loadScript(
-					"https://cdn.jsdelivr.net/npm/markmap-lib/dist/browser/index.js",
-				);
-				await loadScript(
-					"https://cdn.jsdelivr.net/npm/markmap-view/dist/browser/index.js",
-				);
-			} catch (e) {
-				console.warn("[PrdSectionItem] Markmap CDN 加载失败", e);
-			}
-		}
-	}
-
-	type MermaidRuntime = {
-		mermaid?: { run: (o: object) => Promise<void> | void };
-	};
-
+	/** 源码编辑场景：需要拿到失败结果用于回滚 */
 	async function runMermaidNodes(
 		nodes: HTMLElement[],
 		showError = false,
 	): Promise<boolean> {
-		const win = window as unknown as MermaidRuntime;
-		if (!win.mermaid || nodes.length === 0) return true;
-		try {
-			await Promise.resolve(win.mermaid.run({ nodes }));
-			return true;
-		} catch (error) {
-			console.warn("[mermaid] 渲染失败", error);
-			if (showError) showLocalToast("Mermaid 语法错误，已恢复原内容");
-			return false;
-		}
+		const ok = await runMermaid(nodes, { suppressErrors: false });
+		if (!ok && showError) showLocalToast("Mermaid 语法错误，已恢复原内容");
+		return ok;
 	}
 
 	async function runDiagrams() {
-		if (!contentRef.value) return;
 		await nextTick();
-
-		// 自定义图表模块可能没有内置 CDN，先确保 CDN 已加载
-		await ensureDiagramCdn();
-
-		type W = MermaidRuntime & { markmap?: unknown };
-		const win = window as unknown as W;
-
-		// Mermaid：渲染后等待 2 帧 layout 完成，再初始化缩放/拖拽
-		if (win.mermaid) {
-			const nodes = Array.from(
-				contentRef.value!.querySelectorAll(".mermaid:not([data-processed])"),
-			) as HTMLElement[];
-			if (nodes.length > 0) {
-				await runMermaidNodes(nodes);
-				await waitFrames(2);
-			}
-			// 无论是否有新节点渲染，都初始化缩放。
-			// destroyZoom 后已有 data-processed 的节点（如 applyMermaidSource 产生的 freshDiv）
-			// 同样需要补充初始化，否则编辑后缩放失效。
-			if (contentRef.value) initZoom(contentRef.value, zoomMaxHeight.value);
-		}
-
-		// Markmap
-		if (!contentRef.value) return;
-		const dataEl = contentRef.value.querySelector("#markmap-data");
-		const svgEl = contentRef.value.querySelector("#markmap-svg");
-		if (dataEl && svgEl && win.markmap) {
-			try {
-				// 清空 SVG，防止多次调用 create() 时思维导图叠加
-				svgEl.innerHTML = "";
-				const { Transformer, Markmap } = win.markmap as {
-					Transformer: new () => {
-						transform: (md: string) => { root: unknown };
-					};
-					Markmap: {
-						create: (el: Element, o: null, r: unknown) => { fit: () => void };
-					};
-				};
-				const { root } = new Transformer().transform(
-					JSON.parse((dataEl as HTMLElement).textContent ?? '""') as string,
-				);
-				const mm = Markmap.create(svgEl, null, root);
-				requestAnimationFrame(() => mm.fit());
-			} catch (e) {
-				console.warn("[markmap] 渲染失败", e);
-			}
-		}
+		const el = contentRef.value;
+		if (!el) return;
+		// destroyZoom 后已 data-processed 的节点（如 applyMermaidSource 产生的新 div）也会被重新初始化缩放
+		zoomCleanups.push(
+			...(await renderDiagrams(el, { maxHeight: zoomMaxHeight.value })),
+		);
 	}
 
 	onMounted(() => {
@@ -1465,7 +1341,7 @@
 		<!-- eslint-disable-next-line vue/no-v-html -->
 		<div
 			ref="contentRef"
-			class="prd-section-body"
+			class="prd-section-body prd-doc"
 			:class="{ 'select-cursor': isEditing && editSubMode === 'select' }"
 			v-html="html"
 			@click="onContentClick"
