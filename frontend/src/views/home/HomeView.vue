@@ -503,7 +503,8 @@
 	/* ── 整体布局 ── */
 	.home-layout {
 		display: flex;
-		min-height: calc(100vh - 52px);
+		height: calc(100vh - 52px);
+		overflow: hidden;
 		background: var(--color-bg-secondary);
 	}
 
@@ -516,6 +517,7 @@
 		display: flex;
 		flex-direction: column;
 		padding: 0;
+		overflow: hidden;
 	}
 
 	/* 类型导航 */
@@ -636,6 +638,8 @@
 	/* ── 右侧内容区 ── */
 	.home-main {
 		flex: 1;
+		min-width: 0;
+		min-height: 0;
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
@@ -753,6 +757,8 @@
 	/* ── 内容区 ── */
 	.content-area {
 		flex: 1;
+		min-height: 0;
+		overflow-x: hidden;
 		overflow-y: auto;
 		padding: 28px 24px;
 	}

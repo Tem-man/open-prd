@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, shallowRef, markRaw } from 'vue'
 
 export interface PrdSection {
   id: string
@@ -7,6 +7,17 @@ export interface PrdSection {
   title: string
   html: string
   version: number
+}
+
+/** 当前 Tab 的模块操作，供顶栏渲染（编辑 / 保存 / 编辑态提示） */
+export interface SectionToolbarState {
+  sectionId: string
+  editSubMode: 'select' | 'text'
+  toastMsg: string
+  saving: boolean
+  startEdit: () => void
+  cancelEdit: () => void
+  save: () => void
 }
 
 export const usePrdEditStore = defineStore('prdEdit', () => {
@@ -31,6 +42,12 @@ export const usePrdEditStore = defineStore('prdEdit', () => {
    */
   const htmlGetter = ref<(() => string) | null>(null)
 
+  /**
+   * 当前可见模块的顶栏操作。由 PrdSectionList 同步，NavBar 只读。
+   * 用 shallowRef，避免把组件方法做成深层响应式。
+   */
+  const sectionToolbar = shallowRef<SectionToolbarState | null>(null)
+
   /** 当前编辑模块的标题，供侧边栏显示上下文 */
   const editingSectionTitle = computed(() => {
     if (!editingSection.value) return null
@@ -41,6 +58,10 @@ export const usePrdEditStore = defineStore('prdEdit', () => {
 
   function setSections(list: PrdSection[]) {
     sections.value = list
+  }
+
+  function setSectionToolbar(state: SectionToolbarState | null) {
+    sectionToolbar.value = state ? markRaw(state) : null
   }
 
   /**
@@ -151,10 +172,12 @@ export const usePrdEditStore = defineStore('prdEdit', () => {
     aiEditingSection.value = null
     aiStreamBuffer.value = ''
     htmlGetter.value = null
+    sectionToolbar.value = null
   }
 
   return {
     sections,
+    sectionToolbar,
     editingSection,
     editingSectionTitle,
     editingHtml,
@@ -162,6 +185,7 @@ export const usePrdEditStore = defineStore('prdEdit', () => {
     aiStreamBuffer,
     htmlGetter,
     setSections,
+    setSectionToolbar,
     loadSections,
     startEdit,
     cancelEdit,

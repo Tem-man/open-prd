@@ -7,7 +7,7 @@
 	 *   text    双击后进入，contenteditable 文本光标编辑
 	 *
 	 * 编辑模式切换：
-	 *   点击编辑按钮 → 进入 select 模式
+	 *   Tab 栏「编辑」调用 startEdit → 进入 select 模式
 	 *   双击文本 → 进入 text 模式
 	 *
 	 * AI 重写指令 / 保存文案 / 撤回 / 取消 已迁移至左侧 SessionSidebar
@@ -86,12 +86,11 @@
 	const isAiEditing = computed(
 		() => prdEditStore.aiEditingSection === props.sectionId,
 	);
-	const hovered = ref(false);
 
 	// 内容区 DOM ref
 	const contentRef = ref<HTMLDivElement | null>(null);
 
-	const { saveSection } = useSectionActions();
+	const { saveSection, saving } = useSectionActions();
 
 	// ── 编辑子模式 ──────────────────────────────────────────────────────────────
 	type EditSubMode = "select" | "text";
@@ -1278,6 +1277,16 @@
 		rowToDelete.value = null;
 		showDeleteConfirm.value = false;
 	}
+
+	/** 供顶栏调用：进入/退出/保存编辑，以及当前子模式与提示 */
+	defineExpose({
+		startEdit,
+		cancelEdit,
+		saveContent: handleSaveContent,
+		saving,
+		editSubMode,
+		toastMsg,
+	});
 </script>
 
 <template>
@@ -1289,46 +1298,17 @@
 			'is-select-mode': isEditing && editSubMode === 'select',
 			'is-text-mode': isEditing && editSubMode === 'text',
 		}"
-		@mouseenter="hovered = true"
-		@mouseleave="hovered = false"
 	>
-		<!-- 模块操作：信息架构常显「导出 + 编辑」；其他模块仅 hover 显示编辑 -->
-		<div
-			v-if="!isEditing && (isMarkmapSection || (editable && hovered))"
-			class="section-toolbar"
-		>
+		<!-- 信息架构：导出按钮固定在模块右上角 -->
+		<div v-if="!isEditing && isMarkmapSection" class="section-toolbar">
 			<span v-if="toastMsg" class="export-toast">{{ toastMsg }}</span>
 			<button
-				v-if="isMarkmapSection"
 				class="edit-trigger edit-trigger--ghost"
 				@click.stop="exportMarkmap"
 				title="导出思维导图为 Markdown"
 			>
 				导出
 			</button>
-			<button
-				v-if="editable"
-				class="edit-trigger"
-				@click.stop="startEdit"
-				title="编辑此模块"
-			>
-				✏ 编辑
-			</button>
-		</div>
-
-		<!-- 编辑模式徽章（显示当前子模式） -->
-		<div v-if="isEditing" class="mode-badge">
-			<span v-if="editSubMode === 'select'" class="mode-tag mode-tag--select">
-				← 单击选元素 · Ctrl/⌘+单击多选格 · 双击编文字
-			</span>
-			<span v-else class="mode-tag mode-tag--text">
-				✎ 文字编辑模式 · ESC 返回
-			</span>
-			<!-- 跨行多选警告 toast -->
-			<span v-if="toastMsg" class="mode-tag mode-tag--warn">
-				⚠ {{ toastMsg }}
-			</span>
-			<button class="mode-close" @click.stop="cancelEdit">×</button>
 		</div>
 
 		<!-- AI 重写中的遮罩 -->
@@ -1439,50 +1419,6 @@
 		font-weight: 500;
 	}
 
-	/* ── 模式徽章 ── */
-	.mode-badge {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 4px 12px;
-		background: #eef2ff;
-		border-bottom: 1px solid #e0e7ff;
-		border-radius: 8px 8px 0 0;
-	}
-
-	.mode-tag {
-		flex: 1;
-		font-size: 11px;
-		font-weight: 500;
-
-		&--select {
-			color: #4f46e5;
-		}
-		&--text {
-			color: #0369a1;
-		}
-	}
-
-	.mode-close {
-		width: 18px;
-		height: 18px;
-		border: none;
-		background: transparent;
-		border-radius: 3px;
-		cursor: pointer;
-		color: #94a3b8;
-		font-size: 14px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-
-		&:hover {
-			background: #e0e7ff;
-			color: #4f46e5;
-		}
-	}
-
 	/* ── AI 遮罩 ── */
 	.ai-overlay {
 		position: absolute;
@@ -1554,21 +1490,6 @@
 					cursor: pointer;
 				}
 			}
-		}
-	}
-
-	.mode-tag--warn {
-		color: #b45309;
-		font-weight: 600;
-		animation: fadeIn 0.2s ease;
-	}
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
 		}
 	}
 

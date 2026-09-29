@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:a437896b628cb507f58fcaea67b3d281cf06d40b52b2e2a92fe74f61fb200cc4",
+  "claims": [
+    {
+      "id": "claim_4d0b3bd7a7cd4614866ebacbb7cb4794",
+      "statement": "backend test 只用 tsx 跑流式拆分和编排器，不包含意图评测。后两者在导入数据库客户端前把 DB_PATH 指到临时文件，避免写入 backend/data/prd.db。",
+      "evidence": [
+        {
+          "resource": "repo://backend/package.json#L16-L17",
+          "version": "repo-lines-v1:sha256:784b6f712bb907785e62b5907c05d0b97ae9ff46585e3c0193386b35281ed150:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzJlMjQ2Zjc1NjU3Y2QyZjQ4YTk1NWMyMWQyNjZjMmM1YzBjNzI2Y2UzMjJkMDY2NzNmYjQ1MDAyOWZhNjViMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmJiNTNiMTcwMzA2YjRhMzU0NWJjM2UxYzQyYWFmOTU2NmYyYmQ1YzA3MjYxNDc5ODczYjY0ZTVmZmYxNzE3OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjk5Yzc4MzE3ZjI0NjE3N2ZmOTc5ZDkyMjhjYzcwZGU4MDljZGQxNTUzOTJiYjU1OTY0MzNiNWE0ODBkZjU5YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDliYWQ5N2I5MzMxOWFhODAwNGI3Y2Q5NDgxNGI1NDRkMzNhMDVhYmYyYmY3MjBhYTAzN2Q5MzU0NGNlZDBmNiJ9"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/__tests__/intentEval.ts#L14-L17",
+          "version": "repo-lines-v1:sha256:627547bed60366fc92ab9404cabd63809919e2b13d0c706104e0e90fa1f19b1c:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjJhZTExYmRkYWZmNmExNzY1NjhlZTQwYmY2NzZkZGRjMjA1NjZkNDdlMzJlYjE4NTM3M2VhYzNiMWI2YjBlZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWNmMTlhMmQ1OTk1OGRmMDUxNzA5NTVjZjM0NzVlNzdjMGM0NDMxNzZlYTU1NTc0ZGQ3NWNiNjZmYjNiNzU5NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmY1ZDQyOWM2ZDgyYTNlNTM0NzM3MTY2YzEzNWZhZWI3NGZlYTg0Mjc5OWQwNDFiOTM0OWQxMDYzYTAzNGZlNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGI5Y2QxZThmNzYxNzhjYmRiMjUzZTZmY2NkY2Y2MDU4NTBmZTQwNjY4YTk1OGU4ZDg4MGUyNjQ0Mzk5MjA5YiJ9"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.test.ts#L10-L11",
+          "version": "repo-lines-v1:sha256:c1d5a270d6fc4cb964f40be019e12bf1b5defddcb8b0400b89f58732400a4773:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzg4OTc2MGRmNTUyOTI5NjFjM2E1NTBkNWQxYWQwN2QxZDU5NjJhNGRmZjQwMzUwYzMyMTJkYjBiYzNiMDM5ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjIyMTNhYjhlOTI2N2UxNDc5MTRkYjIwY2NmYzMwZGJiMzkzMzg1NTI5MzI0NjBjZWU2NjU1YWU4YTU5YTlhNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDU4MzJlMTBlY2Y2YWU4ZGFjZTE0MzEwZmJmM2Q3MWY4ZWU5YzYyODg4NmYxZDRlZjc3MTMwZDQxNGRiZmMwMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGYwZTU2NjlkOTM0ODllOWFkYzFkN2U5ZGRjNjcyMWQ5ZGQ0YWQ5YmU2MzY4ZmIxYmNiYjFkN2M0NDhmNTI4YiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_ec78b89097334af994998009a4208930",
+      "statement": "编排器用脚本模型锁定收集阶段工具、确认卡片不生成 PRD、内部模型输出不进气泡，以及单元格目标只允许 edit_section 且消费后拒绝整章改写。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.test.ts#L103-L150",
+          "version": "repo-lines-v1:sha256:4e61de035dbfc7e1f78ffc2ac934cb4de891aee59087bfefb06bbe78133c80b3:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmZTQxNjUxMTc1ODdkZjIwMDk1NmZhNzg4Mjc3NGJmY2FkOTM0YWVhYWI1M2ViNmEwNWRjYzlkY2Q3NGVkNjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NTU1MDcxMzU1YjYzYjk1YjMzZmRiNDM5OWI3MzExY2M1OGNhZmVjMDYyMjQxZTg0OTM4NjUzYWNkNzY0MTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0OWVmNmE4MTBkYzkyNWFiOGJkOThjZjU4OTQ2OGU0YWYyNWMxNGIzNDI1ODY0NjE0ZmEwMTUwNGNmZTFlN2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1NDIxMGE3ZjcyMjA1YTUwMjBlY2IyODE0NjZkOGIyNDkwMzhjMDQ4NjNhYTg0YTFkOTgyMWYzNjgxYzIxNzUifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.test.ts#L190-L292",
+          "version": "repo-lines-v1:sha256:35b1874f8f025a715209c24aab68a6d608ad5eb103413de4c0e3229992bbd431:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI5YjdmOGFmMTFkOGI3MzdjZTk2YWVhMDIxMmNhMTRlZDZhMjliOWQxZWNkMWM0Yjk5MmY1Y2U5NGJiZjZkZmM2IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiJkMGU1NDFkZWU1NTc5NGM1NjVlNTI0MjdmZTJhN2M5ODRmZDM3ZGM3ZjY3NjY1NDRkZGQyZGNmYjZiYzY1OGJiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwYzJmYzFjNjZmNzUzYWI0ZTkwZWIxMGJlYzE2MGQzYmFjZGQ0ZTIxMjYwMmU4NzE4ZWVhNWRmNTExZTc0YTA0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MSwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJhM2RkZWY3MjQ3ODZiNGFmNDVhYjdjYWQ4MWQzNzdhZTU0M2JiNzg0MTI5NjU2OGZiNTIyNjk5OGFlYzIxNjM0In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_68250264d82b4197a03e7caa05798fba",
+      "statement": "流式测试固定可见文字与思考内容的拆分，包括 DeepSeek reasoning_content、Anthropic 内容块、未知块丢弃和 OpenAI summary 数组。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/llmStream.test.ts#L5-L72",
+          "version": "repo-lines-v1:sha256:7f96aad3c56fa59bfed14f58a58df5bcd5c2b10dbd61cfcaff28e2d8113de502:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1M2E5NGI1MGEwYTNjYjY5ZmM4NjE5MzBjMTRkYTMyZDI5MzhmNDVjZTE0ZTk5ZjdhNWRlNGJhNzk2NWYyYTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1YTY1OGM5ZWQwMTU5OWQ3ODFiODY3Njk1NmMxMzRkNDhkYjk4YWE2M2UzNmZkOGQzYzBmYmUyZWZmNTdiOGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0MGU1YjgwMjYxNjY2NmU5YzlmNTFmYzE4OGYzN2NmMDcxMjUxZjQ0ZDUwZTgzYzFhMTI1YzkyOWE1YTgwZWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhmMTFjY2E3YzcwZTViYWIzOTAwMGMxNzk5OGUwMDE3MThhN2ZlZjUxYmIyNWMxNWZkY2YxYjg1NTkwYjM5MWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_92862f48e4f144d79c3c97ec6edfdb0c",
+      "statement": "意图评测使用 .env 里的真实模型，只把读取类工具留真，变更类工具记调用而不执行。准确率低于 90%、误触发 generate_prd 或把编辑判成重新生成时以退出码 1 结束。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/agent/__tests__/intentCases.ts#L19-L27",
+          "version": "repo-lines-v1:sha256:36637ce3a74e59d7b270dec855df905a26657241473c08eaee74654191881077:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDM1ZTc4YTY0OWZlMWE4YjVkODlmMzI0YjA3MWQ3NDUxNWM1YTk4OTdkNDc0ZDljMDZmYmVkOGVmODMxYmQ1ZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMmM5N2E0MWM1ZTFkMDg1MjZmYWVmNzUyNjllMGUyYjYzOTJmOTYyYTEyODRhZGUzOTUwZjVjM2Y5MzU0MTdjYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDVkNWMyMDI0ODY0YzVkZDhkZmQ3NmZlMzk5NzAxMTQyNjQ0ZTUwMDgwODdmZjgxMDA0OGU2MmQ4MTQwNWI4OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGJiZGM0NGU2NTBlNjJlYmE1N2VjYjE1YzRjODYxMDlmMDQyMmUwNWIwMzJhMjRjNWQ3MjBjNWZhMmQxMWY3YiJ9"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/__tests__/intentEval.ts#L1-L7",
+          "version": "repo-lines-v1:sha256:3ed9b3f69e41d85e6843b3ad8041bba55816d6aa596c76d5be094338d96a2ead:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDVkNWFiYWNhMjI2ODBhZTk1MzM2NzAwZGY3NjYzNjE5N2E3Y2I2YzAwNGY0Y2Q3OWFjMWIxZmQyZjBhYzRhNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjZkNzI5ODI3ZWY1ODUxODQ1NzdmMGMxZDc0N2I4YjMwMGIwZTcwMjM0MTUzYWFlOTM1NWMzMWM2MDc5MDM4ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWJlZDBhNmVhZDAzZTcyMmE4Mjc1ZDFhYzdkMDVjYzcxMDIxYWNjNjdiZTFiYzVhNjZjNGUxNGMyZGJkM2ZkOSJ9"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/__tests__/intentEval.ts#L114-L180",
+          "version": "repo-lines-v1:sha256:06e5a71be7d07b24aadbcc611c7160343abbc27631fccce160060a48161ca552:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBkMDU4NzBlZDg0ZTdmN2FlNzgwNjZmOWZlZmI3NzYzYjIyNmNhMDgyYjhmMWY0MTEyODVmNGU0YWM2OTczMmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlY2U3YzVjNDY2ZWE1NDMwMTRmYjU3NzQwZDRjZjA4MTJhZTNkZTFkOTUxMzQwM2I3MGY2YWNkODkwMjcwMWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAyOWRkNjQ5M2EyMGE3YmYyNDkzZGE4MDk0ZjQzOWQzNjM5NjQwOTBhOTNiZjA5ZTUwMDEyNzAwZTRiNjFhMzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM5MDBlNzhjNjVhYjAwZTlhMmNiNTdlZGM2NTc0YmQ1YWMxNTUzZDgwZmRkYmFhOWNmNDdlZTUwYjJmYmZhODIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-28T02:15:14.097Z"
+  }
+}

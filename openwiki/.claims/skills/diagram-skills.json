@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:00bb64790845081d665e16f04effa06f322ccd145fe420a25e885d0dca5ef6f7",
+  "claims": [
+    {
+      "id": "claim_e1c3e759eede4e6287f6744de6ab9625",
+      "statement": "loadSkill 同步读取仓库 skills 目录下的 SKILL.md，缺文件即抛错。buildSkillBlock 把正文包进 skill 标签。四张图的 Skill 名由 DIAGRAM_SKILL_MAP 固定。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/skillLoader.ts#L12-L44",
+          "version": "repo-lines-v1:sha256:681638bef4e30d59fa1e49b94874721c0f5f25cf53fb6e9fdba3f6905c413081:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiNTZkOWY2OTRhMWE3OTViZjExMTI2YTVjMDgwZjJhMjkxNzgxNzkwNTI2YTMwOTFkNWJmZTgxNWViYzgyNjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4ZjYxMDNkM2QzODliZGU1N2ZmNjM2YzExMmE0MDE1MGM3NWI3ZjBjZmRmNmJkYTNmNDhhZjFiZGJhMzQ5OTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM2ZGFmMWQwMzM1NTg3OGU2ZWFkYmUzY2M3YzkxNTcxYzQyZDQzMjRjZTJmMTg2MDY0ODA5MGFmNmU0MWUzZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJmZTExYTcxMmI4YzczYzA5N2U4YTFmMGFjYmE5YzQyMjYxNWMzYjllZTc3ZjdhNzBiMTZhZGYxMTk3MTNlMGQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_77330b2b685f4c8087d18f16b0769814",
+      "statement": "大纲会为架构、流程、信息架构和数据模型补上 skillRequired。对应生成器只接收 graph TB、flowchart TD、Markdown 树，或 erDiagram 加实体表，不接收说明文字。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/prd/modules/architecture.ts#L6-L26",
+          "version": "repo-lines-v1:sha256:c018191dfbc9a6a9feadba21c1da2aaf0b02ce7f1ade0e72785988995181c7b0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxMjkwOGJlZWIxMmMzNjM1OTk0Nzk5YTFkMDhmZGEyMjVlYTU5MmE0OTliMjI0ZjI4MjRhZmI5ZDgxM2U2ZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFjN2Q1NjNiOTRhNDk0NTI4OThmZjczZjc1NGUxM2I3ZjhhOGQ4MWM3OTFjNDBhZDQzMzQzNmIzMmNmMDcxNTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQyNTBjNjk4NzJjOGEwN2E1NGEyYTM1NjdhMTdmNDMxNDY0MjZmOTdiN2NmY2FjZTA4NjFiM2ZjNzEwZTk1YWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/prd/modules/dataModel.ts#L5-L25",
+          "version": "repo-lines-v1:sha256:efd8d9bbda7240f2378b2b1644f7d365cebb1b5fb18b2e63c97a44324b5fb694:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwYzExYzY1Njc5ZmYyMDA4OTdkNTg5OGZiNzY1OWFlZjYyYTZiMGE1MWM3ODkxNzQzZjM2NzBiNTBjMTgyNjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiNDE2MzY3NmY2OWViOTE4NTRlNTgyODEyZTE5YTQ3MTE2ZTExNTgyNjBjNjI0YzFmNjJkNzQ0ZDAzOTg1M2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhhMmI5NmY2YTRjNGE2NDEzNzIzN2FmMTMyNzQ0M2QyNzgyZjA5OWJlNzM4MjhlNmUzOGJjMDlmODRjZWFiYzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFmYWYzMDk4ZjEwZGIxYWE1Y2JhMjYyMzZmODBkNDQ0ZjQxMDAwYjJiYzVmN2QxZTRjOWI2NGUwODg2ZmZjNTYifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/prd/modules/flowchart.ts#L6-L24",
+          "version": "repo-lines-v1:sha256:8385fda2141db8fde880cfd0ede9bad810e3361f08e8109998f2bdf94c9243e7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxMjkwOGJlZWIxMmMzNjM1OTk0Nzk5YTFkMDhmZGEyMjVlYTU5MmE0OTliMjI0ZjI4MjRhZmI5ZDgxM2U2ZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFjNjk1Y2FkZmEzMDU2ODYzZTIxOGI3MWZjNjhkNjEyYjc0NWViMTZhMjU0Yzc0OGMzNTNkZWFiYWIwMzIyNzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1ZjU2NzdhY2NhNDIyNmRmZDJlNjdlMGIyMDQyN2EwM2NlYWQwYmRhY2UwZDlmMDYxMWJkOTZmYTA5MTIwNzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/prd/modules/infoArch.ts#L5-L25",
+          "version": "repo-lines-v1:sha256:d144966bf705535ad1c6375731425b2c0fd1eb3073efd2c00d139a28ad03dc7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxMjkwOGJlZWIxMmMzNjM1OTk0Nzk5YTFkMDhmZGEyMjVlYTU5MmE0OTliMjI0ZjI4MjRhZmI5ZDgxM2U2ZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1OGIxMDc2YTQzNGM5NzZlMjIxY2QyZGRlYTU3ZWQzNTc0ZWU1NGQ0NGJhZGUyMzkwOGEwOTcyMWZhMGViNWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0ZjRlNDQxNzIzZTQwOTkzZTkzMzE5ZDNmZWVjMzEyMzk1M2JhZDVlNmU3ZDk4M2Q3ZjU4MDIzNDc3MmM5NTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZkMzQ4ZjZmYjYyMDMxYmNjNWQxMDU1NWFiOGYyOGVmMWJiMmFjMDc4ZDBhMjBkNDkyZDM0YmE3NTU4OGMwZWIifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/prdOutline.ts#L88-L135",
+          "version": "repo-lines-v1:sha256:41936e3d1e80640010e6c9aa27e20992f92d13fbdfc9285dcaff6b8ba5f7ac0c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE5Njc1NmI5OTg5NWIzZGI1MzUwMjYwZjY3NzMwZmZhZmI5NzA5ZjlkMjVhN2E5NTI2YzNiMzNlY2UwMDE2NzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxNTYxNjRlZTQ0ODlmZThlMTNhMDIwYWZkOGZkOTY5ZWVlZTc4NjllY2M3ZTkyMzNhYTI1NjA5MGZlNGE3ODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlNTM5MTdiN2Y2MDgzYmFlZTY5Mjg5NmM4MGI2NzVhN2JkNDBhNDZmMjAyZWJkYmRhOTUxNDRhZmQ5MTcxZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ZWVjMmJiOWVlOWRhMDZlNTE3NGVhYTUyNDYwZTdjMWQ1Y2U0ODRkNjdmZDU5YTlkZmY2MDRmMmI3ZmZiM2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_384770b8c58b4c7b84c68ffa0030af1b",
+      "statement": "原型依据生成器固定加载 skill-prd-prototype。自定义模块仅在 module_templates.skill_name 有值时注入 Skill，否则只按要点生成 HTML。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/prd/modules/custom.ts#L13-L36",
+          "version": "repo-lines-v1:sha256:184757119334887676e49fe2a03019bedabd3c9ea38bb58ea75a2f4c01e10bc0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxMjkwOGJlZWIxMmMzNjM1OTk0Nzk5YTFkMDhmZGEyMjVlYTU5MmE0OTliMjI0ZjI4MjRhZmI5ZDgxM2U2ZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxMzQ1MTgwMTA1YjBjNjZhNzdkYWQ1MWJiMzc5MDFhMzczMmM5NjU0YmE0ZGUzOTgxZjgxZTE4MTc1MjQ4YmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI5ZTg4MGY3YTM3OGRkMTliMzQ3NDFlZmZkNzQ4ZjQ5NTcwOWY4NTAwOGMyZGUwYWM1YTk0ZGFmNDg0NjU3OWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVmNzRmYjQzYWY0ZWMzYjZlZmYxNzU1ZmY1MGFjNDM5YTBiMDg1OTY0MjI3OTc4Zjc3OTg5NGY4YTQyYTgzNjIifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/prd/modules/prototypeBasis.ts#L5-L18",
+          "version": "repo-lines-v1:sha256:c159b5a8c1b8669db0bcf6394470824867280a7421ed3052cc2155cb5d7228e0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhZjIyY2YwNzMyNTkyYzI0NzE0MWNiZTYxZWZhMTEwMTI2MTJmNWEzMTIyYjlhZjliYmFmNTJmNTcyNGQxOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkOTgzZDJmN2FiMzdkN2I4ZWZlYzJmMzcxNmM2Yzk2ZmQyMWE4Mzk2MWVlODJjODcyNGU2NGFhNTA3ZjIwNjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ1OTBkNTAyNzFhOTA2MzYxYmU2NGVhNTU3ZmMyNDZlMGRjNjRlMDcyZDU4MDQ0MDU5ZTQ2ZDk4Y2VhZWVkYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJmZGJlZDI0MTZlZWE5NzMzODQwZjE4ZjIwNGMyNjJlMWNiMDdkN2M5ZmQ3M2EyZjAyZGIxMTU1OTgzMjlhYjEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2260bb0faccd43a9bd8f48a1ecdb7024",
+      "statement": "模块构建器只能把通过 frontmatter 校验的内容写到 skill-custom- 前缀的目录。整节重写读不到 Skill 文件时会省略规范并继续编辑。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/moduleBuilder.ts#L333-L355",
+          "version": "repo-lines-v1:sha256:80ecfcdf1b82f49a9e65fa4877ee17809068ab0e9ed989e19a8c45e2f5ee3e53:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhZjIyY2YwNzMyNTkyYzI0NzE0MWNiZTYxZWZhMTEwMTI2MTJmNWEzMTIyYjlhZjliYmFmNTJmNTcyNGQxOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1ZDUyMTk3YmNkNDM2NTgwOThiMzU0MGZmZTczZjkwMzUzZDhjMjZkZThmMWRmNGNiMjNkM2NiNjQwZGU5ZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZjMmMzODIxMjU4MzIyMmQ1MjRkZGVlMDMxMmZmYjQ0NzU5ZWQzMDdhOTkwOTA4YTY2NWNmMmFjNTdkZTg0NGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3OTI5ZTkxZTBmOTljM2U4MjVkZTY5YjQzNWZiNjQ4NGQxYjBhMWRmMmY0NjU2MWFiZjFhMjlmMDQxODhiODgifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/sectionEditService.ts#L295-L301",
+          "version": "repo-lines-v1:sha256:7e70fdadf3fd7c349bdff9ac7e6a78902020c9639d16b39284b77fd518614e69:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2ViMTE3MTJkYjY4ZTdlMDJlNjNlYjk4N2UyOTQyNmQzZDU0MzRkNWU4NTNiNDY3ZGQzMzYxYzdiZDM2OTE4NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODI3MDBhYTVkMGI2ZjBjZGMzNDFkYTYwNTVhMjRmZTJjNDFlZDRiODljZDcxMjY4MjA2OTg2NTQ3YzIwOTNlMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjJhYjBkNTljNDBkNDY4OTgxOTU3ZmZkM2NhNzRjZTE3MjEyYzMyY2Y4YTUzMGE2MzAxOWE1YmQ4NWExMjViYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjEwMDM1NTRlMjQ2MGYyMGE5NzEwZjcwYWJhZGJiNmMwZDM3NWVjMTcxODdmNzY2ZDQ1MWUyNTFiMjRmZDM5YyJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-28T02:15:14.097Z"
+  }
+}

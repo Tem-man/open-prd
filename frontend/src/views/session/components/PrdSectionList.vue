@@ -4,10 +4,29 @@
 	 * 显示 PRD 模块列表
 	 * 支持 tab 切换
 	 */
-	import { ref, computed, onMounted } from "vue";
+	import {
+		ref,
+		computed,
+		watch,
+		onMounted,
+		onUnmounted,
+		shallowRef,
+		triggerRef,
+		markRaw,
+	} from "vue";
 	import { preloadDiagramLibraries } from "@prd-runtime/prd-runtime.js";
 	import { usePrdEditStore } from "@/stores/prdEdit";
 	import PrdSectionItem from "./PrdSectionItem.vue";
+
+	/** PrdSectionItem 暴露给 Tab 栏的操作与状态（refs 在父组件模板中自动解包） */
+	interface SectionChrome {
+		startEdit: () => void;
+		cancelEdit: () => void;
+		saveContent: () => void;
+		saving: boolean;
+		editSubMode: "select" | "text";
+		toastMsg: string;
+	}
 
 	const props = defineProps<{
 		sessionId: string;
@@ -49,17 +68,89 @@
 	function switchTab(idx: number) {
 		activeTab.value = idx;
 	}
+
+	const itemRefs = shallowRef<Record<string, SectionChrome>>({});
+	/** 每个模块一个稳定的 ref 回调，避免内联函数每次渲染都把实例卸掉再挂上 */
+	const itemBinders = new Map<string, (el: unknown) => void>();
+
+	function bindItem(sectionId: string, el: unknown) {
+		const map = itemRefs.value;
+		if (el) {
+			const chrome = markRaw(el as SectionChrome);
+			if (map[sectionId] === chrome) return;
+			map[sectionId] = chrome;
+		} else if (sectionId in map) {
+			delete map[sectionId];
+		} else {
+			return;
+		}
+		triggerRef(itemRefs);
+	}
+
+	function itemBinder(sectionId: string) {
+		let binder = itemBinders.get(sectionId);
+		if (!binder) {
+			binder = (el: unknown) => bindItem(sectionId, el);
+			itemBinders.set(sectionId, binder);
+		}
+		return binder;
+	}
+
+	const activeSectionId = computed(
+		() => sections.value[activeTab.value]?.sectionId ?? null,
+	);
+	const activeItem = computed(() =>
+		activeSectionId.value ? (itemRefs.value[activeSectionId.value] ?? null) : null,
+	);
+
+	/** 把当前 Tab 的操作同步到顶栏，避免按钮和模块 Tab 抢同一行 */
+	watch(
+		() => {
+			const item = activeItem.value;
+			const sectionId = activeSectionId.value;
+			if (!item || !sectionId) return null;
+			return {
+				sectionId,
+				editSubMode: item.editSubMode,
+				toastMsg: item.toastMsg,
+				saving: item.saving,
+			};
+		},
+		(state) => {
+			if (!state) {
+				prdEditStore.setSectionToolbar(null);
+				return;
+			}
+			const item = itemRefs.value[state.sectionId];
+			if (!item) {
+				prdEditStore.setSectionToolbar(null);
+				return;
+			}
+			prdEditStore.setSectionToolbar({
+				...state,
+				startEdit: () => item.startEdit(),
+				cancelEdit: () => item.cancelEdit(),
+				save: () => item.saveContent(),
+			});
+		},
+		{ immediate: true },
+	);
+
+	onUnmounted(() => {
+		prdEditStore.setSectionToolbar(null);
+	});
 </script>
 
 <template>
 	<div v-if="hasEditable" class="section-list">
-		<!-- Tab 导航 -->
 		<nav class="tab-nav" role="tablist">
 			<button
 				v-for="(sec, i) in sections"
 				:key="sec.sectionId"
 				class="tab-btn"
 				:class="{ active: activeTab === i }"
+				role="tab"
+				:aria-selected="activeTab === i"
 				@click="switchTab(i)"
 			>
 				{{ sec.title }}
@@ -75,6 +166,7 @@
 				:class="{ active: activeTab === i }"
 			>
 				<PrdSectionItem
+					:ref="itemBinder(sec.sectionId)"
 					:session-id="sessionId"
 					:section-id="sec.sectionId"
 					:title="sec.title"
@@ -99,12 +191,11 @@
 	.tab-nav {
 		background: #fff;
 		border-bottom: 1px solid #e2e8f0;
-		padding: 0 24px;
+		padding: 0 16px;
 		display: flex;
-		gap: 0;
+		flex-shrink: 0;
 		overflow-x: auto;
 		scrollbar-width: none;
-		flex-shrink: 0;
 
 		&::-webkit-scrollbar {
 			display: none;

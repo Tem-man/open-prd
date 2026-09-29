@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:01e9fe12b9da54e09daba11d968a4620f97352f6dbb292e986f0e54903118b9d",
+  "claims": [
+    {
+      "id": "claim_0745088aeb8b4997a9ea5070fd049956",
+      "statement": "只有 html 非空且存在当前章节行的 PRD 才进入编辑阶段；否则只暴露 ask_user_form 和 generate_prd，并丢弃界面上传的选中目标。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.ts#L31-L41",
+          "version": "repo-lines-v1:sha256:6b5c333d8bba4442177cfe496de17e81159a0bb8447cdc3b0d40790fb7b890e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhZTEzMjUxZTE4ZTc5NWU1YjZlMjhmMmExMGUwMTc3M2EyNDZkZmMwYjUwZWYwZjcwOWM1MTZkMGU0MjBkODQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE5MmJiNTBiYjY5Y2I0ZjUxZDYyYTkzNGM2YWIyMjIzOWUxYTJkYWM5MTdlNDBhMGFjMDMyNWEyMTM0ZjM5ZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxZWFlY2E2ZjM2NjI3NjQwNjhhZTI4OWFjMTMwNDZjOGQ2NjAzOTY5YTFkMjMxNTNiYzhjNTg5ZTdkM2NmNzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUxYzk1MzI5M2UwOTQ0ODNmNmU0Zjc1MTViZDQ0YzRmZjhhMTc5NDFhYjQyZDBmODg1MmZhYWMwYTc2ZjhhMDcifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/tools/index.ts#L14-L26",
+          "version": "repo-lines-v1:sha256:dc43aa9bd1bf945a339c8a45e571da5d805db22d08c1c8d5dc1d3a3b3b60dfc7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2NDU2YTM2OWU2NzhmODRhZGE5MTc3NTg4ODQ0YmZlYzMyZmZmYWFlNGZlYmQ3YjZjNDg1MmQyZGNkM2RlNWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4YzNmNDY1YTBiYjkxMTJhNjYxNDJhODJlMzM3MTM1YTAwOTIwYTBjMTcxMmIxNjI0NzljN2Y0YmFiZTUzYzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE2MDRjNTIwY2M5M2JmMWY4ODg4NjhjYWMwYzQyNjVmYTgzZmYzZWU2YmI4ZTdjMGIzNjIzZTQ3Njc5NGZmOTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d8b2194f5da5415aaa7eed57fb711630",
+      "statement": "ask_user_form 会规范化问题：选择题至少两个选项，文本题强制非必填，末尾自动补开放题；表单发出后 returnDirect 结束本轮，同一轮不能再发一张卡片。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/tools/askUserForm.ts#L27-L76",
+          "version": "repo-lines-v1:sha256:41a20c3af4da25472132b78c958176f33f778d4e6376dd9500371809fb5bd68d:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiOTUwZGUwYjc0YmE2YjQxZDcwODUwMTExMzIzNWY1NzIxMjAzZTZkZDFmOTE2NWVhZTUxYjk2MGZiYTM3ODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhNzc3NmVmZTcwY2M3ZGNhOTY2OGU2NmNhMmE5ZDkxMDkwMmM3Yzg2ZDIxMzBhNGI0NWY5ZGQ1NTY1Y2M0OTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE2Yjk1NTg5MDM1NWY5ZGNlMjM0MTNjZjQxODc0Nzk5YWFkMDVhNTA3MzU5NTQ5Y2JkOTk5YTc2MmYzNzdhOWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ2MmM4MGJiYzcyN2ZmZTU5OTFiOGJiYmRmMzY3ZWY5MDJjNzY0MDkxMWQwNzdhZGYxNTlmNzE0OGYzNjhkMjcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e5f910328ac54346a870220198351dd2",
+      "statement": "已有 PRD 时 generate_prd 只发确认卡片且不把 token 交回模型；整份重生成由路由凭 token 执行，取消则保持原文档，选择先存版本时会先补齐 v1 再复制新版本。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/sessions/messages.ts#L264-L307",
+          "version": "repo-lines-v1:sha256:7ad09f7b5d8701b4a8b4796b4f2b1a5efe76c16d0549ed45fc32e900dd17c76c:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2OTZhNjNiM2RhMjMwZmJmMzlkZDYwYjAwNmNiMzE3YjJhNmFhODM3YmIzMTQxZjEzMDFiNGFiY2FjMzEyMmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkzZDE0YWIwYWE1MWYxMzBmMWU3NmUyMGJhMjBlNGQ3MzdkYjA2MjZlNTY2ZjhiNTBhOGIwYzk0MGExNjk3OTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJhNDAxMzljODQwMjI0YTBhNDljYzQwYTRjMzYzZjY5YjZkMDA0MjI4YzlkOWEwYjQ4OTMyMDliN2Y0YzQyNjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRkNzk4ZDg4NmUyM2M1ZGMxMjUxN2EyMjkyNzUyZjI3MzNmOTY0NDZiYzhlYWNlZGM5MGQ2YzZhZmMxZTYyYjIifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/tools/generatePrd.ts#L13-L48",
+          "version": "repo-lines-v1:sha256:7967129b59438f2317954016b561bf0efb29b318159b166907342e4d36865e1d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjYmJjZDA2YmRjYzE5ZmNmNzAyNzQyMGI1ODEyYzhmYWQzZGM0Mzg1ZTAyNjRkZjliZGE3NzlhZmM4YjFkZWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwN2I0ODFhZjMxYjQ1NzBlOWM3MzM3YzQzNWZhNWZiNDE5ODBmZmVjOTE0Nzg1ZGVhMGJjNzVlN2YzYmVjYmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3YTRhNTA2Y2E1YjdjZjRiMTRmMGNjNjM4OTRjZTEzOTBlMGMxMmUyNjhkMTQ3NDc3NmEyYzc4OTU5NTk4OWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxMTg2MGIyOWQxOGJiMDc3NzQzZmE0ZDkwYTI0NmNkMGYyMWJhZDU3ZjEyYzk1M2E2NWFkODcyY2VjMzM5MmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d652061ac28d41858b1c8cd38a07fd7c",
+      "statement": "选中目标的首轮会收窄工具：元素或单元格只留 edit_section，整章目标只留编辑类工具。元素改完后，同一轮再整章改写或重写该节会被拒绝。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.ts#L63-L78",
+          "version": "repo-lines-v1:sha256:c577e766dbe45158969b580d76303325618e3cd37e3551f1dbe07afeaa4c3f22:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0ZjFhNDVkZWYzMGM0Mzc2YWZjMTVkZDQzMjMyNDJhZGUwMmNmNjQwZmYxYWUyY2EyY2Y2NzhiZWNmY2VmOGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxZmMzNjkyYjE5ZmEzYzZhM2ZjNWJjNjk3OGVlZTg4M2RhMmNjZWY2ZWUzYTIyMDkxM2E4N2FhNDlkZjU4YTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI0NGI0NmZmNjUzNDZjNzVjOWExOThhMjg2YjkyNzAzNGNiZmZlZTc4MGIyMmRlZTYwZGUxNDM4NGE5YzNjNGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI2YjYxZTdhN2ZkMDYzNjBhNjVlM2Y1Y2E4YzZhZjlmZDYxMTNiMmMyNTg1MDgxOTRjY2QxMDg1MmViMDI2ZjkifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/tools/sectionEdit.ts#L77-L95",
+          "version": "repo-lines-v1:sha256:d1e16f359c0fd5f78c21f2521d0e8a7ccdcb24c385e63d99c65fb9cea7f564d9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2NThjNzI3Y2RjMzE5NTJhNjgzMGE2ZTdjYTcxYmFkM2FiMDg1YzA2MzU1MWM0ZTBlZWQyYTFhMjA4ZDQyOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiYzQ3ZmNkZmUzNmJlMmQ0NTNjNWZlYTk1ZDY4MGZhMGMzY2Q5NThjZjA3NDM2Njk0YjEyOTgyMGRmMTgwOTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlhMTc2N2E5MDlhYzViMjhmN2UxNmUzNmFlN2RjOTczMTVmZDlhMjMyZTdmNGU5ODE4ZTE3MTgwYzRmNzM1YTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRjZWM3MWZmOTFmMjdiZWU1OTY2ZTM3ZjZmNDU1ZDk0NGQ5MjAzMGNlM2RjYzM3MzRkYzY5NzVjNTc4MmEwYjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f70c31ffd81048f3b83530b8f4b21d3a",
+      "statement": "编排器只把 model_request 节点的输出拆成 thinking 和 delta。工具调用每轮最多 12 次，generate_prd 最多 1 次，模型调用最多 14 次；token 空闲超过 LLM_IDLE_TIMEOUT_MS（默认 20000 毫秒）会中止，但工具执行期间不计时。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.ts#L117-L184",
+          "version": "repo-lines-v1:sha256:a32f3f865a5630abb34c7a6983d6bc6e9eff047a49bcc75049a630b0988a4e4f:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ0YTAyOGVjYmQ0YzIyNmJiODc5ODM4YzcwNjA2MjY1Mjg2NTRmY2UzYTkxNDAxNDAyODRhNDExYmViOTQyZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiYzQ3ZmNkZmUzNmJlMmQ0NTNjNWZlYTk1ZDY4MGZhMGMzY2Q5NThjZjA3NDM2Njk0YjEyOTgyMGRmMTgwOTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJjNmY4ODkzODM0N2Q0MTM4MzcyNDVmNTBjZjI0OGQwYTgyYjJjMDg5M2FmYmYzYmQ4YTc0NjExNjg5MmQ2NDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkzZTlhNjA5ZjRjZTNmYzUwYTkwZmFjODk3MmI3ZmNjZjBkYWZkNjlmNjNjYWE1ZjY2ZjgzNmI4NTY4NjE5MmQifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.ts#L26-L29",
+          "version": "repo-lines-v1:sha256:ccafc95036e2bc61bbd1a689d50df157d7b28b41b1281752451c0c1b01af77ea:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2ZmNWJlMTBjYjM2MGI3NDZkN2I4NDA4MmUyZWFmMjcwYzRmMzNkMzAwOTMxNGQ5YmY0YTdhZGVlMmZmZjFlMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjlkOGRmNmVmMmI1MjJlMDI3MDkyMDM1NWE3NWVmMTY4NTNjOWU2MDk2NjUyMmEyYThiNWE4NTRlYTQ5MWZjYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGY1OTc1NjI1OGE3OWY2NDQ0MTFjMzRmNDFhYWQzYWE1M2M2NTFjYWE3MWRmYThmNGNkZWJmNjIyYzg2MGM1MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmMxYzUyNTRmZjY3ZDA0YzAwMDZmNjQ4Zjc4YzQ4YTBlOTgyOGYwMWJjMzVkMjFiNmUwYjNiMGFlMWJlYjk0MiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d0d826362b984dd1864c35ee7ac8dc26",
+      "statement": "SSE 禁止代理缓冲并按默认 10 秒发送心跳。生成成功发 prd_ready 再 done；失败建议 continue_prd。中断前若已有足够可见文字、思考或编辑，会存下带中断标记的助手消息，并按是否已开始生成选择 continue_prd、continue_agent 或 retry_last。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/sessions/messages.ts#L141-L261",
+          "version": "repo-lines-v1:sha256:ec5054dbb229fcfcea49e5b028d8f94b98fc85a276166c8591ef326906254cc0:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIxLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiI0NWQ2NTliNGI0NDY0MDliZDI5ZmIyNTc3ZGYzOTczMDI5NDAyMWMxODQ2MWEyOTU3ZjQyZjNkZGMxM2EzZTNhIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI5M2QxNGFiMGFhNTFmMTMwZjFlNzZlMjBiYTIwZTRkNzM3ZGIwNjI2ZTU2NmY4YjUwYThiMGM5NDBhMTY5NzkzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJkYmQ1MDNkNmQwYjM3MWFjNzRlMDhkM2NiYzg1ZDcwYjc4NGJiMDQ0NjBlZTU0YjIwYjI5NzUzOGNmYmQzOWI5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiIxOGNjYjhhODk5ZGMxZTM1ZTUzODY1ZDNiNDQxMmNhYzFhODRjMDk0NzMyYTU3OWRiYjc0NGNmYzczZDZmZDllIn0"
+        },
+        {
+          "resource": "repo://backend/src/services/sse.ts#L3-L46",
+          "version": "repo-lines-v1:sha256:201aca6c2c5d124ac94a750c15b86e76c9842194c2ac9e252acbec07717f22fb:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2Y2NkYjUzYTI0MzkyNDA2YzM2ZWU0ODRjNjZiZDQ2N2JiNDhiYmU3YWJmN2E3ZTZmZmVlMGRkYmQyOGU4M2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImExZjY0OWJiMWJjYzI1YjkxZGM5MGEwMmY4YjljY2EwMjA1YjRmNDQ1YTMxYzRhMGUyZTQyZjZmZWM2Y2Q2Y2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY0NjE1MTI4YjJlNWNjODQxOGI4ZjMxYjE3N2Q3YjZlYmZlMjkwNDdjOTQ3MzAwZWMyZjRkZGM0MWJlMmIyMmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2MzYzYjkzODlkNGM2OTQ1NTU2YjdjMGU0Y2YxNjljN2ZhYjFlZGU5OTNlZmJlMTZlMjNiZGM5ZTExY2NhODYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_87770e85b0134a08b05c5eae4ab1d330",
+      "statement": "非空的 Last-Event-ID 只重放最近一条已落库助手消息。重试接口的 continue_prd 直接续跑整份生成，retry_section 必须带 sectionId 且只重做该模块，continue_agent 会把中断草稿交回模型续写。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/sessions/messages.ts#L357-L377",
+          "version": "repo-lines-v1:sha256:e7651dd53130f145bc0e0b6fe3af451e1ce7c3ff87dea185ede362ccca2af00e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwNTBmNjM5ZDRmMTRmODRkMDcxYjQxZjBjMjQ0NWQzZjkzOWRmZjYwNjA5MGEwZjA2MTExODRiZGFlYjg3NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiYzQ3ZmNkZmUzNmJlMmQ0NTNjNWZlYTk1ZDY4MGZhMGMzY2Q5NThjZjA3NDM2Njk0YjEyOTgyMGRmMTgwOTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyYjBkZDk5NjdhMTA3YTJlNTJiOGI0MzRkZTkxNjZjNDg5ZTE3MTYzMWFlZTg5Yjk4NTdmYjhjYWEyMjNkMTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE4NTlmNjIzNjlhYTAxY2MxNmZjZjExMTc3ODhkN2M0NGUxYzNjYzFhYTA5MzgyMTA4NTM5Yzg0ZGFiYWViMzcifQ"
+        },
+        {
+          "resource": "repo://backend/src/routes/sessions/messages.ts#L439-L530",
+          "version": "repo-lines-v1:sha256:8523e5c47f78ea37eba06327e39d076208780c2efe2da3a525f774d6a7884105:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhZWU2MmVmZDI2NTAyOWIzZDc4ZTEyZDU4MTBkZTg1ODkwNmY3MzdjNWZiNzA5ODg0MTJjYmM3ZDg0OTUwZDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5NDBjMGFiZTY4NTc3NDg5ZDg4YmJlMmRlMWEyZTQ2ZjY1YzNmMTZkMmQwOGVhMGZiNzE5ZDIxNzgxZjVmYzgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI1MmQ3ZDkyNTU1NDYyYTVjZThlNjk3ZGI2MTcyMmIwMjAxOWQ3YzI1Y2Y4NzFlYzk5ODM4OGM1MzY5MGNjNWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiY2FkZjliNmVhODQ3ZTEwOGYxNTM3ZmIyOTY5Y2ViZDA1ODBkYTA5OWQ2MWMwZGJiZTJhYjFkMWExNWY5NDkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5c6fdc240faf46b6b92803b62f071914",
+      "statement": "确认 token 在已消费、已过期、版本已切换或跨会话时会被拒绝。getAgentDriver 固定返回 LangChain 编排器，本地 Claude Code 或 Codex 驱动尚未接入。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.test.ts#L164-L187",
+          "version": "repo-lines-v1:sha256:3466efd393f8824f373488eddc4ab2772ffb701d09f702a1292b8173bd4f02f9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzODhmMTliNDgyYjNjMGFiZWI1NzJjZWEzNTlmOWQ0MjY3NjhkYzQ0YWJhZTBmZmZiZmMzM2VlNWY0NDY5NjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2ZjQ4NzJjOTQyZDMxNGIwM2Q4M2MzODdkNDE2YWQwMWRiOTc0MDk5MjBmNmVkNWE5ZDQxYTRjZmY2NTIwNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyZjVlNjFjOGY1MDljOTM3YTQxOTdmYWM4M2M5NjNlMmIwN2JkZTkzNTEyYzBkNjc0ZGI5OWE1NDZjODI3NjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlNTJhYWUzN2E5NzQzYTE5NjBjZDJiMTZiYTg5OGRlNDEzNWZiMGJiNjZkMDE4N2IwMWNkNzFjZDk5M2Y0NTQifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/agent/orchestrator.ts#L210-L213",
+          "version": "repo-lines-v1:sha256:29bbbeb93f1360312ce4cf348c2c810be7b1a163b73cacb22a7c3dfdcfc87a36:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmJiOThjMGViM2NiYzViOGI3N2NjY2Y5NjU2YjNiNDllZjEwYjFmNTAyMDQ0NTE0MzNlNTBlOTk3ZjliNjc2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTIyZmFhNTM1YmQyZWEzZDUyZTc0MWVkNDU0NDM1YjdmZTQ5ZTgzNTg2ZTk0M2Q5OGQ4MmJiZmIyNGQxZjVjNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjdlOTliNjg2MjY5NWYwZjY4NzUxMDliYzk0ZTAwNjc4ODQxOGI4NTdiZjhlOTM5ZjQ0YjMyYWZhOWZiYjg4YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-28T02:15:14.097Z"
+  }
+}

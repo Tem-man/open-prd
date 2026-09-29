@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:80ecfa356a9d74a82a5ee64fd3495a28826ab21376cc7e1ce5111601f603bc0f",
+  "claims": [
+    {
+      "id": "claim_e2e7cb6de7b94bafa960d2bbab939e59",
+      "statement": "createChatModel 优先使用 runWithLlmConfig 放进 AsyncLocalStorage 的请求级配置，否则回落环境变量。界面发消息时如果组不出模型载荷，useSSE 不会请求后端。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/llm.ts#L175-L185",
+          "version": "repo-lines-v1:sha256:f3470e9574d6ee82de668030bf797940d02ed749ca4134dfeb2b896ac9fd235b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1ZDVhYmFjYTIyNjgwYWU5NTMzNjcwMGRmNzY2MzYxOTdhN2NiNmMwMDRmNGNkNzlhYzFiMWZkMmYwYWM0YTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhZTY2NjAyZTY5YmQ1ZDRhNjVhODdjMzFkNTBmYjE2YTgyMTc1OGMyZTU2Mzc4ZGVhNWZmNTc4YjFkZmVlZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/llm.ts#L45-L51",
+          "version": "repo-lines-v1:sha256:a6c48e41feaba2d1bf67c9e47802ebbeddaba2c17682f49e7ce09c351535e191:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzQzMTRkN2U0NmY4OWMzZDBmODljOTY3YjU1MDViY2IyNTk5YTg0NTUwNzIwOGRkMDkxY2JiMTQzY2E1Nzk0NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTIyZmFhNTM1YmQyZWEzZDUyZTc0MWVkNDU0NDM1YjdmZTQ5ZTgzNTg2ZTk0M2Q5OGQ4MmJiZmIyNGQxZjVjNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2ViNGQ0MGJjMjFkODhmNDBhYjhiMTBkNzdkYmM2YWRiZDFiYTM4ZWIyZTFjODE1NjZlNTkwNzZlYTcwZjljMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzRjYTZlNzgxM2I4MTZkMDRmYzFmZDJjNTgwM2Y4ZmRlYjgzMjUxMTc1YjgxMjgyOGUwZDA4OWIwOTIxYmI5MSJ9"
+        },
+        {
+          "resource": "repo://frontend/src/composables/useSSE.ts#L354-L355",
+          "version": "repo-lines-v1:sha256:e0203c215919fa1e85a9dce8fe558658ebee169773eac09bb4c30642e7b909cb:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDA3ZmFkNTZjOWUzNThhYzk0M2RhZjNiZjdhMGJiZDNmM2ZmYTk3Njg3MjA4N2E5ODRiNTE1ZGRkNzBmMGQ1NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODE1ZGE3YmM0OTlmYWUxZDY5NTgwZTAzZmU3YjZkZWZlODZjMTIyZTRhOGRhZjU0MjE5NWMzYjE5ZjNiMTQyZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTAwNmMwZTU3YTFhNjI1ZTMzZTU4MzViNzU0M2JmODJiMTNmNWExMDJiNWE4NzQ2YTQxMTVjOWEzOWE2MTJjMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmIyNDE0ODljYjZlZjM1YmQ4NjI4NzEzZDcxOWVlMTMxNGI5NGQzMTRhOWJkYzU5MTc4NjI3YjdlYzMyMTI3YSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6582de89910a4c3ba9c28513de49e7e0",
+      "statement": "请求级配置只接受带 API Key 的 OpenAI 家族和 Anthropic 家族；acp 前缀和 google 会被拒绝，ollama 不在这条路径上。兼容厂商必须有 Base URL，maxOutputTokens 被限制在 1024 到 128000，OpenAI 家族的 HTTP 超时默认 120 秒。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/llm.ts#L26-L43",
+          "version": "repo-lines-v1:sha256:426927f4d90533fb6756f98d46e973780cd60825ebe28a380c7bcbf08a00b9cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjYzNiMTZjZWZhOGJjZjhmMDkyODFhNjczYjhjZTE5MWQwNGE4MmNiZTU0M2Q4MmEyNDY3YTU0NDRlMDcyYTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJmZTExYTcxMmI4YzczYzA5N2U4YTFmMGFjYmE5YzQyMjYxNWMzYjllZTc3ZjdhNzBiMTZhZGYxMTk3MTNlMGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyNmI3ZWFjMDYzZDhhZGY3ODliNjlhMTlkMDYzMTc1MTgyMjEyNDBmZTA2Mzc5MTM2ODcwYmJhYmE0MzAyNjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM0Njc2OGM3YjIxZTViMjVmZGQ3NWE2ZjUxOTc1ZGJhYzQ5YzRmNTc0ZDE4YjU3MTU3YWIyNDZiOGU4ZGE1N2UifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/llm.ts#L53-L131",
+          "version": "repo-lines-v1:sha256:935daaa890bfea2a62e04512e19847c89b1936f03be13a4e125c29665307a130:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyOWE1NWQ0MzY2ODQwMjZlYTUyN2Q4Yzc4MzBiYjkyNzg4OTE5Y2JiYmJkOTg1MGYwZGJmYzZjODMzMjM4NDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkN2NjNzQ3OWY3OTIyNTljZTg1ZjgyNzA1MDkxMjlhNDY3ODYzMjIxMTc0MTgwZjk4MTBmNTczMGZiMmJjMzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyNzQ5MjdjOGU3NmUwYWIxN2RhMDk0OGZiOTRkZTJkZmNlMjc2N2U2ZjhjNGM4YzIyOWNhYzQ0NmFiNTE4MTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3MTYzYWFlMGQxOTA1OGY1MmFkNTg1ZTMzYTA0NTRmYzkxNmNmMTU0MmQ2NTFlYWViMTQyOWI0NWZjYjI2M2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7b7b7b28a7c44e0b86a148771b7848fd",
+      "statement": "环境变量回落支持 openai、openrouter、anthropic 和 ollama。未设置时提供商默认 openai、模型默认 gpt-4o；Ollama 默认连本地 11434，不需要 API Key。",
+      "evidence": [
+        {
+          "resource": "repo://backend/.env.example#L1-L16",
+          "version": "repo-lines-v1:sha256:c117cbcb142f3a8242667ab77613446e1bf387f6ebc9e83fbfb9596b871c82f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmMzFiNzM3YWVmODA5MmEwNmE0ODEzM2EzOTI3ZDg0MTAwZWUwMWFjYmQ0NmYyYmM3MmVmYzE5ZGI4MGRhN2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc5YTg3MmIwZTUyMWEzMmRlZGUwNmY2MmMwN2M5ODE1NmU5NWU1NjhlYjA0NDAzOWY3ZDVmODY1ZjAzOGYxNGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjZWM2ZTllZjI1MWVkMWZiZWNlZmE4YjI1ZWQ1ZWI5MzU1ODVkZTc1OTY5YjZhZDc0YzQzMjExYmFlNDQ3NzAifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/llm.ts#L134-L172",
+          "version": "repo-lines-v1:sha256:aecb273199ee14d1c6d1a64dd4abe3d667a9df44b65fad8c03651f164d373c87:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRiOTIwOWI5Zjc3MzA0MmNjZjZhY2VlNzUyOGEwZTQ0ZjZkYzRjMjI0M2NlZjhlZWZmZDczNmMwMjliZWQ0NDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4MmQ5MzMwY2RjZTU5OTcxMGUxZjg5OTYxZDBiNzU5ZGM5MzlkMWFlMjFkMDEzZTNlY2ExNTllNGFhNGJlYzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwNjk0ZDhhZjc2ZjY3MTE2NWNhMTk3NTJjNGEzYTQxMDM0ZTI1NjA0N2JmNjU0YjQ4ODM5YTJhN2I1MDM5OGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg2MzYzYjkzODlkNGM2OTQ1NTU2YjdjMGU0Y2YxNjljN2ZhYjFlZGU5OTNlZmJlMTZlMjNiZGM5ZTExY2NhODYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_72e6d4b5fbac43fca1b7335cacf6ac03",
+      "statement": "extractStreamParts 把字符串正文和 reasoning_content、reasoning、summary 拆开；未知内容块不会被字符串化进可见回复。测试锁定了 DeepSeek、Anthropic 内容数组和 OpenAI summary 数组这几种形状。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/llmStream.test.ts#L5-L72",
+          "version": "repo-lines-v1:sha256:7f96aad3c56fa59bfed14f58a58df5bcd5c2b10dbd61cfcaff28e2d8113de502:eyJzZWxlY3RlZExpbmVDb3VudCI6NjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk1M2E5NGI1MGEwYTNjYjY5ZmM4NjE5MzBjMTRkYTMyZDI5MzhmNDVjZTE0ZTk5ZjdhNWRlNGJhNzk2NWYyYTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1YTY1OGM5ZWQwMTU5OWQ3ODFiODY3Njk1NmMxMzRkNDhkYjk4YWE2M2UzNmZkOGQzYzBmYmUyZWZmNTdiOGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU0MGU1YjgwMjYxNjY2NmU5YzlmNTFmYzE4OGYzN2NmMDcxMjUxZjQ0ZDUwZTgzYzFhMTI1YzkyOWE1YTgwZWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhmMTFjY2E3YzcwZTViYWIzOTAwMGMxNzk5OGUwMDE3MThhN2ZlZjUxYmIyNWMxNWZkY2YxYjg1NTkwYjM5MWYifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/llmStream.ts#L23-L102",
+          "version": "repo-lines-v1:sha256:4426faf6fc67f0709e70d71bbb48f8dfca12b53eb3836c8e0eb29743329c5a5d:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4ZWNkYjRkOTMyNmZmZDE2ZmFmNDJhNTNmYWJlYTYxNDA3YWM4Y2I1MWE1YTdkMzE3OTA1ZTRlZjg3MzJkY2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2NGEyYzY1MjlhYTIxMjg4MTE0NGM5ZGE4M2QzNGU5NWE1MmMxZWMyZjBlM2ZjZmIwNTc1NGVjNWNkNzhhNmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-28T02:15:14.097Z"
+  }
+}
