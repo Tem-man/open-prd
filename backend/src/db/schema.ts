@@ -129,7 +129,7 @@ ON prd_sections (prd_id, section_id, is_current)
  * PRD 版本表（Figma Page 模型：每个版本是一份独立文档）。
  * is_active = 1 表示当前打开在工作区（prds.html + prd_sections）的版本；
  * 非激活版本的权威内容存放于本行的 html + sections_json。
- * 详见 docs/plan-prd-version-management.md。
+ * 详见 docs/plan-prd-version-management.md、docs/plan-prd-version-create-options.md。
  */
 export const CREATE_PRD_VERSIONS_TABLE = `
 CREATE TABLE IF NOT EXISTS prd_versions (
@@ -165,7 +165,7 @@ export interface PrdVersionRow {
 	session_id: string;
 	version: number;
 	label: string;
-	source: "snapshot" | "blank" | "clone";
+	source: "snapshot" | "blank";
 	html: string;
 	sections_json: string;
 	/** 该版本的对话记录快照（对话随版本走，切换时随工作区一起重建） */

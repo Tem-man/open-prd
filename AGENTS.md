@@ -358,16 +358,16 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 | POST   | `/api/sessions/:id/messages`                   | 发送消息，触发 SSE 流式响应                             |
 | GET    | `/api/sessions/:id/prd`                        | 获取该会话最新生成的 PRD HTML                           |
 | GET    | `/api/sessions/:id/prd/versions`               | 版本列表（version DESC）                                |
-| POST   | `/api/sessions/:id/prd/versions`               | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
+| POST   | `/api/sessions/:id/prd/versions`               | 新增空白版本（`mode`: `blank`；可选 `copyIntake`）。`duplicate` 无 `fromVersionId` 时复制当前工作区（整份重生成另存） |
+| POST   | `/api/sessions/:id/prd/versions/:vid/duplicate` | 复制该版本行（可选 `copyConversation`，信息收集前缀一律保留） |
 | POST   | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等）               |
-| POST   | `/api/sessions/:id/prd/versions/:vid/clone`    | 克隆为当前会话新版本（只复制 PRD，不复制对话）          |
 | DELETE | `/api/sessions/:id/prd/versions/:vid`          | 物理删除版本（删激活版本自动切到最新剩余版本）          |
 | PATCH  | `/api/sessions/:id/prd/versions/:vid`          | 重命名版本备注                                          |
 
 > 版本管理采用 Figma Page 模型：每个版本是独立文档，`prds.html` + `prd_sections` + `messages` 为当前工作区；
-> 切换/新建时先把旧激活版本写回其版本行，再用目标版本重建工作区（对话记录随版本走，空白版本即空对话）。
+> 切换/新建时先把旧激活版本写回其版本行，再用目标版本重建工作区（对话记录随版本走；行内复制指定版本，可选是否带上生成后的会话；顶部新增空白版本，可选是否带上信息收集前缀）。
 > 版本仅由用户显式创建，AI 编辑与手动编辑不产生自动快照；唯一例外是懒引导——首次拉取版本列表时
-> 若 PRD 已有内容但无任何版本，自动把当前工作区物化为 v1「当前内容」。详见 `docs/plan-prd-version-management.md`。
+> 若 PRD 已有内容但无任何版本，自动把当前工作区物化为 v1「当前内容」。详见 `docs/plan-prd-version-management.md`、`docs/plan-prd-version-create-options.md`。
 
 ### SSE 流式响应规范
 
@@ -438,7 +438,7 @@ CREATE TABLE prd_versions (
   session_id    TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   version       INTEGER NOT NULL,           -- 从 1 递增
   label         TEXT    NOT NULL DEFAULT '', -- 用户备注
-  source        TEXT    NOT NULL,           -- snapshot / blank / clone
+  source        TEXT    NOT NULL,           -- snapshot / blank
   html          TEXT    NOT NULL,           -- 该版本的完整 HTML
   sections_json TEXT    NOT NULL,           -- 该版本的结构化模块内容（权威数据源）
   messages_json TEXT    NOT NULL DEFAULT '[]', -- 该版本的对话快照（对话随版本走）

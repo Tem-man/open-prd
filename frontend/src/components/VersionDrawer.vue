@@ -2,12 +2,14 @@
 	/**
 	 * VersionDrawer — PRD 版本管理抽屉（左侧弹出）
 	 * Figma Page 模型：每个版本是独立文档，点击版本行即切换工作区内容。
-	 * 支持：切换版本、新增版本（复制当前/空白）、克隆为新版本、删除版本。
-	 * 详见 docs/plan-prd-version-management.md
+	 * 支持：切换版本、顶部新建空白版本、行内复制该版本、删除版本。
+	 * 详见 docs/plan-prd-version-create-options.md
 	 */
 	import { ref, computed, watch, nextTick } from "vue";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdVersionsStore } from "@/stores/prdVersions";
+	import { useMessagesStore } from "@/stores/messages";
+	import { hasCollectionIntake } from "@/utils/versionIntake";
 	import type { PrdVersionMeta } from "@/types";
 
 	const props = defineProps<{
@@ -20,6 +22,7 @@
 
 	const sessionsStore = useSessionsStore();
 	const versionsStore = usePrdVersionsStore();
+	const messagesStore = useMessagesStore();
 
 	const sessionId = computed(() => sessionsStore.currentSession?.id ?? "");
 	const sessionTitle = computed(
@@ -29,14 +32,17 @@
 	// ── 弹窗状态 ──
 	const showAddDialog = ref(false);
 	const addLabel = ref("");
-	const addMode = ref<"duplicate" | "blank">("blank");
+	const copyIntake = ref(false);
 	const addLabelInputRef = ref<HTMLInputElement | null>(null);
+	const copyTarget = ref<PrdVersionMeta | null>(null);
+	const copyLabel = ref("");
+	const copyConversation = ref(true);
+	const copyLabelInputRef = ref<HTMLInputElement | null>(null);
 	/** 正在行内重命名的版本 id（双击版本名称触发） */
 	const renamingId = ref<string | null>(null);
 	const renameLabel = ref("");
 	const renameInputRef = ref<HTMLInputElement | null>(null);
 	const deleteTarget = ref<PrdVersionMeta | null>(null);
-	const cloneTarget = ref<PrdVersionMeta | null>(null);
 	const errorMsg = ref("");
 
 	/** 下一个版本号（列表按 version DESC，首项即最大） */
@@ -44,7 +50,13 @@
 		() => (versionsStore.versions[0]?.version ?? 0) + 1,
 	);
 
-	/** 版本显示名：有自定义名称用名称，否则回退 v{N} */
+	const hasCollectionForm = computed(() =>
+		hasCollectionIntake(messagesStore.messages),
+	);
+
+	watch(hasCollectionForm, (ok) => {
+		if (!ok) copyIntake.value = false;
+	});
 	function displayName(v: PrdVersionMeta) {
 		return v.label || `v${v.version}`;
 	}
@@ -77,7 +89,6 @@
 
 	function sourceLabel(source: PrdVersionMeta["source"]) {
 		if (source === "blank") return "空白";
-		if (source === "clone") return "克隆";
 		return "快照";
 	}
 
@@ -106,7 +117,7 @@
 	// 名称预填下一个默认版本号（如 v5）并全选，用户可立即输入新名称覆盖
 	async function openAddDialog() {
 		addLabel.value = `v${nextVersionNumber.value}`;
-		addMode.value = "blank";
+		copyIntake.value = false;
 		showAddDialog.value = true;
 		await nextTick();
 		addLabelInputRef.value?.focus();
@@ -119,14 +130,40 @@
 		try {
 			await versionsStore.addVersion(
 				sessionId.value,
-				// 与默认名一致时不落库，展示层回退 v{N}
 				label === `v${nextVersionNumber.value}` ? "" : label,
-				addMode.value,
+				{ copyIntake: copyIntake.value && hasCollectionForm.value },
 			);
 			showAddDialog.value = false;
 		} catch {
 			errorMsg.value = "新增版本失败，请重试";
 			showAddDialog.value = false;
+		}
+	}
+
+	async function openCopyDialog(v: PrdVersionMeta) {
+		copyTarget.value = v;
+		copyLabel.value = `v${nextVersionNumber.value}`;
+		copyConversation.value = true;
+		await nextTick();
+		copyLabelInputRef.value?.focus();
+		copyLabelInputRef.value?.select();
+	}
+
+	async function confirmCopy() {
+		const t = copyTarget.value;
+		if (!t || !sessionId.value) return;
+		const label = copyLabel.value.trim();
+		try {
+			await versionsStore.duplicateVersion(
+				sessionId.value,
+				t.id,
+				label === `v${nextVersionNumber.value}` ? "" : label,
+				copyConversation.value,
+			);
+			copyTarget.value = null;
+		} catch {
+			errorMsg.value = "复制版本失败，请重试";
+			copyTarget.value = null;
 		}
 	}
 
@@ -205,19 +242,6 @@
 			deleteTarget.value = null;
 		}
 	}
-
-	// ── 克隆为新版本（仅复制 PRD，不复制对话）──
-	async function confirmClone() {
-		const t = cloneTarget.value;
-		if (!t || !sessionId.value) return;
-		try {
-			await versionsStore.cloneVersion(sessionId.value, t.id);
-			cloneTarget.value = null;
-		} catch {
-			errorMsg.value = "克隆失败，请重试";
-			cloneTarget.value = null;
-		}
-	}
 </script>
 
 <template>
@@ -279,7 +303,7 @@
 				>
 					<icon-lucide-history class="empty-icon" />
 					<p>还没有版本记录</p>
-					<p class="empty-hint">点击上方「新增版本」保存当前 PRD 内容</p>
+					<p class="empty-hint">点击上方「新增版本」创建空白版本</p>
 				</div>
 
 				<!-- 版本列表 -->
@@ -331,11 +355,11 @@
 						<div class="version-actions" @click.stop>
 							<button
 								class="icon-btn"
-								title="克隆为新版本"
+								title="复制此版本"
 								:disabled="versionsStore.mutating"
-								@click="cloneTarget = v"
+								@click="openCopyDialog(v)"
 							>
-								<icon-lucide-copy-plus />
+								<icon-lucide-copy />
 							</button>
 							<button
 								class="icon-btn danger"
@@ -364,7 +388,7 @@
 				@click.self="showAddDialog = false"
 			>
 				<div class="dialog">
-					<p class="dialog-title">新增版本</p>
+					<p class="dialog-title">新建空白版本</p>
 					<label class="dialog-field-label" for="add-version-name">
 						版本名称
 					</label>
@@ -379,27 +403,36 @@
 						@keydown.enter="confirmAdd"
 					/>
 					<div class="mode-options">
-						<label
-							class="mode-option"
-							:class="{ checked: addMode === 'duplicate' }"
-						>
-							<input type="radio" v-model="addMode" value="duplicate" />
+						<label class="mode-option" :class="{ checked: !copyIntake }">
+							<input type="radio" v-model="copyIntake" :value="false" />
 							<div>
-								<p class="mode-name">复制当前内容</p>
+								<p class="mode-name">不带两轮信息收集</p>
 								<p class="mode-desc">
-									在本会话内创建内容相同的平行版本，共享对话记录
+									空文档、空对话，新开一轮收集（若新输入仍不够）
 								</p>
 							</div>
 						</label>
 						<label
 							class="mode-option"
-							:class="{ checked: addMode === 'blank' }"
+							:class="{
+								checked: copyIntake && hasCollectionForm,
+								disabled: !hasCollectionForm,
+							}"
 						>
-							<input type="radio" v-model="addMode" value="blank" />
+							<input
+								type="radio"
+								v-model="copyIntake"
+								:value="true"
+								:disabled="!hasCollectionForm"
+							/>
 							<div>
-								<p class="mode-name">空白版本</p>
+								<p class="mode-name">带两轮信息收集</p>
 								<p class="mode-desc">
-									创建空白版本并切换过去，当前内容保留在原版本中
+									{{
+										hasCollectionForm
+											? "空文档，对话里只留下当时的提问与作答，可直接再生成"
+											: "当前会话没有信息收集问答（需求一开始就够用）"
+									}}
 								</p>
 							</div>
 						</label>
@@ -414,6 +447,61 @@
 							@click="confirmAdd"
 						>
 							创建
+						</button>
+					</div>
+				</div>
+			</div>
+		</Transition>
+
+		<!-- 复制版本弹窗 -->
+		<Transition name="drawer-mask">
+			<div
+				v-if="copyTarget"
+				class="dialog-mask"
+				@click.self="copyTarget = null"
+			>
+				<div class="dialog">
+					<p class="dialog-title">复制版本</p>
+					<p class="dialog-text">
+						基于「{{ displayName(copyTarget) }}」创建平行版本，并切换过去。
+					</p>
+					<label class="dialog-field-label" for="copy-version-name">
+						版本名称
+					</label>
+					<input
+						id="copy-version-name"
+						ref="copyLabelInputRef"
+						v-model="copyLabel"
+						class="dialog-input"
+						type="text"
+						placeholder="版本名称，如：初稿 / 评审版"
+						maxlength="50"
+						@keydown.enter="confirmCopy"
+					/>
+					<div class="mode-options">
+						<label class="mode-option" :class="{ checked: copyConversation }">
+							<input type="radio" v-model="copyConversation" :value="true" />
+							<div>
+								<p class="mode-name">带会话记录</p>
+								<p class="mode-desc">编辑对话一并带走；信息收集也会保留</p>
+							</div>
+						</label>
+						<label class="mode-option" :class="{ checked: !copyConversation }">
+							<input type="radio" v-model="copyConversation" :value="false" />
+							<div>
+								<p class="mode-name">不带会话记录</p>
+								<p class="mode-desc">只要文档和信息收集，生成之后的对话不要</p>
+							</div>
+						</label>
+					</div>
+					<div class="dialog-actions">
+						<button class="btn-cancel" @click="copyTarget = null">取消</button>
+						<button
+							class="btn-confirm"
+							:disabled="versionsStore.mutating"
+							@click="confirmCopy"
+						>
+							复制
 						</button>
 					</div>
 				</div>
@@ -447,33 +535,6 @@
 							@click="confirmDelete"
 						>
 							删除
-						</button>
-					</div>
-				</div>
-			</div>
-		</Transition>
-
-		<!-- 克隆确认弹窗 -->
-		<Transition name="drawer-mask">
-			<div
-				v-if="cloneTarget"
-				class="dialog-mask"
-				@click.self="cloneTarget = null"
-			>
-				<div class="dialog">
-					<p class="dialog-title">克隆为新版本</p>
-					<p class="dialog-text">
-						基于「{{ displayName(cloneTarget) }}」复制 PRD 为新版本？
-						只复制文档内容，不复制对话记录；创建后将切换到该版本并开始空白对话。
-					</p>
-					<div class="dialog-actions">
-						<button class="btn-cancel" @click="cloneTarget = null">取消</button>
-						<button
-							class="btn-confirm"
-							:disabled="versionsStore.mutating"
-							@click="confirmClone"
-						>
-							克隆
 						</button>
 					</div>
 				</div>
@@ -803,7 +864,7 @@
 	}
 
 	.dialog {
-		width: 360px;
+		width: 400px;
 		background: var(--color-bg-primary);
 		border-radius: var(--radius-card);
 		box-shadow:
@@ -875,6 +936,22 @@
 			margin-top: 3px;
 			accent-color: var(--color-primary);
 		}
+
+		&.disabled {
+			cursor: not-allowed;
+			opacity: 0.55;
+		}
+	}
+
+	.mode-sub-options {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin: -2px 0 4px 22px;
+	}
+
+	.mode-option.sub {
+		padding: 8px 10px;
 	}
 
 	.mode-name {

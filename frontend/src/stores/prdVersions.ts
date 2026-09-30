@@ -62,19 +62,49 @@ export const usePrdVersionsStore = defineStore("prdVersions", () => {
 		}
 	}
 
-	/** 新增版本：duplicate=复制当前内容；blank=空白版本 */
+	/** 顶部新增：空白版本 */
 	async function addVersion(
 		sessionId: string,
 		label: string,
-		mode: "duplicate" | "blank",
+		opts: { copyIntake?: boolean } = {},
 	): Promise<void> {
 		mutating.value = true;
 		try {
 			const res = await fetch(`/api/sessions/${sessionId}/prd/versions`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ label, mode }),
+				body: JSON.stringify({
+					label,
+					mode: "blank",
+					copyIntake: opts.copyIntake,
+				}),
 			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const data = (await res.json()) as { assembledPrdHtml: string };
+			await refreshWorkspace(data.assembledPrdHtml, sessionId);
+			await fetchVersions(sessionId);
+		} finally {
+			mutating.value = false;
+		}
+	}
+
+	/** 行内复制：复制指定版本行的 PRD */
+	async function duplicateVersion(
+		sessionId: string,
+		versionId: string,
+		label: string,
+		copyConversation = true,
+	): Promise<void> {
+		mutating.value = true;
+		try {
+			const res = await fetch(
+				`/api/sessions/${sessionId}/prd/versions/${versionId}/duplicate`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ label, copyConversation }),
+				},
+			);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data = (await res.json()) as { assembledPrdHtml: string };
 			await refreshWorkspace(data.assembledPrdHtml, sessionId);
@@ -90,23 +120,6 @@ export const usePrdVersionsStore = defineStore("prdVersions", () => {
 		try {
 			const res = await fetch(
 				`/api/sessions/${sessionId}/prd/versions/${versionId}/activate`,
-				{ method: "POST" },
-			);
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = (await res.json()) as { assembledPrdHtml: string };
-			await refreshWorkspace(data.assembledPrdHtml, sessionId);
-			await fetchVersions(sessionId);
-		} finally {
-			mutating.value = false;
-		}
-	}
-
-	/** 克隆为当前会话的新版本：只复制 PRD，不复制对话，并切换过去 */
-	async function cloneVersion(sessionId: string, versionId: string): Promise<void> {
-		mutating.value = true;
-		try {
-			const res = await fetch(
-				`/api/sessions/${sessionId}/prd/versions/${versionId}/clone`,
 				{ method: "POST" },
 			);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -173,8 +186,8 @@ export const usePrdVersionsStore = defineStore("prdVersions", () => {
 		drawerOpen,
 		fetchVersions,
 		addVersion,
+		duplicateVersion,
 		activateVersion,
-		cloneVersion,
 		renameVersion,
 		deleteVersion,
 		reset,

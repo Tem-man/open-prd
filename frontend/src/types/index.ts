@@ -179,7 +179,7 @@ export interface PrdVersionMeta {
 	id: string;
 	version: number;
 	label: string;
-	source: "snapshot" | "blank" | "clone";
+	source: "snapshot" | "blank";
 	isActive: boolean;
 	createdAt: number;
 	updatedAt: number;

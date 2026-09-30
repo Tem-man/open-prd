@@ -4,9 +4,10 @@ import {
 	getPrdVersionRow,
 	createPrdVersion,
 	activatePrdVersion,
-	clonePrdVersion,
 	deletePrdVersion,
 	renamePrdVersion,
+	CopyIntakeUnavailableError,
+	VersionNotFoundError,
 } from "../../services/prdVersions.js";
 import { findLatestPrdId } from "./helpers/sectionPersist.js";
 
@@ -16,7 +17,13 @@ function findVersionInPrd(versionId: string, prdId: string) {
 	return row && row.prd_id === prdId ? row : undefined;
 }
 
-/** 注册 PRD version 管理路由（列表、创建、激活、克隆、删除、重命名）。 */
+function optionalBoolean(value: unknown): boolean | undefined {
+	if (value === undefined) return undefined;
+	if (typeof value === "boolean") return value;
+	return undefined;
+}
+
+/** 注册 PRD version 管理路由（列表、创建、激活、删除、重命名）。 */
 export function registerVersions(router: IRouter): void {
 	// GET /api/sessions/:id/prd/versions — 版本列表（version DESC）
 	router.get("/:id/prd/versions", (req, res) => {
@@ -29,7 +36,8 @@ export function registerVersions(router: IRouter): void {
 		res.json({ versions: listPrdVersions(prdId, sessionId) });
 	});
 
-	// POST /api/sessions/:id/prd/versions — 新增版本 { label?, mode: 'duplicate' | 'blank' }
+	// POST /api/sessions/:id/prd/versions — 新增空白版本（或内部 duplicate 当前工作区）
+	// { label?, mode: 'duplicate' | 'blank', copyConversation?, copyIntake? }
 	router.post("/:id/prd/versions", (req, res) => {
 		const sessionId = req.params.id;
 		const prdId = findLatestPrdId(sessionId);
@@ -43,8 +51,76 @@ export function registerVersions(router: IRouter): void {
 			res.status(400).json({ error: "mode must be 'duplicate' or 'blank'" });
 			return;
 		}
-		const result = createPrdVersion(prdId, sessionId, { label, mode });
-		res.json(result);
+		if (
+			req.body?.copyConversation !== undefined &&
+			typeof req.body.copyConversation !== "boolean"
+		) {
+			res.status(400).json({ error: "copyConversation must be a boolean" });
+			return;
+		}
+		if (
+			req.body?.copyIntake !== undefined &&
+			typeof req.body.copyIntake !== "boolean"
+		) {
+			res.status(400).json({ error: "copyIntake must be a boolean" });
+			return;
+		}
+		try {
+			const result = createPrdVersion(prdId, sessionId, {
+				label,
+				mode,
+				copyConversation: optionalBoolean(req.body?.copyConversation),
+				copyIntake: optionalBoolean(req.body?.copyIntake),
+			});
+			res.json(result);
+		} catch (err) {
+			if (err instanceof CopyIntakeUnavailableError) {
+				res.status(400).json({ error: err.message });
+				return;
+			}
+			if (err instanceof VersionNotFoundError) {
+				res.status(404).json({ error: err.message });
+				return;
+			}
+			throw err;
+		}
+	});
+
+	// POST /api/sessions/:id/prd/versions/:vid/duplicate — 复制该版本行
+	router.post("/:id/prd/versions/:vid/duplicate", (req, res) => {
+		const sessionId = req.params.id;
+		const prdId = findLatestPrdId(sessionId);
+		if (!prdId) {
+			res.status(404).json({ error: "PRD not found for this session" });
+			return;
+		}
+		if (!findVersionInPrd(req.params.vid, prdId)) {
+			res.status(404).json({ error: "Version not found" });
+			return;
+		}
+		const label = (req.body?.label as string | undefined)?.trim() ?? "";
+		if (
+			req.body?.copyConversation !== undefined &&
+			typeof req.body.copyConversation !== "boolean"
+		) {
+			res.status(400).json({ error: "copyConversation must be a boolean" });
+			return;
+		}
+		try {
+			const result = createPrdVersion(prdId, sessionId, {
+				label,
+				mode: "duplicate",
+				fromVersionId: req.params.vid,
+				copyConversation: optionalBoolean(req.body?.copyConversation),
+			});
+			res.json(result);
+		} catch (err) {
+			if (err instanceof VersionNotFoundError) {
+				res.status(404).json({ error: err.message });
+				return;
+			}
+			throw err;
+		}
 	});
 
 	// POST /api/sessions/:id/prd/versions/:vid/activate — 切换版本（写回旧版本 + 重建工作区）
@@ -60,21 +136,6 @@ export function registerVersions(router: IRouter): void {
 			return;
 		}
 		res.json(activatePrdVersion(req.params.vid, sessionId));
-	});
-
-	// POST /api/sessions/:id/prd/versions/:vid/clone — 克隆为当前会话的新版本（仅 PRD，不复制对话）
-	router.post("/:id/prd/versions/:vid/clone", (req, res) => {
-		const sessionId = req.params.id;
-		const prdId = findLatestPrdId(sessionId);
-		if (!prdId) {
-			res.status(404).json({ error: "PRD not found for this session" });
-			return;
-		}
-		if (!findVersionInPrd(req.params.vid, prdId)) {
-			res.status(404).json({ error: "Version not found" });
-			return;
-		}
-		res.json(clonePrdVersion(req.params.vid, sessionId));
 	});
 
 	// DELETE /api/sessions/:id/prd/versions/:vid — 物理删除版本

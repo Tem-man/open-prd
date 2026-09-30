@@ -5,7 +5,7 @@
  * - 切换/新建版本：先把旧激活版本的工作区内容写回其版本行，再用目标版本重建工作区；
  * - 非激活版本的权威内容是其行的 sections_json；行内 html 仅作快照留存，载入时从模块重新渲染，
  *   只有无模块记录的存量版本才回退使用；
- * - 版本仅由用户显式创建（新增/克隆），AI 编辑与手动编辑不产生自动快照。
+ * - 版本仅由用户显式创建（新增），AI 编辑与手动编辑不产生自动快照。
  *
  * 详见 docs/plan-prd-version-management.md。
  */
@@ -15,6 +15,7 @@ import { BUILTIN_MODULES, type PrdVersionRow } from "../db/schema.js";
 import { getSessionModules, getOutline } from "./prdOutline.js";
 import { getFreshPrdHtml, renderWorkspacePrd } from "./prd/index.js";
 import type { SelectedModule } from "./prompts.js";
+import { splitIntakeMessages } from "./versionIntake.js";
 
 /** 版本内存储的单个模块内容（sections_json 元素） */
 export interface VersionSection {
@@ -36,7 +37,7 @@ export interface PrdVersionMeta {
 	id: string;
 	version: number;
 	label: string;
-	source: "snapshot" | "blank" | "clone";
+	source: "snapshot" | "blank";
 	isActive: boolean;
 	createdAt: number;
 	updatedAt: number;
@@ -47,7 +48,7 @@ function rowToMeta(row: PrdVersionRow): PrdVersionMeta {
 		id: row.id,
 		version: row.version,
 		label: row.label,
-		source: row.source,
+		source: row.source === "blank" ? "blank" : "snapshot",
 		isActive: row.is_active === 1,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
@@ -332,17 +333,60 @@ function loadVersionIntoWorkspace(
 	);
 }
 
-/** 新增版本：duplicate=复制当前内容；blank=空白版本并切换工作区为空壳 */
+export class CopyIntakeUnavailableError extends Error {
+	constructor() {
+		super("copyIntake requires prior collection Q&A");
+		this.name = "CopyIntakeUnavailableError";
+	}
+}
+
+export class VersionNotFoundError extends Error {
+	constructor() {
+		super("Version not found");
+		this.name = "VersionNotFoundError";
+	}
+}
+
+export interface CreatePrdVersionOpts {
+	label?: string;
+	mode: "duplicate" | "blank";
+	/** 复制：是否带上生成后的会话记录。默认 true */
+	copyConversation?: boolean;
+	/** 空白：是否带上信息收集前缀。默认 false */
+	copyIntake?: boolean;
+	/** 复制指定版本行；省略则复制当前工作区（整份重生成另存） */
+	fromVersionId?: string;
+}
+
+function parseVersionMessages(raw: string): VersionMessage[] {
+	try {
+		const parsed = JSON.parse(raw || "[]") as unknown;
+		return Array.isArray(parsed) ? (parsed as VersionMessage[]) : [];
+	} catch {
+		return [];
+	}
+}
+
+function parseVersionSections(raw: string): VersionSection[] {
+	try {
+		const parsed = JSON.parse(raw || "[]") as unknown;
+		return Array.isArray(parsed) ? (parsed as VersionSection[]) : [];
+	} catch {
+		return [];
+	}
+}
+
+/** 新增版本：duplicate=复制某行或当前工作区；blank=空白版本并切换工作区为空壳 */
 export function createPrdVersion(
 	prdId: string,
 	sessionId: string,
-	opts: { label?: string; mode: "duplicate" | "blank" },
+	opts: CreatePrdVersionOpts,
 ): { id: string; version: number; assembledPrdHtml: string } {
 	const db = getDb();
 	return db.transaction(() => {
-		// 空白新建会破坏工作区，先保护未版本化的内容
-		if (opts.mode === "blank") preserveUnversionedWorkspace(prdId, sessionId);
-		// 写回旧激活版本，保证复制/留存的内容最新
+		if (opts.mode === "blank" || opts.fromVersionId) {
+			preserveUnversionedWorkspace(prdId, sessionId);
+		}
 		writeBackActiveVersion(prdId, sessionId);
 
 		const now = Date.now();
@@ -351,17 +395,38 @@ export function createPrdVersion(
 			.get(prdId) as { maxV: number | null };
 		const nextVersion = (maxRow.maxV ?? 0) + 1;
 
+		const workspaceMessages = readWorkspaceMessages(sessionId);
+		const copyConversation = opts.copyConversation !== false;
+		const copyIntake = opts.copyIntake === true;
+
 		let html: string;
 		let sections: VersionSection[];
 		let messages: VersionMessage[];
 		let source: "snapshot" | "blank";
 		if (opts.mode === "blank") {
 			sections = [];
-			messages = [];
-			// 空白版本 html 置空串：前端据此呈现「新建 PRD」空状态（含进度步骤），
-			// 而不是渲染一个无内容的空壳文档
 			html = "";
 			source = "blank";
+			if (copyIntake) {
+				const split = splitIntakeMessages(workspaceMessages, {
+					includeFirstGenerate: false,
+				});
+				if (!split.hasCollectionForm) throw new CopyIntakeUnavailableError();
+				messages = split.intake;
+			} else {
+				messages = [];
+			}
+		} else if (opts.fromVersionId) {
+			const from = getPrdVersionRow(opts.fromVersionId);
+			if (!from || from.prd_id !== prdId) throw new VersionNotFoundError();
+			html = from.html;
+			sections = parseVersionSections(from.sections_json);
+			const fromMessages = parseVersionMessages(from.messages_json);
+			source = "snapshot";
+			messages = copyConversation
+				? fromMessages
+				: splitIntakeMessages(fromMessages, { includeFirstGenerate: true })
+						.intake;
 		} else {
 			const prd = db
 				.prepare("SELECT html FROM prds WHERE id = ?")
@@ -370,8 +435,11 @@ export function createPrdVersion(
 			};
 			html = prd.html;
 			sections = readWorkspaceSections(prdId, sessionId);
-			messages = readWorkspaceMessages(sessionId);
 			source = "snapshot";
+			messages = copyConversation
+				? workspaceMessages
+				: splitIntakeMessages(workspaceMessages, { includeFirstGenerate: true })
+						.intake;
 		}
 
 		const id = uuidv4();
@@ -395,8 +463,9 @@ export function createPrdVersion(
 			now,
 		);
 
-		// 空白版本：工作区切换为空壳
-		if (opts.mode === "blank") {
+		const shouldLoad =
+			opts.mode === "blank" || !!opts.fromVersionId || !copyConversation;
+		if (shouldLoad) {
 			const row = db
 				.prepare("SELECT * FROM prd_versions WHERE id = ?")
 				.get(id) as PrdVersionRow;
@@ -438,58 +507,6 @@ export function activatePrdVersion(
 		return {
 			assembledPrdHtml: getFreshPrdHtml(target.prd_id, sessionId),
 			activeVersion: target.version,
-		};
-	})();
-}
-
-/** 克隆版本：仅复制 PRD 为当前会话的新版本，不复制对话，创建后切换过去 */
-export function clonePrdVersion(
-	versionId: string,
-	sessionId: string,
-): { id: string; version: number; assembledPrdHtml: string } {
-	const db = getDb();
-	return db.transaction(() => {
-		const target = getPrdVersionRow(versionId);
-		if (!target) throw new Error("Version not found");
-
-		preserveUnversionedWorkspace(target.prd_id, sessionId);
-		writeBackActiveVersion(target.prd_id, sessionId);
-		const fresh = getPrdVersionRow(versionId) as PrdVersionRow;
-
-		const now = Date.now();
-		const maxRow = db
-			.prepare("SELECT MAX(version) AS maxV FROM prd_versions WHERE prd_id = ?")
-			.get(fresh.prd_id) as { maxV: number | null };
-		const nextVersion = (maxRow.maxV ?? 0) + 1;
-		const id = uuidv4();
-
-		db.prepare("UPDATE prd_versions SET is_active = 0 WHERE prd_id = ?").run(
-			fresh.prd_id,
-		);
-		db.prepare(
-			`INSERT INTO prd_versions (id, prd_id, session_id, version, label, source, html, sections_json, messages_json, is_active, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, 'clone', ?, ?, '[]', 1, ?, ?)`,
-		).run(
-			id,
-			fresh.prd_id,
-			sessionId,
-			nextVersion,
-			`克隆自 v${fresh.version}`,
-			fresh.html,
-			fresh.sections_json,
-			now,
-			now,
-		);
-
-		const row = db
-			.prepare("SELECT * FROM prd_versions WHERE id = ?")
-			.get(id) as PrdVersionRow;
-		loadVersionIntoWorkspace(row, sessionId);
-
-		return {
-			id,
-			version: nextVersion,
-			assembledPrdHtml: getFreshPrdHtml(row.prd_id, sessionId),
 		};
 	})();
 }

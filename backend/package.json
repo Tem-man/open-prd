@@ -13,7 +13,7 @@
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.runtime.json",
-    "test": "tsx --test src/services/llmStream.test.ts src/services/agent/history.test.ts src/services/agent/orchestrator.test.ts src/services/sectionLocator.test.ts",
+    "test": "tsx --test src/services/llmStream.test.ts src/services/agent/history.test.ts src/services/agent/orchestrator.test.ts src/services/sectionLocator.test.ts src/services/versionIntake.test.ts",
     "test:intent": "tsx src/services/agent/__tests__/intentEval.ts"
   },
   "dependencies": {

@@ -194,4 +194,9 @@ export function runMigrations(db: Database.Database): void {
 		}
 		db.pragma("user_version = 13");
 	}
+
+	if (version < 14) {
+		db.exec("UPDATE prd_versions SET source = 'snapshot' WHERE source = 'clone'");
+		db.pragma("user_version = 14");
+	}
 }
