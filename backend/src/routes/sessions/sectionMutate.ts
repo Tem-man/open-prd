@@ -88,6 +88,32 @@ export function registerSectionMutate(router: IRouter): void {
 
 		const assembledHtml = await reassemblePrd(prdId, sessionId);
 
+		// 对话式编辑的撤回：在对应助手消息上标记，刷新后撤回栏仍显示「已撤回」
+		const messageId = req.body?.messageId;
+		if (typeof messageId === "string" && messageId) {
+			const row = db
+				.prepare("SELECT meta FROM messages WHERE id = ? AND session_id = ?")
+				.get(messageId, sessionId) as { meta: string } | undefined;
+			if (row) {
+				try {
+					const meta = JSON.parse(row.meta) as {
+						edits?: Array<{ sectionId: string; resultVersion: number; rolledBack?: boolean }>;
+					};
+					for (const e of meta.edits ?? []) {
+						if (e.sectionId === sectionId && e.resultVersion === current.version) {
+							e.rolledBack = true;
+						}
+					}
+					db.prepare("UPDATE messages SET meta = ? WHERE id = ?").run(
+						JSON.stringify(meta),
+						messageId,
+					);
+				} catch {
+					/* meta 损坏时只影响撤回栏展示 */
+				}
+			}
+		}
+
 		res.json({
 			restoredVersion: current.version - 1,
 			html: prev.html_content,

@@ -58,10 +58,28 @@ export function writeDelta(res: Response, content: string, seq?: number): void {
 	flushRes(res);
 }
 
-/** 流结束，关闭连接 */
-export function writeDone(res: Response, prdGenerated = false): void {
+/**
+ * Push a thinking / reasoning increment. Same framing as writeDelta so
+ * Last-Event-ID replay can restore both channels in order.
+ */
+export function writeThinking(res: Response, content: string, seq?: number): void {
+	if (seq !== undefined) {
+		res.write(`id: ${seq}\n`);
+	}
+	res.write(`data: ${JSON.stringify({ type: "thinking", content })}\n\n`);
+	flushRes(res);
+}
+
+/** 流结束，关闭连接；messageId 为落库后的助手消息 id，供前端替换临时 id */
+export function writeDone(
+	res: Response,
+	prdGenerated = false,
+	messageId?: string,
+): void {
 	res.write(`event: done\n`);
-	res.write(`data: ${JSON.stringify({ type: "done", prdGenerated })}\n\n`);
+	res.write(
+		`data: ${JSON.stringify({ type: "done", prdGenerated, ...(messageId ? { messageId } : {}) })}\n\n`,
+	);
 	flushRes(res);
 	res.end();
 }
@@ -168,6 +186,7 @@ export function writeSectionEditDone(
 	newHtml: string,
 	version: number,
 	assembledPrdHtml: string,
+	elementLabel?: string,
 ): void {
 	res.write(
 		`data: ${JSON.stringify({
@@ -176,6 +195,7 @@ export function writeSectionEditDone(
 			newHtml,
 			version,
 			assembledPrdHtml,
+			...(elementLabel ? { elementLabel } : {}),
 		})}\n\n`,
 	);
 	flushRes(res);
@@ -189,6 +209,29 @@ export function writeSectionEditError(
 ): void {
 	res.write(
 		`data: ${JSON.stringify({ type: "section_edit_error", sectionId, message })}\n\n`,
+	);
+	flushRes(res);
+}
+
+/** 会话模块列表变化（对话中新增章节） */
+export function writeSessionModulesUpdated(
+	res: Response,
+	selectedModules: unknown[],
+): void {
+	res.write(
+		`data: ${JSON.stringify({ type: "session_modules_updated", selectedModules })}\n\n`,
+	);
+	flushRes(res);
+}
+
+/** 版本列表变化（整份重新生成前另存了新版本） */
+export function writePrdVersionsChanged(
+	res: Response,
+	activeVersionId: string,
+	version: number,
+): void {
+	res.write(
+		`data: ${JSON.stringify({ type: "prd_versions_changed", activeVersionId, version })}\n\n`,
 	);
 	flushRes(res);
 }

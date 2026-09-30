@@ -12,7 +12,7 @@
 	}>();
 
 	const emit = defineEmits<{
-		submit: [answersText: string];
+		submit: [answersText: string, answers: Record<string, string | string[]>];
 	}>();
 
 	// 每道题的答案状态
@@ -99,7 +99,7 @@
 				return !line.endsWith("：（未填写）");
 			});
 
-		emit("submit", lines.join("\n"));
+		emit("submit", lines.join("\n"), { ...answers.value });
 	}
 </script>
 

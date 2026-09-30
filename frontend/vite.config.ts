@@ -40,6 +40,11 @@ export default defineConfig({
 			// The migrated editor shell keeps upstream's `@/...` import style under its own prefix,
 			// so it does not collide with this app's `@` -> src.
 			{ find: "@pencil", replacement: path.resolve(__dirname, "src/pencil") },
+			// PRD 渲染运行时由后端维护（导出页内联同一份），预览直接复用源文件
+			{
+				find: "@prd-runtime",
+				replacement: path.resolve(repoRoot, "backend/src/services/prd/runtime"),
+			},
 			{ find: "@", replacement: path.resolve(__dirname, "src") },
 		],
 		// The engine packages declare `vue` as a peer dependency; without this pnpm can link a

@@ -1,6 +1,9 @@
 # PRD 生成全链路流程梳理
 
 > 本文描述从用户在前端发起第一条消息，到最终获得一份完整 HTML 格式 PRD 文档，系统内部经历的每个阶段与关键细节。
+>
+> 对话层已改为「编排 Agent（`createAgent`）+ 工具调用」，不再使用 `[GENERATE_PRD]` / `[QUESTION_FORM]` 文本标记；
+> PRD 生成后的对话式编辑、整份重新生成的两步确认见 [`plan-orchestrator-agent.md`](./plan-orchestrator-agent.md)。
 
 ---
 
@@ -16,11 +19,11 @@
 [Phase 2] 后端写入用户消息 → 初始化 SSE 推流
   │
   ▼
-[Phase 3] Agent 多轮对话（信息诊断 → 结构化反问 → 确认）
-  │        ↳ 若信息不足：返回提问表单，继续收集
-  │        ↳ 若信息充分：回复末尾追加 [GENERATE_PRD] 触发信号
+[Phase 3] 编排 Agent 多轮对话（信息诊断 → 结构化反问 → 确认）
+  │        ↳ 若信息不足：调用 ask_user_form 工具发送提问表单
+  │        ↳ 若信息充分：调用 generate_prd 工具
   ▼
-[Phase 4] 检测到触发信号 → 生成 PRD Outline（8 个模块 keyPoints）
+[Phase 4] generate_prd 工具内：生成 PRD Outline（各模块 keyPoints）
   │
   ▼
 [Phase 5] 逐模块生成内容（可注入 Skill）→ SSE 推送进度
@@ -51,19 +54,19 @@
 
 ## Phase 2：后端接收请求 & 初始化 SSE
 
-**入口**：`backend/src/routes/sessions.ts` → `POST /:id/messages`
+**入口**：`backend/src/routes/sessions/messages.ts` → `POST /:id/messages`
 
 1. 校验 `session_id` 是否存在。
 2. 将用户消息写入 `messages` 表（`role='user'`）。
 3. 若为该会话的第一条消息，自动截取前 60 字作为会话标题写入 `sessions.title`。
 4. 调用 `initSse(res)` 设置响应头（`Content-Type: text/event-stream`），开启持久连接。
-5. 注册 `req.on('close')` 监听：若客户端提前断开，保存已累积的部分回复（超过 20 字时落库，内容末尾标注 `[⚠ 回复被中断]`）。
+5. 注册 `res.on('close')` 监听：客户端断开（含点击停止）时中止 Agent 与生成流水线，已累积的部分回复超过 20 字时落库，内容末尾标注中断标记。
 
 ---
 
-## Phase 3：Agent 多轮对话（核心决策层）
+## Phase 3：编排 Agent 多轮对话（核心决策层）
 
-**入口**：`backend/src/services/agent.ts` → `runAgentStream()`
+**入口**：`backend/src/services/agent/orchestrator.ts` → `runTurn()`
 
 ### 3.1 消息历史加载
 
@@ -89,42 +92,35 @@
 
 ### 3.4 System Prompt 核心规则
 
-**入口**：`backend/src/services/prompts.ts` → `buildSystemPrompt()`
+**入口**：`backend/src/services/prompts.ts` → `buildCollectPrompt()`（尚无 PRD）/ `buildEditPrompt()`（PRD 已生成）
 
-Agent 扮演资深产品经理，核心逻辑分两阶段：
+Agent 扮演资深产品经理。收集阶段只暴露 `ask_user_form` / `generate_prd` 两个工具：
 
-**信息不足时 → 输出结构化提问表单**
+**信息不足时 → 调用 `ask_user_form`**
 
-必须缺少以下任一维度时反问（每次不超过 5 个问题）：
+两轮递进提问（第一轮基础信息、第二轮功能模块确认），收集以下维度：
 
-| 维度 | 说明 |
-|------|------|
-| 产品定位 | 核心用户群体、目标市场 |
-| 业务痛点 | 现状问题与改进方向 |
-| 核心功能 | 至少 3 个主要功能模块 |
-| 技术约束 | 平台（Web/App/桌面）、集成系统 |
-| 优先级 | MVP 功能 vs. 后续迭代 |
+| 维度     | 说明                                |
+| -------- | ----------------------------------- |
+| 产品定位 | 核心用户群体、目标市场              |
+| 业务痛点 | 现状问题与改进方向                  |
+| 使用场景 | 用户在什么情况下使用                |
+| 技术约束 | 平台（Web/App/桌面）、集成系统      |
+| 核心功能 | 第二轮动态生成候选模块，至少选 4 个 |
 
-提问格式固定为引用块表单，禁止主观臆断。
+表单规则（选择题必须有选项、文本题非必填、末尾补齐开放题）由工具在代码中校验。
 
-**信息充分时 → 触发 PRD 生成**
+**信息充分时 → 调用 `generate_prd`**
 
-同时满足以下条件即可触发：
-1. 已收集到产品定位、业务痛点、至少 3 个核心功能
-2. 技术平台明确
-3. 用户已确认或未提出异议
-
-触发方式：在回复末尾**单独追加一行** `[GENERATE_PRD]`（不得有其他字符）。
+第二轮表单已回答，或首条消息已包含产品定位、业务痛点、至少 4 个核心功能模块和技术平台。
 
 ### 3.5 流式推理
 
-调用 `createChatModel()` 实例（根据 `.env` 中 `LLM_PROVIDER` 动态选择 OpenAI / Anthropic / Ollama），通过 `model.stream(messages)` 以异步迭代器方式接收增量 chunk，每个 chunk 通过 `writeDelta(res, chunk, seq)` 实时推送给前端。
+`createAgent` 以 `streamMode: ["messages", "custom"]` 运行：模型节点（`model_request`）的 token 经 `extractStreamParts` 拆成 `delta` / `thinking` 推送；工具内部调用模型产生的 HTML token 被过滤，不进入聊天气泡。工具通过 LangGraph custom 流推送 `form`、`prd_progress`、`section_edit_*` 等事件。
 
-### 3.6 触发信号检测
+### 3.6 轮次结束
 
-流结束后，检查完整回复是否包含 `[GENERATE_PRD]`：
-- **包含**：`shouldGeneratePrd = true`，清理标记后落库，进入 Phase 4。
-- **不包含**：`shouldGeneratePrd = false`，发送 `writeDone(res, false)` 结束本轮对话。
+`ask_user_form` 与 `generate_prd` 调用后本轮立即结束（`returnDirect`）。路由落库助手消息（表单以标记块存入 content，仅用于刷新后还原），并按本轮是否生成了 PRD 发送 `prd_ready` + `done`。
 
 ---
 
@@ -132,7 +128,7 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
 
 **入口**：`backend/src/services/prdOutline.ts` → `generatePrdOutline()`
 
-当 `shouldGeneratePrd === true` 时触发（在 `sessions.ts` 的 `onDone` 回调中调用）。
+由 `generate_prd` 工具触发（经 `services/prdPipeline.ts` 的 `runPrdPipeline()`）。PRD 已存在时该工具只发确认卡片，用户确认后由路由凭 token 直接执行同一流水线。
 
 1. 从 `messages` 表加载完整对话历史，格式化为纯文本（`用户：... \n AI：...`）。
 2. 向 LLM 发起一次**非流式**调用，要求按固定 JSON Schema 输出包含 8 个模块的 Outline：
@@ -145,7 +141,7 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
       "title": "背景与目标",
       "keyPoints": ["核心要点1", "核心要点2", "..."],
       "status": "pending"
-    },
+    }
     // ... 另外 6 个模块
   ]
 }
@@ -156,16 +152,16 @@ Agent 扮演资深产品经理，核心逻辑分两阶段：
 
 **8 个模块 ID 对照**：
 
-| id | 标题 | 是否图表模块 |
-|----|------|-------------|
-| `background` | 背景与目标 | 否 |
-| `userScenario` | 用户与场景 | 否 |
-| `featureList` | 功能清单 | 否 |
-| `architecture` | 产品架构 | 是（Mermaid graph TB）|
-| `flowchart` | 业务流程 | 是（Mermaid flowchart TD）|
-| `infoArch` | 信息架构 | 是（markmap.js）|
-| `dataModel` | 数据模型 | 是（Mermaid erDiagram）|
-| `prototypeBasis` | 原型设计依据 | 否（文段类，注入 skill-prd-prototype 固化结构）|
+| id               | 标题         | 是否图表模块                                    |
+| ---------------- | ------------ | ----------------------------------------------- |
+| `background`     | 背景与目标   | 否                                              |
+| `userScenario`   | 用户与场景   | 否                                              |
+| `featureList`    | 功能清单     | 否                                              |
+| `architecture`   | 产品架构     | 是（Mermaid graph TB）                          |
+| `flowchart`      | 业务流程     | 是（Mermaid flowchart TD）                      |
+| `infoArch`       | 信息架构     | 是（markmap.js）                                |
+| `dataModel`      | 数据模型     | 是（Mermaid erDiagram）                         |
+| `prototypeBasis` | 原型设计依据 | 否（文段类，注入 skill-prd-prototype 固化结构） |
 
 ---
 
@@ -200,17 +196,17 @@ backend/src/services/prd/modules/
 
 ### 5.3 Skill 注入（图表模块与原型设计依据）
 
-图表类模块生成时，`agent.ts` 中的 `buildMessagesWithSkill()` 会将对应 Skill 文件内容以 XML 块的形式注入 `SystemPrompt`，覆盖默认行为，确保 Mermaid / markmap 语法的准确性。「原型设计依据」虽为文段类模块，同样通过 Skill 固化输出结构（页面清单 / 页面详情 / 导航关系 / 设计规范），供原型设计 AI 代理消费。
+图表类模块生成时，各模块生成器（`prd/modules/*.ts`）会将对应 Skill 文件内容注入系统提示，覆盖默认行为，确保 Mermaid / markmap 语法的准确性。「原型设计依据」虽为文段类模块，同样通过 Skill 固化输出结构（页面清单 / 页面详情 / 导航关系 / 设计规范），供原型设计 AI 代理消费。
 
 Skill 路径对应关系：
 
-| 模块 | Skill 路径 |
-|------|-----------|
-| 产品架构 | `skills/skill-prd-architecture/SKILL.md` |
-| 业务流程 | `skills/skill-prd-flowchart/SKILL.md` |
-| 信息架构 | `skills/skill-prd-infoarch/SKILL.md` |
-| 数据模型 | `skills/skill-prd-datamodel/SKILL.md` |
-| 原型设计依据 | `skills/skill-prd-prototype/SKILL.md` |
+| 模块         | Skill 路径                               |
+| ------------ | ---------------------------------------- |
+| 产品架构     | `skills/skill-prd-architecture/SKILL.md` |
+| 业务流程     | `skills/skill-prd-flowchart/SKILL.md`    |
+| 信息架构     | `skills/skill-prd-infoarch/SKILL.md`     |
+| 数据模型     | `skills/skill-prd-datamodel/SKILL.md`    |
+| 原型设计依据 | `skills/skill-prd-prototype/SKILL.md`    |
 
 ---
 
@@ -246,13 +242,16 @@ Skill 路径对应关系：
 
 ## SSE 事件类型汇总
 
-| 事件类型 | 触发时机 | 关键字段 |
-|---------|---------|---------|
-| `delta` | LLM 每输出一个 chunk | `content`（增量文本）|
-| `prd_progress` | 每个模块状态变化 | `sectionId`, `status` |
-| `prd_ready` | 全部模块生成完毕 | `prdId` |
-| `done` | 流正常结束 | `prdGenerated`（是否触发了 PRD 生成）|
-| `error` | 任意阶段出错 | `message`（错误描述）|
+| 事件类型       | 触发时机                   | 关键字段                                           |
+| -------------- | -------------------------- | -------------------------------------------------- |
+| `delta`        | LLM 每输出一个 chunk       | `content`（增量文本）                              |
+| `thinking`     | 模型思考增量               | `content`                                          |
+| `event: form`  | `ask_user_form` / 确认卡片 | `questions`，确认卡片额外有 `action.token`         |
+| `prd_progress` | 每个模块状态变化           | `sectionId`, `status`                              |
+| `prd_ready`    | 全部模块生成完毕           | `prdId`                                            |
+| `section_*`    | 对话中工具修改模块         | `sectionId`, `newHtml`, `version`                  |
+| `done`         | 流正常结束                 | `prdGenerated`、`messageId`（落库后的助手消息 id） |
+| `error`        | 任意阶段出错               | `message`（错误描述）                              |
 
 ---
 
@@ -262,17 +261,17 @@ Skill 路径对应关系：
 前端 useSSE.sendMessage()
     │  POST /api/sessions/:id/messages
     ▼
-sessions.ts (路由层)
+messages.ts (路由层)
     │  写入 user message → initSse()
-    │  调用 runAgentStream()
+    │  调用 getAgentDriver().runTurn()
     ▼
-agent.ts
-    │  loadHistory() → trimHistory() → buildSystemPrompt()
-    │  model.stream() 流式调用
+agent/orchestrator.ts
+    │  loadHistory() → trimHistory() → buildCollectPrompt()
+    │  createAgent().stream() 流式调用
     │  ← writeDelta (SSE) ←─────────────────── 前端实时渲染
-    │  检测 [GENERATE_PRD]
-    ▼ (shouldGeneratePrd=true)
-prdOutline.ts
+    │  模型调用 generate_prd 工具
+    ▼
+tools/generatePrd.ts → prdPipeline.ts
     │  generatePrdOutline() — 非流式 LLM 调用
     │  → 持久化到 sessions.outline
     ▼
@@ -286,7 +285,7 @@ prd/renderer.ts
     │  renderPrd() → 单文件 HTML
     │  写入 prds 表
     ▼
-sessions.ts
+messages.ts
     │  writePrdReady(prdId)
     │  ← prd_ready (SSE) ←──────────────────── 前端拉取 HTML
     │  writeDone(res, true)
@@ -301,11 +300,11 @@ sessions.ts
 
 ## 关键设计决策
 
-| 决策点 | 方案 | 原因 |
-|--------|------|------|
-| 前后端通信 | SSE（单向流） | PRD 生成耗时较长，需要实时反馈进度；WebSocket 对此场景偏重 |
-| Outline 先行 | Phase 4 独立生成 Outline | 将"需求理解"和"内容生成"解耦，各模块只需关注自身 keyPoints，降低单次 LLM 调用复杂度 |
-| 上下文裁剪 + 摘要 | trimHistory + summarizeHistory | 防止长对话超出模型上下文窗口，同时保留关键需求信息 |
-| 触发信号 | 回复末尾追加 `[GENERATE_PRD]` | 利用 LLM 自身判断信息是否充分，无需硬编码规则 |
-| 断点续传 | section.status 字段 | 单模块失败不影响其他模块，可重跑失败部分 |
-| 单文件 HTML | 所有 CSS/JS 内嵌 | 便于分享、存档，无需额外静态服务 |
+| 决策点            | 方案                           | 原因                                                                                |
+| ----------------- | ------------------------------ | ----------------------------------------------------------------------------------- |
+| 前后端通信        | SSE（单向流）                  | PRD 生成耗时较长，需要实时反馈进度；WebSocket 对此场景偏重                          |
+| Outline 先行      | Phase 4 独立生成 Outline       | 将"需求理解"和"内容生成"解耦，各模块只需关注自身 keyPoints，降低单次 LLM 调用复杂度 |
+| 上下文裁剪 + 摘要 | trimHistory + summarizeHistory | 防止长对话超出模型上下文窗口，同时保留关键需求信息                                  |
+| 触发生成          | 模型调用 `generate_prd` 工具   | 由 LLM 判断信息是否充分；工具调用比文本标记可靠，已有 PRD 时由服务端两步确认兜底    |
+| 断点续传          | section.status 字段            | 单模块失败不影响其他模块，可重跑失败部分                                            |
+| 单文件 HTML       | 所有 CSS/JS 内嵌               | 便于分享、存档，无需额外静态服务                                                    |

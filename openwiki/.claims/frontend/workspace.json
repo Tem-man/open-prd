@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:a8c7fcb110baa5f051c2780d63a3c67fc3cc049aff66b650ff953eabc779bd48",
+  "claims": [
+    {
+      "id": "claim_71f066f4b7d3490db6bf2375e20629bc",
+      "statement": "首页新建 PRD 先选择模块，再由 sessions store POST /api/sessions 并跳到 /session/:id。原型标签另建原型；需求评估标签的创建按钮不发请求。",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/stores/sessions.ts#L30-L43",
+          "version": "repo-lines-v1:sha256:7fb5cbfb9493ce98505b5fd55b655241b7f394ee253a1713eb8761673390f9fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzODE0ZDgyMmFlMWFhZDhlNjBhYTU5MWExZjdjNmZiNGUzOTMxZWYwYjIwYmZlN2MwMzVhYmM2MzM3NGJkNTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxYmIzYjY2OTVkOTA2MGQzZjk2ZjY3MjQ2ZTU5YzNlMmRlNGJmZWNkYmUwYzExMDkzODgzYjk2OWZhNjViMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFiNWJmMzA0NjJjM2VjYWEyZjQ4ZjdiODU3NDQyMDZhZTdmOWM5MjRkZWYzMThkNDRlMzBlYmEwN2MzMTEwYzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEyMjcwZTMzMTNlYTFiMjI1YmJhNmZkM2I0ZjJjZDcxZmQzNmRmYWU3NTkwYTg4Y2Q5MTJkNGQwMDc2NzU1YTYifQ"
+        },
+        {
+          "resource": "repo://frontend/src/views/home/HomeView.vue#L67-L93",
+          "version": "repo-lines-v1:sha256:306db00ce73c8ecfeb85d1d800ed52411ea955937bac4cbfddb5263f4825726b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjZjM2ODViYzhlMGMxYjgxNThlYzM0ZmVhMDIyYjc0OTYxOTNkYmNiYTMwOTUzMWM5OWYyZDA4NjEwOTZiOWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3Y2RhODJkYTYwNjIzOGUwNWU2MjM5OTU2OWM1ZWUwMzk5MzQxOTY0OGFlNWQ0M2EyYmY4Y2Q2MzQ3ZjgyNjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIxOGZkMjQ4ZjczMjcwYzgyNGIyYmYyNDk4N2IwMjIyNGNmZWE5NzgxMTljMjgxNjU2YzYyMjZmZTVhNjg3NTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhYjgwMTZkYTAzZWY2MWJhMzU0NzQwZDJlMGVjMzlkZmNkN2NhYTk5MWYyMmQ0OTJlYmI1NThkMGRkMzhjZDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d3e2bc45a72f47dfb6c05995ecd5092d",
+      "statement": "打开会话时 messages store 先被清空，再并行加载会话和 PRD。它持有对话、PRD HTML、流水线和进度；空 HTML 仍保留 PRD id，但进度不标完成。表单块和中断标记在加载时从正文剥出。",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/stores/messages.ts#L147-L206",
+          "version": "repo-lines-v1:sha256:e771090dab5f89363dbbf8cd058d9bb3d3b266df54ed9a49c7ef9f22963a8d82:eyJzZWxlY3RlZExpbmVDb3VudCI6NjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3ZDQxOWVjZGQ1MWU5ZDY0ZGJhYmNiMDc3Mjk5OGRiZDRiNmMyYTE2ZTg5MTVjMDFjYTBjNDZlMzU2YjYwMTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkzZDE0YWIwYWE1MWYxMzBmMWU3NmUyMGJhMjBlNGQ3MzdkYjA2MjZlNTY2ZjhiNTBhOGIwYzk0MGExNjk3OTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJhNDAxMzljODQwMjI0YTBhNDljYzQwYTRjMzYzZjY5YjZkMDA0MjI4YzlkOWEwYjQ4OTMyMDliN2Y0YzQyNjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxMTFmNjA2MWJkNzljYjlkZGVmMTBhMjhmNWQ2YWVhYTdhOTZiZGJkZjVjZmNjY2I2N2M0YjI0OTFhOGQ1OGMifQ"
+        },
+        {
+          "resource": "repo://frontend/src/views/session/SessionView.vue#L15-L40",
+          "version": "repo-lines-v1:sha256:acb0402ff98cb66f19f1cbcb6901aaa91e80177b8f79739806624364f68f98fa:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5MjQ4M2IwYWVhOGVkNWE2MTk2OWQ4NGE5MjZiN2VkZTg4ZDFjM2JmMjcxNzhlODI3MjFkNDI1NjMzMDBlOTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc4ZDVmNjgzMzdjNTQ3YmI4M2U3NmM5ZjkyMjEzYjJlYmVkM2Q0YmI2NTZiNWI0N2E0ZDQ1NGM2NjcxMzUwYzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEzODhjYzQ2MDA1Y2JmZjJmZmJmMDMwNWM4Nzk1MzQ2MTg2YjAyZDk4NmY1N2QxYWQzNDZlZjMwNTZhMTMwZDYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhlMjhkNDdjMDU1OTdjYTIzNGNmMGI2NzRkZjU5MmU0YTBkNmJiMzJiOGY5Zjg5YmFhYzhhZjFiNjFhNWMxZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_152a0a944ac84d33bb0cdf92d8e3d06d",
+      "statement": "发送消息时 useSSE 先乐观插入用户和流式助手气泡，再 POST 消息接口并带上模型配置与选中目标。请求失败会撤掉这两条气泡；流异常结束会带 Last-Event-ID 重试一次，用户中止则不重连。",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/composables/useSSE.ts#L354-L441",
+          "version": "repo-lines-v1:sha256:1e762d6c9c413d867b1204f1959f70f84d484558f6982e0df988944895d63ee7:eyJzZWxlY3RlZExpbmVDb3VudCI6ODgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQwN2ZhZDU2YzllMzU4YWM5NDNkYWYzYmY3YTBiYmQzZjNmZmE5NzY4NzIwODdhOTg0YjUxNWRkZDcwZjBkNTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkN2MwNDEzMzdlMmI2MmZkNzRlYjNjOWEyMWRhNWFkNjEyNWYzNTlmOGZjYTc2MzFjYThkYmQzMzM5YTU2NDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUwMDZjMGU1N2ExYTYyNWUzM2U1ODM1Yjc1NDNiZjgyYjEzZjVhMTAyYjVhODc0NmE0MTE1YzlhMzlhNjEyYzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYyOTgwMzcwNDQyMjgyNTM4MWQzMmZlMGI3MWExMGNlNTEzZGFmZmY1YzE0ODRiYmZmNjdiM2MzZWM1NTU1MmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cc978eb09ae74000bccd4af566eca479",
+      "statement": "版本新建或切换后，prdVersions 用返回的 assembledPrdHtml 刷新 PRD HTML 和 prdEdit 章节，并重新拉取会话消息。空白版本会先把进度打回未勾选，对话随版本整表替换。",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/stores/prdVersions.ts#L31-L80",
+          "version": "repo-lines-v1:sha256:430874da9eedbf14fc968737cfb33139a6fa842cd4b979aeba97fc3090c3e907:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZGVmODQ0MjgxMjM1ZTBkY2ZkOTViNGU1MTVhNjc3M2Q4ZDhmNDljMWE4ODI1MDBkZjU2ODJkODcyOWEzM2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmYzQ4ZjNiYzY2N2FmZWNkZjNhNGYwMTEyNDAxMTQ2ZTQ5MjZhZDgxYjE5Mzc4OWI0NGEzMjVlMGQwM2Y1MGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3YjM5OGNmZWUxOWRhYjgxY2NiYWUwNjNmMDYxYWQ3NWQwOGUxZDNhYzU3NGQwZjA0ZTBmYWFlZmEwZjNlMTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiMGFmNWU4ODFhMTY5MmMwMDMyZWU5NzNiMzhjNTM0ZDU1MWVjOTI1MzVlODVmMTIyZTRiZDdmNzJjMzlkMGIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-28T02:15:14.097Z"
+  }
+}

@@ -171,4 +171,27 @@ export function runMigrations(db: Database.Database): void {
 		}
 		db.pragma("user_version = 11");
 	}
+
+	if (version < 12) {
+		const cols = db.prepare("PRAGMA table_info(messages)").all() as Array<{
+			name: string;
+		}>;
+		if (!cols.some((c) => c.name === "thinking")) {
+			db.exec(
+				"ALTER TABLE messages ADD COLUMN thinking TEXT NOT NULL DEFAULT ''",
+			);
+		}
+		db.pragma("user_version = 12");
+	}
+
+	if (version < 13) {
+		// 消息元数据：编辑引用 / 待确认动作等（JSON）；全新库建表语句已含该列
+		const cols = db.prepare("PRAGMA table_info(messages)").all() as Array<{
+			name: string;
+		}>;
+		if (!cols.some((c) => c.name === "meta")) {
+			db.exec("ALTER TABLE messages ADD COLUMN meta TEXT NOT NULL DEFAULT '{}'");
+		}
+		db.pragma("user_version = 13");
+	}
 }

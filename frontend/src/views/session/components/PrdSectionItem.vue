@@ -7,7 +7,7 @@
 	 *   text    双击后进入，contenteditable 文本光标编辑
 	 *
 	 * 编辑模式切换：
-	 *   点击编辑按钮 → 进入 select 模式
+	 *   Tab 栏「编辑」调用 startEdit → 进入 select 模式
 	 *   双击文本 → 进入 text 模式
 	 *
 	 * AI 重写指令 / 保存文案 / 撤回 / 取消 已迁移至左侧 SessionSidebar
@@ -38,7 +38,13 @@
 		downloadMarkmapMarkdown,
 		hasMarkmapContent,
 	} from "@/utils/markmapExport";
-	import { useMermaidZoom } from "@/composables/useMermaidZoom";
+	import {
+		DIAGRAM_MAX_HEIGHT,
+		initZoomIn,
+		renderDiagrams,
+		runMermaid,
+		waitFrames,
+	} from "@prd-runtime/prd-runtime.js";
 
 	const props = defineProps<{
 		sessionId: string;
@@ -65,28 +71,26 @@
 			hasMarkmapContent(props.html),
 	);
 
-	const { initZoom, destroyAll: destroyZoom } = useMermaidZoom();
+	// 缩放清理函数：重置 innerHTML 或卸载前必须全部执行
+	const zoomCleanups: Array<() => void> = [];
+	function initZoom(container: HTMLElement, maxHeight?: number) {
+		zoomCleanups.push(...initZoomIn(container, maxHeight));
+	}
+	function destroyZoom() {
+		zoomCleanups.splice(0).forEach((cleanup) => cleanup());
+	}
 
-	/**
-	 * 各 sectionId 对应的画布最大高度（px）。
-	 * 有后续内容的模块（如数据模型下方有实体说明表）需要限高，避免把内容挤出视口。
-	 * 产品架构、业务流程独占画面，不传 maxHeight（undefined = 不截断）。
-	 */
-	const SECTION_ZOOM_MAX_HEIGHT: Record<string, number> = {
-		dataModel: 430,
-	};
 	const zoomMaxHeight = computed<number | undefined>(
-		() => SECTION_ZOOM_MAX_HEIGHT[props.sectionId],
+		() => DIAGRAM_MAX_HEIGHT[props.sectionId],
 	);
 	const isAiEditing = computed(
 		() => prdEditStore.aiEditingSection === props.sectionId,
 	);
-	const hovered = ref(false);
 
 	// 内容区 DOM ref
 	const contentRef = ref<HTMLDivElement | null>(null);
 
-	const { saveSection } = useSectionActions();
+	const { saveSection, saving } = useSectionActions();
 
 	// ── 编辑子模式 ──────────────────────────────────────────────────────────────
 	type EditSubMode = "select" | "text";
@@ -157,155 +161,26 @@
 		if (!ok) showLocalToast("未找到思维导图数据");
 	}
 
-	// ── Mermaid / markmap 渲染 ──────────────────────────────────────────────────
+	// ── Mermaid / markmap 渲染（复用导出页同一份运行时） ───────────────────────
 
-	/**
-	 * 等待 n 个浏览器渲染帧。
-	 * Mermaid ER 图在 SVG 挂载后需要浏览器完成 layout 才能调 getBBox()，
-	 * nextTick() 只等 Vue diff，不足以保证浏览器排版完成，需额外等帧。
-	 */
-	function waitFrames(n: number): Promise<void> {
-		return new Promise((resolve) => {
-			const step = (remaining: number) => {
-				if (remaining <= 0) resolve();
-				else requestAnimationFrame(() => step(remaining - 1));
-			};
-			step(n);
-		});
-	}
-
-	/** 动态加载外部脚本（幂等，已存在则跳过） */
-	function loadScript(src: string): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (document.querySelector(`script[src="${src}"]`)) {
-				resolve();
-				return;
-			}
-			const s = document.createElement("script");
-			s.src = src;
-			s.onload = () => resolve();
-			s.onerror = () => reject(new Error(`脚本加载失败: ${src}`));
-			document.head.appendChild(s);
-		});
-	}
-
-	/** 根据模块 renderType 或 HTML 内容特征，按需加载 Mermaid / Markmap CDN */
-	async function ensureDiagramCdn() {
-		const win = window as unknown as {
-			mermaid?: unknown;
-			markmap?: unknown;
-		};
-		const needsMermaid =
-			props.renderType === "mermaid" ||
-			contentRef.value?.querySelector(".mermaid") !== null;
-		const needsMarkmap =
-			props.renderType === "markmap" ||
-			contentRef.value?.querySelector("#markmap-svg") !== null;
-
-		if (needsMermaid && !win.mermaid) {
-			try {
-				await loadScript(
-					"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js",
-				);
-				(
-					win as unknown as {
-						mermaid: { initialize: (o: object) => void };
-					}
-				).mermaid.initialize({
-					startOnLoad: false,
-					theme: "default",
-					securityLevel: "loose",
-				});
-			} catch (e) {
-				console.warn("[PrdSectionItem] Mermaid CDN 加载失败", e);
-			}
-		}
-
-		if (needsMarkmap && !win.markmap) {
-			try {
-				await loadScript("https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js");
-				await loadScript(
-					"https://cdn.jsdelivr.net/npm/markmap-lib/dist/browser/index.js",
-				);
-				await loadScript(
-					"https://cdn.jsdelivr.net/npm/markmap-view/dist/browser/index.js",
-				);
-			} catch (e) {
-				console.warn("[PrdSectionItem] Markmap CDN 加载失败", e);
-			}
-		}
-	}
-
-	type MermaidRuntime = {
-		mermaid?: { run: (o: object) => Promise<void> | void };
-	};
-
+	/** 源码编辑场景：需要拿到失败结果用于回滚 */
 	async function runMermaidNodes(
 		nodes: HTMLElement[],
 		showError = false,
 	): Promise<boolean> {
-		const win = window as unknown as MermaidRuntime;
-		if (!win.mermaid || nodes.length === 0) return true;
-		try {
-			await Promise.resolve(win.mermaid.run({ nodes }));
-			return true;
-		} catch (error) {
-			console.warn("[mermaid] 渲染失败", error);
-			if (showError) showLocalToast("Mermaid 语法错误，已恢复原内容");
-			return false;
-		}
+		const ok = await runMermaid(nodes, { suppressErrors: false });
+		if (!ok && showError) showLocalToast("Mermaid 语法错误，已恢复原内容");
+		return ok;
 	}
 
 	async function runDiagrams() {
-		if (!contentRef.value) return;
 		await nextTick();
-
-		// 自定义图表模块可能没有内置 CDN，先确保 CDN 已加载
-		await ensureDiagramCdn();
-
-		type W = MermaidRuntime & { markmap?: unknown };
-		const win = window as unknown as W;
-
-		// Mermaid：渲染后等待 2 帧 layout 完成，再初始化缩放/拖拽
-		if (win.mermaid) {
-			const nodes = Array.from(
-				contentRef.value!.querySelectorAll(".mermaid:not([data-processed])"),
-			) as HTMLElement[];
-			if (nodes.length > 0) {
-				await runMermaidNodes(nodes);
-				await waitFrames(2);
-			}
-			// 无论是否有新节点渲染，都初始化缩放。
-			// destroyZoom 后已有 data-processed 的节点（如 applyMermaidSource 产生的 freshDiv）
-			// 同样需要补充初始化，否则编辑后缩放失效。
-			if (contentRef.value) initZoom(contentRef.value, zoomMaxHeight.value);
-		}
-
-		// Markmap
-		if (!contentRef.value) return;
-		const dataEl = contentRef.value.querySelector("#markmap-data");
-		const svgEl = contentRef.value.querySelector("#markmap-svg");
-		if (dataEl && svgEl && win.markmap) {
-			try {
-				// 清空 SVG，防止多次调用 create() 时思维导图叠加
-				svgEl.innerHTML = "";
-				const { Transformer, Markmap } = win.markmap as {
-					Transformer: new () => {
-						transform: (md: string) => { root: unknown };
-					};
-					Markmap: {
-						create: (el: Element, o: null, r: unknown) => { fit: () => void };
-					};
-				};
-				const { root } = new Transformer().transform(
-					JSON.parse((dataEl as HTMLElement).textContent ?? '""') as string,
-				);
-				const mm = Markmap.create(svgEl, null, root);
-				requestAnimationFrame(() => mm.fit());
-			} catch (e) {
-				console.warn("[markmap] 渲染失败", e);
-			}
-		}
+		const el = contentRef.value;
+		if (!el) return;
+		// destroyZoom 后已 data-processed 的节点（如 applyMermaidSource 产生的新 div）也会被重新初始化缩放
+		zoomCleanups.push(
+			...(await renderDiagrams(el, { maxHeight: zoomMaxHeight.value })),
+		);
 	}
 
 	onMounted(() => {
@@ -1402,6 +1277,16 @@
 		rowToDelete.value = null;
 		showDeleteConfirm.value = false;
 	}
+
+	/** 供顶栏调用：进入/退出/保存编辑，以及当前子模式与提示 */
+	defineExpose({
+		startEdit,
+		cancelEdit,
+		saveContent: handleSaveContent,
+		saving,
+		editSubMode,
+		toastMsg,
+	});
 </script>
 
 <template>
@@ -1413,46 +1298,17 @@
 			'is-select-mode': isEditing && editSubMode === 'select',
 			'is-text-mode': isEditing && editSubMode === 'text',
 		}"
-		@mouseenter="hovered = true"
-		@mouseleave="hovered = false"
 	>
-		<!-- 模块操作：信息架构常显「导出 + 编辑」；其他模块仅 hover 显示编辑 -->
-		<div
-			v-if="!isEditing && (isMarkmapSection || (editable && hovered))"
-			class="section-toolbar"
-		>
+		<!-- 信息架构：导出按钮固定在模块右上角 -->
+		<div v-if="!isEditing && isMarkmapSection" class="section-toolbar">
 			<span v-if="toastMsg" class="export-toast">{{ toastMsg }}</span>
 			<button
-				v-if="isMarkmapSection"
 				class="edit-trigger edit-trigger--ghost"
 				@click.stop="exportMarkmap"
 				title="导出思维导图为 Markdown"
 			>
 				导出
 			</button>
-			<button
-				v-if="editable"
-				class="edit-trigger"
-				@click.stop="startEdit"
-				title="编辑此模块"
-			>
-				✏ 编辑
-			</button>
-		</div>
-
-		<!-- 编辑模式徽章（显示当前子模式） -->
-		<div v-if="isEditing" class="mode-badge">
-			<span v-if="editSubMode === 'select'" class="mode-tag mode-tag--select">
-				← 单击选元素 · Ctrl/⌘+单击多选格 · 双击编文字
-			</span>
-			<span v-else class="mode-tag mode-tag--text">
-				✎ 文字编辑模式 · ESC 返回
-			</span>
-			<!-- 跨行多选警告 toast -->
-			<span v-if="toastMsg" class="mode-tag mode-tag--warn">
-				⚠ {{ toastMsg }}
-			</span>
-			<button class="mode-close" @click.stop="cancelEdit">×</button>
 		</div>
 
 		<!-- AI 重写中的遮罩 -->
@@ -1465,7 +1321,7 @@
 		<!-- eslint-disable-next-line vue/no-v-html -->
 		<div
 			ref="contentRef"
-			class="prd-section-body"
+			class="prd-section-body prd-doc"
 			:class="{ 'select-cursor': isEditing && editSubMode === 'select' }"
 			v-html="html"
 			@click="onContentClick"
@@ -1563,50 +1419,6 @@
 		font-weight: 500;
 	}
 
-	/* ── 模式徽章 ── */
-	.mode-badge {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 4px 12px;
-		background: #eef2ff;
-		border-bottom: 1px solid #e0e7ff;
-		border-radius: 8px 8px 0 0;
-	}
-
-	.mode-tag {
-		flex: 1;
-		font-size: 11px;
-		font-weight: 500;
-
-		&--select {
-			color: #4f46e5;
-		}
-		&--text {
-			color: #0369a1;
-		}
-	}
-
-	.mode-close {
-		width: 18px;
-		height: 18px;
-		border: none;
-		background: transparent;
-		border-radius: 3px;
-		cursor: pointer;
-		color: #94a3b8;
-		font-size: 14px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0;
-
-		&:hover {
-			background: #e0e7ff;
-			color: #4f46e5;
-		}
-	}
-
 	/* ── AI 遮罩 ── */
 	.ai-overlay {
 		position: absolute;
@@ -1678,21 +1490,6 @@
 					cursor: pointer;
 				}
 			}
-		}
-	}
-
-	.mode-tag--warn {
-		color: #b45309;
-		font-weight: 600;
-		animation: fadeIn 0.2s ease;
-	}
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
 		}
 	}
 

@@ -183,10 +183,71 @@ export function updateSectionStatus(
     s.id === sectionId ? { ...s, status } : s,
   );
 
+  saveOutline(sessionId, { ...outline, sections });
+}
+
+export function saveOutline(sessionId: string, outline: PrdOutline): void {
   const db = getDb();
   db.prepare('UPDATE sessions SET outline = ?, updated_at = ? WHERE id = ?').run(
-    JSON.stringify({ ...outline, sections }),
+    JSON.stringify(outline),
     Date.now(),
     sessionId,
   );
+}
+
+/**
+ * 往已有大纲中插入一个模块（不清空其他模块的断点续传状态）。
+ * afterSectionId 为空或不存在时追加到末尾。
+ */
+export function appendSectionOutline(
+  sessionId: string,
+  section: Omit<SectionOutline, 'status'>,
+  afterSectionId?: string,
+): void {
+  const outline = getOutline(sessionId);
+  if (!outline) throw new Error('当前 PRD 缺少大纲');
+  const sections = outline.sections.filter((s) => s.id !== section.id);
+  const entry: SectionOutline = {
+    ...section,
+    skillRequired:
+      DIAGRAM_SKILL_MAP[section.id as keyof typeof DIAGRAM_SKILL_MAP] ?? section.skillRequired,
+    status: 'pending',
+  };
+  const idx = afterSectionId ? sections.findIndex((s) => s.id === afterSectionId) : -1;
+  if (idx === -1) sections.push(entry);
+  else sections.splice(idx + 1, 0, entry);
+  saveOutline(sessionId, { ...outline, sections });
+}
+
+/** 基于对话历史为单个新增模块提炼要点（add_section 未提供 keyPoints 时使用）。 */
+export async function planSectionKeyPoints(
+  sessionId: string,
+  title: string,
+  description?: string,
+): Promise<string[]> {
+  const db = getDb();
+  const rows = db
+    .prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC')
+    .all(sessionId) as MsgRow[];
+  const historyText = rows
+    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content.slice(0, 800)}`)
+    .join('\n\n')
+    .slice(-12000);
+
+  const model = createChatModel();
+  const chain = model.pipe(new JsonOutputParser());
+  const parsed = (await chain.invoke([
+    new SystemMessage(
+      '你是一位资深产品经理。根据对话记录，为 PRD 的一个新增章节提炼 3-6 条核心要点。' +
+        '只输出 JSON 对象 {"keyPoints": ["..."]}，不要输出任何其他文字。',
+    ),
+    new HumanMessage(
+      `对话记录：\n\n${historyText}\n\n新增章节：${title}${description ? `（${description}）` : ''}`,
+    ),
+  ])) as { keyPoints?: unknown };
+
+  const points = Array.isArray(parsed?.keyPoints)
+    ? parsed.keyPoints.filter((p): p is string => typeof p === 'string' && p.trim() !== '')
+    : [];
+  return points.length > 0 ? points : [`围绕「${title}」结合产品背景给出完整内容`];
 }

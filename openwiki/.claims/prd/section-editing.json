@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4bd9be16cffd84319a30ff43af6d4b196984100f497e801c57ebfa04ef50d007",
+  "claims": [
+    {
+      "id": "claim_3c91f42d2677485a817b9464ef54a15c",
+      "statement": "AI 改写和手动保存都通过 persistSectionRevision 关掉该节的当前行、插入版本加一的新当前行，并重渲染整页 HTML。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/sessions/helpers/sectionPersist.ts#L35-L70",
+          "version": "repo-lines-v1:sha256:bcb433b37fd9efab298408df5dd486c5ee1933aad6f8ef127d48bec61d382a06:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ1ZDVhYmFjYTIyNjgwYWU5NTMzNjcwMGRmNzY2MzYxOTdhN2NiNmMwMDRmNGNkNzlhYzFiMWZkMmYwYWM0YTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiNjg4OGFhMGE3YmM5ZjdlMDFkM2NmNDNiMjAzNWFlNWUxYzYzYmJmOTQ1ODFmMmNkOTU0MjMyNmM2NWQwNmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1YzliNzQzOGEzYmJiMzE2MmM5NGM4N2ZiZTcwMDkzOGNjMDkxZjczNTQ3OThjYTg1ZWMyMDkyYmE3OWZkM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUyMmZhYTUzNWJkMmVhM2Q1MmU3NDFlZDQ1NDQzNWI3ZmU0OWU4MzU4NmU5NDNkOThkODJiYmZiMjRkMWY1YzUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_66d3d43e5eed4963a522645f14d69f17",
+      "statement": "edit_section 按实体、选中元素或整节重写分发。edit_entity 只改数据模型或含 erDiagram 的章节。regenerate_section 成功才落库，失败不覆盖原文，且没有大纲要点时拒绝执行。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/services/tools/sectionEdit.ts#L149-L185",
+          "version": "repo-lines-v1:sha256:8ddf18a87947b63fa940a461f5de3fbf9d3e2252e59f99de7e2e4ea0c93d7255:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwYzE2ZmE5NGUwNjhhY2ZhYzUwMjJmOWNkYjA2NTE0MGM4MmU5ZjVlOTc0NTk2OGU1ZDM3NDY2ZmFlODlkMDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhNzc3NmVmZTcwY2M3ZGNhOTY2OGU2NmNhMmE5ZDkxMDkwMmM3Yzg2ZDIxMzBhNGI0NWY5ZGQ1NTY1Y2M0OTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhZTY2NjAyZTY5YmQ1ZDRhNjVhODdjMzFkNTBmYjE2YTgyMTc1OGMyZTU2Mzc4ZGVhNWZmNTc4YjFkZmVlZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg5MGJjNTQwZTdjYTIxNTA4Zjk2Y2VmOGY4OTA1YTQ2MDY5MzBiODYxM2JkMzU3Njk0OTY1NGQ5NzQ2NzQ2MDAifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/tools/sectionEdit.ts#L198-L258",
+          "version": "repo-lines-v1:sha256:4106daf1baef5f36dd2cc132440efbc2172820fcb23bcdc2aa20cf9ebb1b97c0:eyJzZWxlY3RlZExpbmVDb3VudCI6NjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlN2RkNzMzNzNmODQ0M2NiM2Y1MTZkM2I3M2VmMjQ4OTRmMmI1ZDM1YTRkN2FmNGMyMWJhZTgzNjNkZjNmMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1OTFkZGY1MjAxNmE4YmEwYmQ2NzBlNWFiNmM0YzQyYzhmYzhlNTViMmRhNGExMGVjMzdlOTdhYTYzMGNhY2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhZTY2NjAyZTY5YmQ1ZDRhNjVhODdjMzFkNTBmYjE2YTgyMTc1OGMyZTU2Mzc4ZGVhNWZmNTc4YjFkZmVlZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZmZTg0NDMyZTc2OGQzNDIyMDlhZTVkYzA3NGFmOWQwM2YyNWM0ZmY3NmIyMjAzMDdlNDgyMmRmMDU1YmI5YjMifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/tools/sectionEdit.ts#L85-L125",
+          "version": "repo-lines-v1:sha256:0d0fc8c97d6ad89138310a138c13ff468bc66fcf2895fedb6da7b75f01f216e9:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwMjQxZGZhNDg2MTI2MjEwZjRkMjRiNTAzZDJkOGUwYjNkMmUyNmVkYWNhYmFmODAzM2UyM2JkMDUxYjQ0ODMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjYTVhNDNhZWEyOTlkM2EzYjg5MDkwYWExY2M5OGZlYjVkNGIzZTgzNGM1MTBiNjM1YzU1YWQxNjMwOWZjYTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhMjBiY2ZmYjI4Mjk4YjAzMjBjNjVlYjlhNDQ2YjYwNDNhYTg2NWZiMmRmMjA3OTQ2MmE4NzUzZjkzNDcwZDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI5Yzk1NmVjNWFiMzZjOTY0MzRiNWMxYjBiNGQ4YjYwNjdjY2M2YjM4YzZlMmM1YWVkNmQxMzI3NjM0MTA1YzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_186b4c690922470697fd51511b6f7d1e",
+      "statement": "PATCH 章节接口按实体名、选中元素或整节重写分支，并用 SSE 推送。元素定位失败时保留原 HTML 仍走保存；整节重写在模块模板有 skill_name 时注入 Skill。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/sessions/sectionEdit.ts#L26-L78",
+          "version": "repo-lines-v1:sha256:b9b5daaba5be9434266e14ee8070cd6d8b2a88193c0a0b6b79d98cf2e04d623b:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjllMGZkNDkzYTQwMDg2YWRlZjNkZWMzYzcyNDE5ZmEyMjI1OTRhNjE0N2VmYmIwY2QxNzk4OTEzYWY4NzZjZDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkN2MwNDEzMzdlMmI2MmZkNzRlYjNjOWEyMWRhNWFkNjEyNWYzNTlmOGZjYTc2MzFjYThkYmQzMzM5YTU2NDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxZGQ3NTE5ZGRlMWQzYjUwMGQ0OTdkNTgyMjNlNWI4ZmNmMDgxNWJmMmE1MGY3MzU3YTgzYzNlMTljZTlmNWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJhMTljNjk1YTE2MGJiYTdhZWNjM2UwNTYzZWMyZmI3NzEzMjA5YjBkNmE2YjJjNTlmOTBhNTRhYjhiMGUxNGMifQ"
+        },
+        {
+          "resource": "repo://backend/src/services/sectionEditService.ts#L272-L299",
+          "version": "repo-lines-v1:sha256:4bb8d587219b261c698edf4c304f023ab59dc687d213104915b2f5920b08215b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0YjA5MjlkNjI0MTIzZGI4YzlhMDA1MjhhMWY1MWFhOWNmZTBiNGYwNmU2ZTNhZmY3ZDgzYTIwYTU2MzliMzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlZjNjMTdlNWNhNmYxZjJmMzQ2ZGI1YmJkMzM5M2ZkYjgyYzJhZDA1OTgyYjFkMDA1Mzk0ZWM0NmRkNmU1N2YiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2ZTllMTE4OTliYzY4ZGE3YmMwYzc4M2Q1MTliYzQ4NjRkOTk1NDFjMTk4MGRmYzZlZjcwYzBkODUwYzMwMTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkzNjU5NzI5ODc5ZTlhMDE4OTg0OWI0NjMyZDg1ZjQ2M2NiY2E5OTNlNjA1YmZkZGFlODI1Nzc5OWFhYmU1ODIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_632918ae4ad84886b24c84e743391511",
+      "statement": "PUT content 去掉选中态 class 后保存，不调用模型。回滚要求当前版本大于 1，只把上一版本重新标为当前再重渲染，不插入新行。",
+      "evidence": [
+        {
+          "resource": "repo://backend/src/routes/sessions/sectionMutate.ts#L15-L89",
+          "version": "repo-lines-v1:sha256:d755b71686dc689cae9e916365e724486d107d7b755611036e8f8986b2894975:eyJzZWxlY3RlZExpbmVDb3VudCI6NzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4ZjE2ZDM2ZDcyODljYWFmZDI4YTlkMTdkNmExODBhZTI2MjUxNzRiZDA2YWZjZDBjZWQwNDM1MTFhN2M0ZTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBhNTRiNjJlMmJkYzcyOTAwYzM2NDk0NzA1NTBjNThkMjI2YmE0N2QyNWY2MzhmMmJiNzNhNjJlZDZkNzU3Y2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE1YTE1YWM0Y2RmYzcyZjRkZTNlZjUzNmMxY2ZkZThmNTUyZTk1NGU1MWY2NmZmNGQxMmYwZjNhYmYzMDNjMDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY0MzcxZjM0ODliMWFkNWMxNzk3ZTNjZDk5YmRhZTM2NGY3ZTE4ODgwOTViYWMzNjRkMDBiNjUwNzNiZjk2MGUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-28T02:15:14.097Z"
+  }
+}

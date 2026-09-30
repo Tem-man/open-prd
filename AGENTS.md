@@ -93,6 +93,7 @@ open-prd/
 │   │   │   ├── HistoryDrawer.vue      # 历史会话抽屉
 │   │   │   ├── VersionDrawer.vue      # PRD 版本管理抽屉（左侧弹出）
 │   │   │   ├── QuestionForm.vue       # AI 信息收集表单
+│   │   │   ├── ThinkingBlock.vue      # PRD 对话思考过程折叠块
 │   │   │   ├── ModelSelector.vue      # PRD 对话输入框模型切换
 │   │   │   └── …
 │   │   ├── pencil/                    # 原型设计编辑器界面层（见下方专章）
@@ -161,8 +162,14 @@ open-prd/
 │   │   │   ├── modules.ts
 │   │   │   └── prototypes.ts
 │   │   ├── services/
-│   │   │   ├── agent.ts               # Agent 编排与对话流程
+│   │   │   ├── agent/                 # 编排 Agent（createAgent）：driver / orchestrator / history / types
+│   │   │   ├── tools/                 # Agent 工具：ask_user_form、generate_prd、list/get/edit_section、search_targets、edit_entity、regenerate/add_section
+│   │   │   ├── sectionEditService.ts  # 模块改写 / 元素补丁 / 实体补丁（路由与工具共用）
+│   │   │   ├── sectionLocator.ts      # PRD HTML 可寻址索引（search_targets / edit_section locatorId）
+│   │   │   ├── pendingActions.ts      # 整份重新生成的服务端两步确认
+│   │   │   ├── prdPipeline.ts         # 大纲 → 逐模块生成 → 校验
 │   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
+│   │   │   ├── llmStream.ts           # 流式 chunk 拆成可见回复 / 思考
 │   │   │   ├── prompts.ts             # 系统/阶段 Prompt
 │   │   │   ├── contextManager.ts      # 上下文与 Token 管理
 │   │   │   ├── skillLoader.ts         # 加载 skills/ 下图表 Skill
@@ -225,6 +232,7 @@ Agent 在与用户交互时，必须严格遵循以下机制：
 3. **确认机制**：在关键业务逻辑、核心数据流向等环节，需与用户明确确认后再进入 PRD 生成阶段。
 
 - **工作流程**：理解需求 → 信息查漏补缺（结构化反问）→ 必要时与用户确认关键信息（无歧义则跳过）→ `TodoWrite` → 按 8 个默认模块生成 PRD → 输出单文件 HTML
+- **实现方式**：单个编排 Agent（LangChain `createAgent`）+ 细粒度工具，按阶段切换系统提示与可用工具（收集阶段仅 `ask_user_form` / `generate_prd`；PRD 生成后开放读取与编辑工具）。PRD 已存在时整份重新生成必须经服务端两步确认（确认 token 不暴露给模型）。详见 `docs/plan-orchestrator-agent.md`。
 
 ### Skill 支持
 
@@ -342,19 +350,19 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 
 ### HTTP API 端点
 
-| 方法 | 路径                         | 说明                          |
-| ---- | ---------------------------- | ----------------------------- |
-| POST | `/api/sessions`              | 创建新会话，返回 `session_id` |
-| GET  | `/api/sessions`              | 获取会话列表                  |
-| GET  | `/api/sessions/:id`          | 获取会话信息及消息历史        |
-| POST | `/api/sessions/:id/messages` | 发送消息，触发 SSE 流式响应   |
-| GET  | `/api/sessions/:id/prd`      | 获取该会话最新生成的 PRD HTML |
-| GET  | `/api/sessions/:id/prd/versions` | 版本列表（version DESC）  |
-| POST | `/api/sessions/:id/prd/versions` | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
-| POST | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等） |
-| POST | `/api/sessions/:id/prd/versions/:vid/clone` | 克隆为当前会话新版本（只复制 PRD，不复制对话） |
-| DELETE | `/api/sessions/:id/prd/versions/:vid` | 物理删除版本（删激活版本自动切到最新剩余版本） |
-| PATCH | `/api/sessions/:id/prd/versions/:vid` | 重命名版本备注 |
+| 方法   | 路径                                           | 说明                                                    |
+| ------ | ---------------------------------------------- | ------------------------------------------------------- |
+| POST   | `/api/sessions`                                | 创建新会话，返回 `session_id`                           |
+| GET    | `/api/sessions`                                | 获取会话列表                                            |
+| GET    | `/api/sessions/:id`                            | 获取会话信息及消息历史                                  |
+| POST   | `/api/sessions/:id/messages`                   | 发送消息，触发 SSE 流式响应                             |
+| GET    | `/api/sessions/:id/prd`                        | 获取该会话最新生成的 PRD HTML                           |
+| GET    | `/api/sessions/:id/prd/versions`               | 版本列表（version DESC）                                |
+| POST   | `/api/sessions/:id/prd/versions`               | 新增版本（`mode`: `duplicate` 复制当前 / `blank` 空白） |
+| POST   | `/api/sessions/:id/prd/versions/:vid/activate` | 切换版本（写回旧版本 + 重建工作区，幂等）               |
+| POST   | `/api/sessions/:id/prd/versions/:vid/clone`    | 克隆为当前会话新版本（只复制 PRD，不复制对话）          |
+| DELETE | `/api/sessions/:id/prd/versions/:vid`          | 物理删除版本（删激活版本自动切到最新剩余版本）          |
+| PATCH  | `/api/sessions/:id/prd/versions/:vid`          | 重命名版本备注                                          |
 
 > 版本管理采用 Figma Page 模型：每个版本是独立文档，`prds.html` + `prd_sections` + `messages` 为当前工作区；
 > 切换/新建时先把旧激活版本写回其版本行，再用目标版本重建工作区（对话记录随版本走，空白版本即空对话）。
@@ -366,7 +374,18 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 对话消息统一使用 **Server-Sent Events（SSE）** 推送 AI 增量输出：
 
 - **请求**：`POST /api/sessions/:id/messages`，`Content-Type: application/json`
+  - 可选 `target`：界面选中的模块 / 元素（chip）；元素 DOM 坐标来自点选，或由编辑阶段 `search_targets` 的 locatorId / 服务端唯一标签绑定注入，不经模型伪造
+  - 可选 `confirmAction: { token, decision }`：确认卡片提交，路由凭 token 直接执行，不进 Agent
 - **响应**：`Content-Type: text/event-stream; charset=utf-8`，关闭 Nginx 缓冲
+- **事件 `data.type`**：
+  - `delta`：可见回复增量，写入 `Message.content`
+  - `thinking`：模型思考 / reasoning 增量，写入 `Message.thinking`（仅展示，下次请求不回传 LLM）
+  - `prd_progress` / `prd_ready` / `error` / `done`：进度、完成与错误
+  - `section_element_patch_start` / `section_edit_delta` / `section_edit_done` / `section_edit_error`：对话中工具修改模块
+  - `session_modules_updated`：对话中新增章节；`prd_versions_changed`：确认执行前另存了新版本
+  - 命名事件 `event: form`：结构化提问表单（确认卡片额外携带 `action.token`）
+
+思考内容落在 `messages.thinking`，`loadHistory` 只读 `role, content, meta`；工具中间消息不落库，编辑记录 / 待确认动作写入 `messages.meta`。
 
 ---
 
@@ -398,6 +417,8 @@ CREATE TABLE messages (
   session_id TEXT    NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   role       TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
   content    TEXT    NOT NULL,
+  thinking   TEXT    NOT NULL DEFAULT '', -- 模型思考过程（仅 UI，不回传 LLM）
+  meta       TEXT    NOT NULL DEFAULT '{}', -- JSON：编辑记录 edits / 待确认动作 pendingAction / chip 引用 citation
   created_at INTEGER NOT NULL
 );
 
@@ -507,3 +528,20 @@ packages:
 ```
 
 > 完整实现规范（目录结构、配置文件、代码示例、打包配置）见 [`docs/electron-guide.md`](./docs/electron-guide.md)。
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
+
+- Do not enumerate, preload, or search wikis at task start. Use retrieval when the user asks for it, when unfamiliar architecture or dependency behavior materially affects the task, or when source inspection leaves an important uncertainty. Stop once the question is grounded.
+- When those conditions apply and OpenWiki retrieval tools are available, use `openwiki_search` for just-in-time context and `openwiki_read` for the relevant complete sections. If search returns `workspace_required`, ask which listed workspace to use and retry with its ID.
+- Use `openwiki_list_workspaces` or `openwiki_list_wikis` when workspace membership itself needs to be discovered.
+- If the retrieval tools are unavailable, read `openwiki/quickstart.md` and follow its links to the relevant pages.
+- Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
+- Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
+
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+
+<!-- OPENWIKI:END -->

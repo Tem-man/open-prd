@@ -3,6 +3,7 @@
 	import { useRoute, useRouter } from "vue-router";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { useMessagesStore } from "@/stores/messages";
+	import { usePrdEditStore } from "@/stores/prdEdit";
 	import { openSettingsDialog } from "@/app/settings/dialog";
 
 	const emit = defineEmits<{
@@ -14,6 +15,7 @@
 	const router = useRouter();
 	const sessionsStore = useSessionsStore();
 	const messagesStore = useMessagesStore();
+	const prdEditStore = usePrdEditStore();
 
 	const isSessionPage = computed(() => route.name === "session");
 	const currentSession = computed(() => sessionsStore.currentSession);
@@ -30,6 +32,25 @@
 		editingTitle.value = true;
 		nextTick(() => titleRef.value?.focus());
 	}
+
+	const sectionToolbar = computed(() => prdEditStore.sectionToolbar);
+	const editingActiveSection = computed(
+		() =>
+			!!sectionToolbar.value &&
+			prdEditStore.editingSection === sectionToolbar.value.sectionId,
+	);
+	const modeHint = computed(() => {
+		if (!editingActiveSection.value || !sectionToolbar.value) return "";
+		return sectionToolbar.value.editSubMode === "text"
+			? "文字编辑模式 · ESC 返回"
+			: "单击选元素 · Ctrl/⌘+单击多选格 · 双击编文字";
+	});
+	const sectionSaveBusy = computed(
+		() =>
+			!!sectionToolbar.value?.saving ||
+			(!!sectionToolbar.value &&
+				prdEditStore.aiEditingSection === sectionToolbar.value.sectionId),
+	);
 
 	function finishEditTitle() {
 		editingTitle.value = false;
@@ -109,20 +130,68 @@
 		</div>
 
 		<div class="g-nav__right">
-		<template v-if="isSessionPage">
-			<button
-				v-if="hasVersionsEntry"
-				class="btn-versions"
-				@click="emit('openVersions')"
-			>
-				<icon-lucide-history />
-				版本
-			</button>
-			<button v-if="hasPrd" class="btn-export" @click="emit('openExport')">
-				<icon-lucide-download />
-				导出
-			</button>
-		</template>
+			<template v-if="isSessionPage">
+				<template v-if="sectionToolbar">
+					<template v-if="editingActiveSection">
+						<span v-if="sectionToolbar.toastMsg" class="section-toast">
+							{{ sectionToolbar.toastMsg }}
+						</span>
+						<span
+							class="section-mode-hint"
+							:class="
+								sectionToolbar.editSubMode === 'text'
+									? 'section-mode-hint--text'
+									: 'section-mode-hint--select'
+							"
+							:title="modeHint"
+						>
+							{{ modeHint }}
+						</span>
+						<button
+							type="button"
+							class="btn-export"
+							title="保存手动修改"
+							:disabled="sectionSaveBusy"
+							@click="sectionToolbar.save()"
+						>
+							<icon-lucide-save />
+							{{ sectionToolbar.saving ? "保存中…" : "保存" }}
+						</button>
+						<button
+							type="button"
+							class="g-icon-btn"
+							title="退出编辑"
+							:disabled="sectionSaveBusy"
+							@click="sectionToolbar.cancelEdit()"
+						>
+							<icon-lucide-x />
+						</button>
+					</template>
+					<template v-else>
+						<button
+							type="button"
+							class="btn-export"
+							title="编辑此模块"
+							@click="sectionToolbar.startEdit()"
+						>
+							<icon-lucide-pencil />
+							编辑
+						</button>
+					</template>
+				</template>
+				<button
+					v-if="hasVersionsEntry"
+					class="btn-outline"
+					@click="emit('openVersions')"
+				>
+					<icon-lucide-git-branch />
+					版本
+				</button>
+				<button v-if="hasPrd" class="btn-outline" @click="emit('openExport')">
+					<icon-lucide-download />
+					导出
+				</button>
+			</template>
 
 			<button
 				v-if="!isSessionPage"
@@ -278,7 +347,37 @@
 		}
 	}
 
-	.btn-versions {
+	.section-toast {
+		max-width: 180px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		padding: 4px 8px;
+		background: #fef3c7;
+		color: #92400e;
+		border-radius: var(--radius-btn-sm);
+		font-size: 12px;
+		font-weight: 500;
+	}
+
+	.section-mode-hint {
+		max-width: 280px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 12px;
+		font-weight: 500;
+
+		&--select {
+			color: var(--color-primary);
+		}
+
+		&--text {
+			color: #0369a1;
+		}
+	}
+
+	.btn-outline {
 		display: flex;
 		align-items: center;
 		gap: 5px;
@@ -322,6 +421,11 @@
 
 		&:hover {
 			background: var(--color-primary-hover);
+		}
+
+		&:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
 		}
 
 		svg {

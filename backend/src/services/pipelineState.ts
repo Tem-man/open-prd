@@ -191,14 +191,16 @@ export function getLastUserMessage(sessionId: string): string | null {
 
 /**
  * 删除最后一条带中断标记的 assistant 消息，
- * 返回该消息去掉标记后的干净内容（用于 continue_agent 续写）。
+ * 返回去掉标记后的干净正文与思考（思考仅用于 UI 恢复，不回传模型）。
  */
-export function removeLastInterruptedAssistant(sessionId: string): string | null {
+export function removeLastInterruptedAssistant(
+	sessionId: string,
+): { content: string; thinking: string } | null {
 	const db = getDb();
-	type Row = { id: string; content: string };
+	type Row = { id: string; content: string; thinking: string };
 	const row = db
 		.prepare(
-			`SELECT id, content FROM messages
+			`SELECT id, content, thinking FROM messages
        WHERE session_id = ? AND role = 'assistant'
        ORDER BY created_at DESC LIMIT 1`,
 		)
@@ -208,5 +210,5 @@ export function removeLastInterruptedAssistant(sessionId: string): string | null
 
 	const { clean } = stripInterruptMarker(row.content);
 	db.prepare("DELETE FROM messages WHERE id = ?").run(row.id);
-	return clean;
+	return { content: clean, thinking: row.thinking ?? "" };
 }
