@@ -190,7 +190,7 @@ add_section: z.object({
 
 - 前端带 chip 发送时，请求体携带 `target`（与 `plan-prd-edit-as-chat.md` §7.1 的 `ComposerTarget` 一致）。
 - `target` 进入运行时上下文 `ctx.target`。
-- `edit_section` 执行时：若 `ctx.target?.sectionId === sectionId` 且带元素信息 → 走**元素补丁**；带 `entityName` → 走**实体补丁**；否则 → **整模块改写**。
+- `edit_section` 执行时：若 `ctx.target` 带元素信息 → 走**元素补丁**；带 `entityName` → 走**实体补丁**；否则若传入 `search_targets` 返回的 `locatorId`（或 instruction 对内部索引标签唯一命中）→ 服务端合成同样的元素 `target` 再打补丁；再否则 → **整模块改写**。`locatorId` 属于当轮扫描的白名单，不是模型伪造的 DOM。详见 [`plan-chat-element-locate.md`](./plan-chat-element-locate.md)。
 - 自然语言提到实体（「给用户表加手机号」）时由模型调用 `edit_entity`，实体名来自 `list_sections` 返回的实体列表，服务端校验存在性（不存在则按新实体处理并在结果中标注 `isNew`）。
 
 ### 4.4 工具返回值原则

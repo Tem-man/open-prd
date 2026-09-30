@@ -163,8 +163,9 @@ open-prd/
 │   │   │   └── prototypes.ts
 │   │   ├── services/
 │   │   │   ├── agent/                 # 编排 Agent（createAgent）：driver / orchestrator / history / types
-│   │   │   ├── tools/                 # Agent 工具：ask_user_form、generate_prd、list/get/edit_section、edit_entity、regenerate/add_section
+│   │   │   ├── tools/                 # Agent 工具：ask_user_form、generate_prd、list/get/edit_section、search_targets、edit_entity、regenerate/add_section
 │   │   │   ├── sectionEditService.ts  # 模块改写 / 元素补丁 / 实体补丁（路由与工具共用）
+│   │   │   ├── sectionLocator.ts      # PRD HTML 可寻址索引（search_targets / edit_section locatorId）
 │   │   │   ├── pendingActions.ts      # 整份重新生成的服务端两步确认
 │   │   │   ├── prdPipeline.ts         # 大纲 → 逐模块生成 → 校验
 │   │   │   ├── llm.ts                 # LangChain ChatModel 工厂
@@ -274,8 +275,8 @@ Agent 在与用户交互时，必须严格遵循以下机制：
 ```css
 /* 卡片阴影 */
 box-shadow:
-  0 1px 3px rgba(0, 0, 0, 0.1),
-  0 1px 2px rgba(0, 0, 0, 0.06);
+	0 1px 3px rgba(0, 0, 0, 0.1),
+	0 1px 2px rgba(0, 0, 0, 0.06);
 
 /* 悬浮按钮阴影 */
 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -373,7 +374,7 @@ box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 对话消息统一使用 **Server-Sent Events（SSE）** 推送 AI 增量输出：
 
 - **请求**：`POST /api/sessions/:id/messages`，`Content-Type: application/json`
-  - 可选 `target`：界面选中的模块 / 元素（chip），元素定位参数只来自点选，不经模型
+  - 可选 `target`：界面选中的模块 / 元素（chip）；元素 DOM 坐标来自点选，或由编辑阶段 `search_targets` 的 locatorId / 服务端唯一标签绑定注入，不经模型伪造
   - 可选 `confirmAction: { token, decision }`：确认卡片提交，路由凭 token 直接执行，不进 Agent
 - **响应**：`Content-Type: text/event-stream; charset=utf-8`，关闭 Nginx 缓冲
 - **事件 `data.type`**：

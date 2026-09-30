@@ -74,6 +74,7 @@ interface SseEvent {
 	newHtml?: string;
 	version?: number;
 	assembledPrdHtml?: string;
+	elementLabel?: string;
 }
 
 /** 对话中指向 PRD 模块 / 元素的编辑目标（chip） */
@@ -316,9 +317,11 @@ function handleEditEvent(
 					sectionId: evt.sectionId,
 					sectionTitle: known?.title ?? evt.sectionId,
 					resultVersion: evt.version,
-					...(citation?.sectionId === evt.sectionId && citation.elementLabel
-						? { elementLabel: citation.elementLabel }
-						: {}),
+					...(evt.elementLabel
+						? { elementLabel: evt.elementLabel }
+						: citation?.sectionId === evt.sectionId && citation.elementLabel
+							? { elementLabel: citation.elementLabel }
+							: {}),
 				});
 			}
 			return true;

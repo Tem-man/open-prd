@@ -186,6 +186,7 @@ export function writeSectionEditDone(
 	newHtml: string,
 	version: number,
 	assembledPrdHtml: string,
+	elementLabel?: string,
 ): void {
 	res.write(
 		`data: ${JSON.stringify({
@@ -194,6 +195,7 @@ export function writeSectionEditDone(
 			newHtml,
 			version,
 			assembledPrdHtml,
+			...(elementLabel ? { elementLabel } : {}),
 		})}\n\n`,
 	);
 	flushRes(res);

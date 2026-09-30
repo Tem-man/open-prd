@@ -13,7 +13,7 @@ import { extractStreamParts } from "../llmStream.js";
 import { trimHistory } from "../contextManager.js";
 import { getSessionModules } from "../prdOutline.js";
 import { buildCollectPrompt, buildEditPrompt } from "../prompts.js";
-import { buildTools, TARGET_EDIT_TOOLS } from "../tools/index.js";
+import { buildTools, SECTION_CHIP_TOOLS } from "../tools/index.js";
 import { loadHistory } from "./history.js";
 import type { AgentDriver, AgentTurnInput, AgentTurnResult } from "./driver.js";
 import type {
@@ -68,7 +68,7 @@ function forceTargetEditMiddleware(ctx: OrchestratorContext) {
 			const hasToolResult = request.messages.some((m) => ToolMessage.isInstance(m));
 			if (ctx.recorder.targetConsumed || hasToolResult) return handler(request);
 			// 元素级目标只允许 edit_section（元素补丁），排除整章重写
-			const allowed = isElementTarget(ctx.target) ? ["edit_section"] : TARGET_EDIT_TOOLS;
+			const allowed = isElementTarget(ctx.target) ? ["edit_section"] : SECTION_CHIP_TOOLS;
 			const tools = request.tools.filter(
 				(t) => "name" in t && allowed.includes(String(t.name)),
 			);

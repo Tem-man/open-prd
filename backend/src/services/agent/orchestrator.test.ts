@@ -130,6 +130,39 @@ test("收集阶段：ask_user_form 发送表单并结束本轮，只暴露收集
 	assert.ok(result.recorder.form);
 });
 
+test("收集阶段：上一轮表单在历史中不以「已向用户发送表单」出现", async () => {
+	seedSession("s-form-hist", false);
+	const form = {
+		questions: [
+			{
+				id: "q1",
+				label: "以下功能模块中，哪些需要纳入本期范围（请至少选择 4 项）？",
+				type: "multi_choice",
+				required: true,
+				options: ["打卡", "工单"],
+			},
+			{ id: "q_extra", label: "你还有什么需要补充的吗？", type: "text", required: false },
+		],
+	};
+	const content =
+		`感谢补充。请确认优先范围。\n\n（已向用户发送表单：以下功能模块中，哪些需要纳入本期范围（请至少选择 4 项）？ / 你还有什么需要补充的吗？）\n\n[QUESTION_FORM]${JSON.stringify(form)}[/QUESTION_FORM]`;
+	getDb()
+		.prepare(
+			"INSERT INTO messages (id, session_id, role, content, thinking, meta, created_at) VALUES (?, ?, 'assistant', ?, '', '{}', ?)",
+		)
+		.run("s-form-hist-a1", "s-form-hist", content, Date.now() + 1);
+
+	const model = new ScriptedModel([new AIMessage("收到")]);
+	await runTurn("s-form-hist", model, "打卡、工单");
+	const fed = model.calls[0];
+	const assistantHist = fed
+		.filter((m) => m.getType() === "ai")
+		.map((m) => String(m.content))
+		.join("\n");
+	assert.equal(assistantHist.includes("（已向用户发送表单："), false);
+	assert.ok(assistantHist.includes("ask_user_form"));
+});
+
 test("编辑阶段：list_sections 返回实体名，整份重新生成只发确认卡片", async () => {
 	seedSession("s-edit", true);
 	const model = new ScriptedModel([
@@ -138,7 +171,7 @@ test("编辑阶段：list_sections 返回实体名，整份重新生成只发确
 	]);
 	const { events, result } = await runTurn("s-edit", model, "整份 PRD 重新生成");
 
-	assert.equal(model.boundTools[0].length, 8);
+	assert.equal(model.boundTools[0].length, 9);
 	const listResult = model.calls[1].find((m) => m.getType() === "tool");
 	assert.ok(listResult && String(listResult.content).includes("BILL"));
 	assert.equal(model.calls.length, 2, "确认卡片后本轮结束");
@@ -233,7 +266,12 @@ test("chip 编辑：首轮只暴露编辑类工具", async () => {
 		},
 		() => {},
 	);
-	assert.deepEqual(model.boundTools[0].sort(), ["edit_entity", "edit_section", "regenerate_section"]);
+	assert.deepEqual(model.boundTools[0].sort(), [
+		"edit_entity",
+		"edit_section",
+		"regenerate_section",
+		"search_targets",
+	]);
 	const human = model.calls[0].at(-1);
 	assert.ok(human && String(human.content).includes("sectionId: featureList"));
 });
@@ -289,5 +327,59 @@ test("单元格编辑完成后，同一模块的整模块改写 / 重写都被�
 	assert.equal(toolMsgs.length, 2);
 	for (const m of toolMsgs) assert.ok(String(m.content).includes("只选中了"));
 	assert.equal(recorder.edits.length, 0, "不应产生任何模块改动");
+	assert.ok(events.every((e) => e.type !== "section_edit_done"));
+});
+
+test("search_targets：无 query 且无 sectionId 时拒绝 dump", async () => {
+	const model = new ScriptedModel([
+		new AIMessage({ content: "", tool_calls: [{ id: "c1", name: "search_targets", args: {} }] }),
+		new AIMessage("请告诉我要改哪里"),
+	]);
+	await runTurn("s-edit", model, "改一下");
+	const toolMsg = model.calls[1].find((m) => m.getType() === "tool");
+	assert.ok(toolMsg && String(toolMsg.content).includes("query"));
+	assert.ok(toolMsg && !String(toolMsg.content).includes("<td"));
+});
+
+test("search_targets：仅 sectionId 最多 20 条且不含 HTML", async () => {
+	const model = new ScriptedModel([
+		new AIMessage({
+			content: "",
+			tool_calls: [{ id: "c1", name: "search_targets", args: { sectionId: "featureList" } }],
+		}),
+		new AIMessage("已列出"),
+	]);
+	await runTurn("s-edit", model, "功能清单有哪些可改节点");
+	const toolMsg = model.calls[1].find((m) => m.getType() === "tool");
+	assert.ok(toolMsg);
+	const payload = JSON.parse(String(toolMsg.content)) as { targets: unknown[] };
+	assert.ok(Array.isArray(payload.targets));
+	assert.ok(payload.targets.length <= 20);
+	assert.ok(!String(toolMsg.content).includes("<td"));
+	assert.ok(!String(toolMsg.content).includes("selectedElementHtml"));
+});
+
+test("edit_section：非法 locatorId 不落库", async () => {
+	const model = new ScriptedModel([
+		new AIMessage({
+			content: "",
+			tool_calls: [
+				{
+					id: "c1",
+					name: "edit_section",
+					args: {
+						sectionId: "featureList",
+						instruction: "改成 P0",
+						locatorId: "cell:9:9:9",
+					},
+				},
+			],
+		}),
+		new AIMessage("定位失败"),
+	]);
+	const { events, result } = await runTurn("s-edit", model, "改那一格");
+	const toolMsg = model.calls[1].find((m) => m.getType() === "tool");
+	assert.ok(toolMsg && String(toolMsg.content).includes("不存在"));
+	assert.equal(result.recorder.edits.length, 0);
 	assert.ok(events.every((e) => e.type !== "section_edit_done"));
 });

@@ -28,16 +28,28 @@ export function parseMeta(raw: string | null | undefined): MessageMeta {
 	}
 }
 
+/** 旧版回放把表单压成这句正文，模型会在下一轮照抄；剥离以免污染后续轮次 */
+const IMITATED_FORM_SUMMARY_RE =
+	/（已向用户发送表单：[^）]*）/g;
+const IMITATED_CONFIRM_SUMMARY_RE = /（已向用户发送整份重新生成确认卡片）/g;
+
+function stripImitatedFormSummary(text: string): string {
+	return text
+		.replace(IMITATED_FORM_SUMMARY_RE, "")
+		.replace(IMITATED_CONFIRM_SUMMARY_RE, "")
+		.replace(/\n{3,}/g, "\n\n")
+		.trim();
+}
+
 function describeForm(form: FormPayload): string {
-	const labels = form.questions.map((q) => q.label).join(" / ");
 	return form.action
-		? `（已向用户发送整份重新生成确认卡片）`
-		: `（已向用户发送表单：${labels}）`;
+		? "[系统] 本轮已调用工具 generate_prd，确认卡片只出现在界面上。等待用户点选；不要在回复中复述或仿写该卡片。"
+		: "[系统] 本轮已调用工具 ask_user_form，题目只出现在界面表单中。等待用户填写；不要把题目或选项写进聊天气泡。";
 }
 
 function assistantText(content: string, meta: MessageMeta): string {
 	const { cleanReply, formData } = extractQuestionForm(content);
-	let text = cleanReply;
+	let text = stripImitatedFormSummary(cleanReply);
 	if (formData) text = `${text}\n\n${describeForm(formData as FormPayload)}`.trim();
 	if (meta.edits && meta.edits.length > 0) {
 		const edited = meta.edits

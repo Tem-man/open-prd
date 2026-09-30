@@ -17,7 +17,7 @@ process.env.DB_PATH = path.join(mkdtempSync(path.join(tmpdir(), "prd-intent-")),
 process.env.LLM_IDLE_TIMEOUT_MS ??= "120000";
 
 const SESSION_ID = "intent-eval";
-const READ_TOOLS = new Set(["list_sections", "get_section"]);
+const READ_TOOLS = new Set(["list_sections", "get_section", "search_targets"]);
 const ENDING_TOOLS = new Set(["ask_user_form", "generate_prd"]);
 
 interface RecordedCall {

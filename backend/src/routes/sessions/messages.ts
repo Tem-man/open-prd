@@ -184,6 +184,7 @@ async function streamAgentTurn(
 					evt.newHtml,
 					evt.version,
 					evt.assembledPrdHtml,
+					evt.elementLabel,
 				);
 			case "section_edit_error":
 				return writeSectionEditError(res, evt.sectionId, evt.message);

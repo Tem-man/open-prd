@@ -1,7 +1,7 @@
 import type { TableElementPath } from "../../routes/sessions/helpers/htmlPatch.js";
 import type { SelectedModule } from "../prompts.js";
 
-/** 前端 chip 指向的编辑目标；精确定位参数只来自界面点选，不经模型 */
+/** 前端 chip 或 search_targets locator 指向的编辑目标；DOM 坐标不经模型伪造 */
 export interface ComposerTarget {
 	sectionId: string;
 	sectionTitle?: string;
@@ -70,6 +70,7 @@ export type OrchestratorEvent =
 			newHtml: string;
 			version: number;
 			assembledPrdHtml: string;
+			elementLabel?: string;
 	  }
 	| { type: "section_edit_error"; sectionId: string; message: string }
 	| { type: "session_modules_updated"; selectedModules: SelectedModule[] };
