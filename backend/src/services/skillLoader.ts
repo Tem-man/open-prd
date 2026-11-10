@@ -1,22 +1,23 @@
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { BUILTIN_SKILLS_ROOT, getUserSkillsDir } from './skillDirs.js';
 
 /**
- * skills/ 目录位于 monorepo 根，相对于 backend/src/services/ 向上三级。
- * backend/src/services/ → backend/src/ → backend/ → open-prd/ → skills/
+ * 定位 Skill 文件：用户目录优先（用户自定义 Skill，以及未来对内置 Skill 的覆盖定制），
+ * 未命中时回退到内置目录。
  */
-const SKILLS_ROOT = resolve(__dirname, '..', '..', '..', 'skills');
+export function getSkillFilePath(skillName: string): string {
+  const userPath = resolve(getUserSkillsDir(), skillName, 'SKILL.md');
+  if (existsSync(userPath)) return userPath;
+  return resolve(BUILTIN_SKILLS_ROOT, skillName, 'SKILL.md');
+}
 
 /**
- * 同步读取指定 Skill 的 SKILL.md 内容。
+ * 同步读取指定 Skill 的 SKILL.md 内容（用户目录优先，内置兜底）。
  * @param skillName  例如 "skill-prd-architecture"
  */
 export function loadSkill(skillName: string): string {
-  const filePath = resolve(SKILLS_ROOT, skillName, 'SKILL.md');
+  const filePath = getSkillFilePath(skillName);
   try {
     return readFileSync(filePath, 'utf-8');
   } catch (err) {

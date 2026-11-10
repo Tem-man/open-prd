@@ -11,6 +11,10 @@ extraResources:
     to: frontend/dist/
   - from: ../backend/dist/
     to: backend/dist/
+  # 内置 Skill（只读）；打包后 <resources>/skills 与 backend 内置目录解析结果一致。
+  # 其中遗留的 skill-custom-* 会在首次启动时被迁移脚本拷入 userData。
+  - from: ../skills/
+    to: skills/
 win:
   target:
     - target: nsis

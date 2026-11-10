@@ -3,12 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { customAlphabet } from 'nanoid';
 import multer from 'multer';
 import { rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { getDb } from '../db/client.js';
-import type { ModuleTemplateRow, SkillVersionRow } from '../db/schema.js';
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 } });
+import { resolve } from 'node:path';
 import {
   suggestContentPoints,
   generateSkillContent,
@@ -16,13 +11,13 @@ import {
   skillExists,
   type RenderType,
 } from '../services/moduleBuilder.js';
+import { getSkillFilePath } from '../services/skillLoader.js';
+import { getUserSkillsDir } from '../services/skillDirs.js';
+import { getDb } from '../db/client.js';
+import type { ModuleTemplateRow, SkillVersionRow } from '../db/schema.js';
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 } });
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-// backend/src/routes/ → backend/src/ → backend/ → open-prd/ → skills/
-const SKILLS_ROOT = resolve(__dirname, '..', '..', '..', 'skills');
 
 const router: IRouter = Router();
 
@@ -34,6 +29,8 @@ function toPublic(row: ModuleTemplateRow) {
     skillName: row.skill_name ?? undefined,
     renderType: row.render_type ?? undefined,
     isBuiltin: row.is_builtin === 1,
+    // Skill 来源：builtin = 官方（只读，可复制定制）；custom = 用户
+    origin: row.is_builtin === 1 ? ('builtin' as const) : ('custom' as const),
   };
 }
 
@@ -95,9 +92,9 @@ router.delete('/:id', (req, res) => {
     return;
   }
 
-  // 联动删除关联的 Skill 目录
-  if (row.skill_name) {
-    const skillDir = resolve(SKILLS_ROOT, row.skill_name);
+  // 联动删除用户 Skill 目录（用户目录可写、可安全删除；内置 Skill 不在用户目录，不受影响）
+  if (row.skill_name && /^skill-custom-[a-z0-9-]+$/.test(row.skill_name)) {
+    const skillDir = resolve(getUserSkillsDir(), row.skill_name);
     if (existsSync(skillDir)) {
       rmSync(skillDir, { recursive: true, force: true });
     }
@@ -303,8 +300,8 @@ router.get('/:id/skill', (req, res) => {
     return;
   }
 
-  // 兜底：从文件系统读，并补写 v1 记录
-  const skillPath = resolve(SKILLS_ROOT, moduleRow.skill_name, 'SKILL.md');
+  // 兜底：从文件系统读（用户目录优先、内置兜底），并补写 v1 记录
+  const skillPath = getSkillFilePath(moduleRow.skill_name);
   if (!existsSync(skillPath)) {
     res.status(404).json({ error: 'Skill 文件不存在' });
     return;
@@ -316,6 +313,81 @@ router.get('/:id/skill', (req, res) => {
   ).run(uuidv4(), req.params.id, content, now);
   res.json({ version: 1, content, createdAt: now });
 });
+
+// ─── POST /api/modules/:id/skill/duplicate ────────────────────────────────────
+// 复制定制：把官方（内置）模块的 Skill 复制为用户 Skill 副本并创建对应自定义模块。
+// 副本落盘用户目录（Electron 下为 userData，更新/卸载不丢失），官方 Skill 保持只读。
+router.post('/:id/skill/duplicate', (req, res) => {
+  const db = getDb();
+  const source = db
+    .prepare('SELECT * FROM module_templates WHERE id = ?')
+    .get(req.params.id) as ModuleTemplateRow | undefined;
+
+  if (!source) {
+    res.status(404).json({ error: '模块不存在' });
+    return;
+  }
+  if (source.is_builtin !== 1) {
+    res.status(400).json({ error: '仅官方（内置）模块支持复制定制' });
+    return;
+  }
+  if (!source.skill_name) {
+    res.status(404).json({ error: '该模块没有关联 Skill' });
+    return;
+  }
+
+  // 从源（内置目录）读 SKILL.md
+  const sourcePath = getSkillFilePath(source.skill_name);
+  if (!existsSync(sourcePath)) {
+    res.status(404).json({ error: '官方 Skill 文件不存在' });
+    return;
+  }
+  const sourceContent = readFileSync(sourcePath, 'utf-8');
+
+  // 生成新用户 Skill 名称，与 writeSkillFile 的命名规则保持一致
+  let skillName = `skill-custom-${nanoid()}`;
+  let attempts = 0;
+  while (skillExists(skillName) && attempts < 5) {
+    skillName = `skill-custom-${nanoid()}`;
+    attempts++;
+  }
+
+  // frontmatter 的 name 字段改为新 Skill 名，便于 prompt 中引用其身份
+  const newContent = replaceFrontmatterName(sourceContent, skillName);
+
+  try {
+    writeSkillFile(skillName, newContent);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(400).json({ error: `Skill 文件写入失败：${msg}` });
+    return;
+  }
+
+  const id = uuidv4();
+  const now = Date.now();
+  const customName = ((req.body as { name?: string } | null)?.name ?? '').trim() || `${source.name}副本`;
+  const description = (source.description ?? '官方 Skill') + '的定制副本';
+
+  const result = db.transaction(() => {
+    db.prepare(
+      'INSERT INTO module_templates (id, name, description, skill_name, render_type, is_builtin, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
+    ).run(id, customName, description, skillName, source.render_type, now);
+    db.prepare(
+      'INSERT INTO skill_versions (id, module_id, content, version, is_current, created_at) VALUES (?, ?, ?, 1, 1, ?)',
+    ).run(uuidv4(), id, newContent, now);
+  });
+  result();
+
+  const row = db.prepare('SELECT * FROM module_templates WHERE id = ?').get(id) as ModuleTemplateRow;
+  res.status(201).json(toPublic(row));
+});
+
+/** 将 SKILL.md frontmatter 中的 name 字段替换为新值（仅替换 frontmatter 首块内的首个匹配） */
+function replaceFrontmatterName(content: string, newValue: string): string {
+  return content.replace(/^---\r?\n[\s\S]*?\r?\n---/, (frontmatter) =>
+    frontmatter.replace(/^(\s*name:\s*)\S.*$/m, `$1${newValue}`),
+  );
+}
 
 // ─── PUT /api/modules/:id/skill ───────────────────────────────────────────────
 // 保存新版本 Skill（DB + 文件系统双写）
@@ -333,6 +405,10 @@ router.put('/:id/skill', (req, res) => {
 
   if (!moduleRow || !moduleRow.skill_name) {
     res.status(404).json({ error: '该模块没有关联 Skill' });
+    return;
+  }
+  if (moduleRow.is_builtin === 1) {
+    res.status(403).json({ error: '官方 Skill 内容只读，请先使用「复制定制」创建副本' });
     return;
   }
 
@@ -457,7 +533,7 @@ router.get('/:id/skill/export', (req, res) => {
   if (versionRow) {
     content = versionRow.content;
   } else if (moduleRow.skill_name) {
-    const skillPath = resolve(SKILLS_ROOT, moduleRow.skill_name, 'SKILL.md');
+    const skillPath = getSkillFilePath(moduleRow.skill_name);
     if (existsSync(skillPath)) content = readFileSync(skillPath, 'utf-8');
   }
 
@@ -499,7 +575,7 @@ router.post('/:id/skill/optimize', async (req, res) => {
   if (versionRow) {
     currentContent = versionRow.content;
   } else {
-    const skillPath = resolve(SKILLS_ROOT, moduleRow.skill_name, 'SKILL.md');
+    const skillPath = getSkillFilePath(moduleRow.skill_name);
     if (existsSync(skillPath)) currentContent = readFileSync(skillPath, 'utf-8');
   }
 

@@ -5,6 +5,8 @@ export interface ModuleTemplate {
 	skillName?: string;
 	renderType?: string;
 	isBuiltin: boolean;
+	/** Skill 来源：builtin = 官方（只读，可复制定制）；custom = 用户 */
+	origin?: "builtin" | "custom";
 }
 
 // ─── Pipeline 状态（会话恢复用）──────────────────────────────────────────────

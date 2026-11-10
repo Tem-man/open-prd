@@ -5,7 +5,13 @@ import type { Ref } from 'vue'
 import { SkiaRenderer } from '@open-pencil/core/canvas'
 import type { Editor } from '@open-pencil/core/editor'
 
-import { makeGLSurface, sizeCanvas, type CanvasGLContext } from '#vue/canvas/surface/gl-surface'
+import {
+  disposeGLContext,
+  makeGLSurface,
+  sizeCanvas,
+  type CanvasGLContext,
+  type CanvasGLHandle
+} from '#vue/canvas/surface/gl-surface'
 import { useCanvasKitLoader } from '#vue/canvas/surface/kit-loader'
 import { createCanvasRenderLoop } from '#vue/canvas/surface/render-loop'
 import { useCanvasResizeObserver } from '#vue/canvas/surface/resize-observer'
@@ -14,6 +20,10 @@ import type { UseCanvasOptions } from '#vue/canvas/surface/types'
 type SurfaceManagerState = {
   renderer: SkiaRenderer | null
   glContext: CanvasGLContext | null
+  /** CanvasKit's handle for the browser WebGL context, for teardown. */
+  glHandle: CanvasGLHandle | null
+  /** Raw browser context, captured at creation for `WEBGL_lose_context` teardown. */
+  rawGl: WebGL2RenderingContext | null
 }
 
 export function createCanvasSurfaceManager({
@@ -31,7 +41,12 @@ export function createCanvasSurfaceManager({
   isDestroyed: () => boolean
   shouldShowRulers: () => boolean
 }) {
-  const state: SurfaceManagerState = { renderer: null, glContext: null }
+  const state: SurfaceManagerState = {
+    renderer: null,
+    glContext: null,
+    glHandle: null,
+    rawGl: null
+  }
   let sceneBackingRenderTimer: ReturnType<typeof setTimeout> | null = null
   const sizeOptions = { publishViewportSize: options?.frameId === undefined }
 
@@ -51,13 +66,15 @@ export function createCanvasSurfaceManager({
     if (state.renderer) editor.removeCanvasRenderer(state.renderer)
     state.renderer?.destroy()
     state.renderer = null
-    state.glContext?.delete()
-    state.glContext = null
+    // The element is reused in this path, so the browser context must stay usable — only let
+    // CanvasKit forget the previous registration instead of losing the context.
+    disposeGLContext(ck, state, false)
 
     sizeCanvas(canvas, editor, sizeOptions)
 
-    const result = makeGLSurface(ck, canvas, editor, options, state.glContext)
+    const result = makeGLSurface(ck, canvas, editor, options, state)
     state.glContext = result.glContext
+    state.glHandle = result.glHandle
     const surface = result.surface
     if (!surface) {
       canvas.dataset.surfaceError = 'webgl'
@@ -65,6 +82,7 @@ export function createCanvasSurfaceManager({
     }
 
     const glCtx = canvas.getContext('webgl2') ?? null
+    state.rawGl = glCtx
     state.renderer = new SkiaRenderer(ck, surface, glCtx)
     editor.setCanvasKit(ck, state.renderer)
     canvas.dataset.ready = '1'
@@ -125,8 +143,9 @@ export function createCanvasSurfaceManager({
 
     sizeCanvas(canvas, editor, sizeOptions)
 
-    const result = makeGLSurface(ck, canvas, editor, options, state.glContext)
+    const result = makeGLSurface(ck, canvas, editor, options, state)
     state.glContext = result.glContext
+    state.glHandle = result.glHandle
     const surface = result.surface
     if (!surface) {
       console.warn('Falling back to full surface recreation after resize')
@@ -142,7 +161,9 @@ export function createCanvasSurfaceManager({
     renderLoop.pause()
     if (state.renderer) editor.removeCanvasRenderer(state.renderer)
     state.renderer?.destroy()
-    state.glContext?.delete()
+    // The scope and its canvas element are being discarded, so release the browser-side
+    // WebGL context for real (deleteContext + loseContext), not just Skia's GPU resources.
+    disposeGLContext(getCanvasKit(), state, true)
   }
 
   return {

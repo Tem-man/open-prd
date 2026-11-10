@@ -1,14 +1,11 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { createChatModel } from "./llm.js";
+import { BUILTIN_SKILLS_ROOT, getUserSkillsDir } from "./skillDirs.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-// backend/src/services/ → backend/src/ → backend/ → open-prd/ → skills/
-const SKILLS_ROOT = resolve(__dirname, "..", "..", "..", "skills");
-const MERMAID_REF_ROOT = resolve(SKILLS_ROOT, "skill-mermaid", "references");
+// mermaid 语法参考属于内置 Skill，始终从只读的内置目录读取
+const MERMAID_REF_ROOT = resolve(BUILTIN_SKILLS_ROOT, "skill-mermaid", "references");
 
 /**
  * 图类型关键词映射表：模块名 + 描述中的关键词 → 对应的 skill-mermaid reference 文件
@@ -342,24 +339,28 @@ export function validateSkillContent(content: string): boolean {
 }
 
 /**
- * 将生成的 SKILL.md 写入文件系统。
+ * 将生成的 SKILL.md 写入文件系统（用户 Skill 目录：Electron 生产位于 userData，
+ * 更新/卸载不丢失；开发模式回落到项目 skills/ 目录）。
  * 命名安全校验：只允许 skill-custom- 前缀 + [a-z0-9-] 字符。
  */
 export function writeSkillFile(skillName: string, content: string): void {
 	if (!/^skill-custom-[a-z0-9-]+$/.test(skillName)) {
 		throw new Error(`非法 Skill 名称：${skillName}`);
 	}
-	const dir = resolve(SKILLS_ROOT, skillName);
+	const dir = resolve(getUserSkillsDir(), skillName);
 	// 若目录已存在（重新生成场景），直接覆盖
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(resolve(dir, "SKILL.md"), content, "utf-8");
 }
 
 /**
- * 检查 Skill 目录是否已存在（用于 nanoid 碰撞检测）。
+ * 检查 Skill 目录是否已存在（用于 nanoid 碰撞检测），用户目录与内置目录都检查。
  */
 export function skillExists(skillName: string): boolean {
-	return existsSync(resolve(SKILLS_ROOT, skillName));
+	return (
+		existsSync(resolve(getUserSkillsDir(), skillName)) ||
+		existsSync(resolve(BUILTIN_SKILLS_ROOT, skillName))
+	);
 }
 
 /**

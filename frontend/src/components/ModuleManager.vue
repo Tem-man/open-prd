@@ -190,6 +190,24 @@
 		showAiBuilder.value = false;
 	}
 
+	// 复制定制：复制官方 Skill 为用户副本并进入编辑
+	const duplicatingId = ref<string | null>(null);
+	const duplicateError = ref("");
+
+	async function handleDuplicateSkill(m: ModuleTemplate) {
+		duplicateError.value = "";
+		duplicatingId.value = m.id;
+		try {
+			const copy = await modulesStore.duplicateSkill(m.id);
+			localSelected.value = [...localSelected.value, copy.id];
+			openSkillEditor(copy);
+		} catch (e) {
+			duplicateError.value = (e as Error).message;
+		} finally {
+			duplicatingId.value = null;
+		}
+	}
+
 	function handleConfirm() {
 		if (localSelected.value.length === 0) return;
 		emit("confirm", [...localSelected.value]);
@@ -246,6 +264,8 @@
 			customModuleName.value = "";
 			customModuleDescription.value = "";
 			addError.value = "";
+			duplicateError.value = "";
+			duplicatingId.value = null;
 		},
 	);
 </script>
@@ -474,6 +494,33 @@
 									</svg>
 								</button>
 
+							<!-- 复制定制按钮（官方内置模块：Skill 只读，先复制为用户副本再编辑） -->
+								<button
+									v-else-if="m.isBuiltin && m.skillName"
+									class="mm-skill-btn"
+									:title="duplicatingId === m.id ? '复制中…' : '复制定制 Skill'"
+									:disabled="duplicatingId !== null"
+									@click.stop="handleDuplicateSkill(m)"
+								>
+									<svg viewBox="0 0 14 14" fill="none">
+										<rect
+											x="5"
+											y="5"
+											width="7"
+											height="7"
+											rx="1.5"
+											stroke="currentColor"
+											stroke-width="1.3"
+										/>
+										<path
+											d="M2 9V2.5A.5.5 0 012.5 2H9"
+											stroke="currentColor"
+											stroke-width="1.3"
+											stroke-linecap="round"
+										/>
+									</svg>
+								</button>
+
 								<!-- 删除按钮（仅自定义） -->
 								<button
 									v-if="!m.isBuiltin"
@@ -492,6 +539,9 @@
 								</button>
 							</div>
 						</div>
+						<p v-if="duplicateError" class="mm-add-error mm-duplicate-error">
+							{{ duplicateError }}
+						</p>
 
 						<!-- Skill 编辑面板 -->
 						<div v-if="editingSkillModule" class="mm-skill-editor-area">
@@ -1042,6 +1092,11 @@
 	.mm-skill-editor-area {
 		padding: 10px 16px 12px;
 		border-top: 1px solid #e2e8f0;
+	}
+
+	.mm-duplicate-error {
+		padding: 4px 16px 0;
+		margin: 0;
 	}
 
 	/* ── 添加区 ──────────────────────────────────────────────────────────────── */

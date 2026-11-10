@@ -119,6 +119,18 @@ export const useModulesStore = defineStore('modules', () => {
     return module;
   }
 
+  /** 复制定制：复制官方内置模块的 Skill 为用户副本（新建自定义模块） */
+  async function duplicateSkill(moduleId: string): Promise<ModuleTemplate> {
+    const res = await fetch(`/api/modules/${moduleId}/skill/duplicate`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '复制失败' }));
+      throw new Error((err as { error?: string }).error ?? '复制失败');
+    }
+    const module = await res.json() as ModuleTemplate;
+    library.value.push(module);
+    return module;
+  }
+
   async function optimizeSkill(moduleId: string, instruction: string): Promise<{ optimizedContent: string }> {
     const res = await fetch(`/api/modules/${moduleId}/skill/optimize`, {
       method: 'POST',
@@ -135,6 +147,6 @@ export const useModulesStore = defineStore('modules', () => {
   return {
     library, loading, fetchModules, addModule, deleteModule,
     getSkillContent, saveSkillContent, getSkillVersions, getSkillVersion,
-    rollbackSkill, exportSkill, importSkill, optimizeSkill,
+    rollbackSkill, exportSkill, importSkill, optimizeSkill, duplicateSkill,
   }
 })

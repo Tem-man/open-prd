@@ -2,21 +2,66 @@
 	import { ref, computed } from "vue";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { useMessagesStore } from "@/stores/messages";
+	import { usePrdEditStore } from "@/stores/prdEdit";
+	import { exportPrdToDocx } from "@/utils/docxExport";
 
 	const visible = defineModel<boolean>({ default: false });
 
 	const sessionsStore = useSessionsStore();
 	const messagesStore = useMessagesStore();
+	const prdEditStore = usePrdEditStore();
 
-	const exportFormat = ref<"html" | "markdown" | "pdf">("html");
+	const exportFormat = ref<"html" | "markdown" | "pdf" | "docx">("html");
 	const currentSession = computed(() => sessionsStore.currentSession);
+	const exporting = ref(false); // docx 导出中（图表渲染 + 光栅化耗时较长）
+	const exportError = ref("");
 
 	function close() {
 		visible.value = false;
 	}
 
-	function handleExport() {
-		if (!messagesStore.prdHtml) return;
+	/** 重新选择格式或重新打开弹窗时清掉上一次的错误提示 */
+	function clearError() {
+		exportError.value = "";
+	}
+
+	async function exportDocx() {
+		const session = currentSession.value;
+		if (!session?.id) {
+			exportError.value = "当前会话不可用，无法导出";
+			return;
+		}
+		exporting.value = true;
+		try {
+			// 权威数据源是结构化模块内容（prdHtml 里图表是未渲染的源码文本）
+			if (!prdEditStore.sections.length) {
+				await prdEditStore.loadSections(session.id);
+			}
+			const sections = prdEditStore.sections.map((s) => ({
+				sectionId: s.sectionId,
+				title: s.title,
+				html: s.html,
+			}));
+			if (!sections.length) throw new Error("PRD 模块内容为空，无法导出");
+			await exportPrdToDocx({ title: session.title || "prd", sections });
+			close();
+		} catch (err) {
+			console.error("[docx] 导出失败", err);
+			exportError.value =
+				err instanceof Error ? err.message : "导出 Word 失败，请重试";
+		} finally {
+			exporting.value = false;
+		}
+	}
+
+	async function handleExport() {
+		if (!messagesStore.prdHtml || exporting.value) return;
+		clearError();
+		// docx 流程独立（图表渲染 + 光栅化耗时，成功前不关闭弹窗）
+		if (exportFormat.value === "docx") {
+			await exportDocx();
+			return;
+		}
 		if (exportFormat.value === "html") {
 			const blob = new Blob([messagesStore.prdHtml], {
 				type: "text/html;charset=utf-8",
@@ -118,11 +163,43 @@
 							:class="{ checked: exportFormat === 'pdf' }"
 						></div>
 					</label>
+
+					<label class="format-item" :class="{ active: exportFormat === 'docx' }">
+						<input
+							type="radio"
+							name="fmt"
+							value="docx"
+							v-model="exportFormat"
+							@change="clearError"
+						/>
+						<div class="format-icon docx">
+							<icon-lucide-file-type />
+						</div>
+						<div class="format-info">
+							<strong>Word 文档</strong>
+							<span>可在 Word 中编辑与批注的 .docx 文档，图表转为图片</span>
+						</div>
+						<div
+							class="format-radio"
+							:class="{ checked: exportFormat === 'docx' }"
+						></div>
+					</label>
 				</div>
 
+				<p v-if="exportError" class="modal-error">{{ exportError }}</p>
+
 				<div class="modal-footer">
-					<button class="btn-cancel" @click="close">取消</button>
-					<button class="btn-confirm" @click="handleExport">确认导出</button>
+					<button class="btn-cancel" :disabled="exporting" @click="close">
+						取消
+					</button>
+					<button
+						class="btn-confirm"
+						:disabled="exporting"
+						:class="{ loading: exporting }"
+						@click="handleExport"
+					>
+						{{ exporting ? "导出中…" : "确认导出" }}
+					</button>
 				</div>
 			</div>
 		</div>
@@ -248,6 +325,10 @@
 		&.pdf {
 			color: var(--color-primary);
 		}
+
+		&.docx {
+			color: #185abd; // Word 品牌蓝
+		}
 	}
 
 	.format-info {
@@ -292,6 +373,13 @@
 		margin-top: 12px;
 	}
 
+	.modal-error {
+		font-size: 12px;
+		color: #ef4444;
+		padding: 8px 20px 0;
+		margin: 0;
+	}
+
 	.btn-cancel {
 		padding: 7px 18px;
 		border: 1px solid var(--color-border);
@@ -302,8 +390,13 @@
 		cursor: pointer;
 		transition: background 0.15s;
 
-		&:hover {
+		&:hover:not(:disabled) {
 			background: var(--color-bg-tertiary);
+		}
+
+		&:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
 		}
 	}
 
@@ -316,10 +409,15 @@
 		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
-		transition: background 0.15s;
+		transition: background 0.15s, opacity 0.15s;
 
-		&:hover {
+		&:hover:not(:disabled) {
 			background: var(--color-primary-hover);
+		}
+
+		&:disabled {
+			opacity: 0.7;
+			cursor: not-allowed;
 		}
 	}
 </style>
