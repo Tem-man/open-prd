@@ -27,6 +27,7 @@ export type Tool =
   | 'TEXT'
   | 'PEN'
   | 'HAND'
+  | 'COMMENT'
 
 export interface EditorState {
   activeTool: Tool

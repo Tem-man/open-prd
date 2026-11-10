@@ -12,6 +12,7 @@ export * from './shared-styles'
 export { default as TransformMatrix } from './matrix'
 export type { Mat3 } from './matrix'
 export { UndoManager, type UndoEntry, type UndoManagerOptions } from './undo'
+export type { CommentAuthor, CommentReply, CommentThread } from './comments'
 
 import { createNanoEvents } from 'nanoevents'
 

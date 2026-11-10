@@ -71,5 +71,11 @@ export function handleToolMouseDown({
     return
   }
 
+  // The comment tool places pins from the comments layer in the shell; drawing here would put
+  // a shape under every pin.
+  if (tool === 'COMMENT') {
+    return
+  }
+
   startShapeDraw(cx, cy, editor, setDrag)
 }
