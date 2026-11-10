@@ -1,6 +1,7 @@
 import type { ComponentsJSON } from '@nanostores/i18n'
 
 import commands from './commands.json'
+import comments from './comments.json'
 import dialogs from './dialogs.json'
 import menu from './menu.json'
 import pages from './pages.json'
@@ -11,6 +12,7 @@ import variableTypes from './variable-types.json'
 export default {
   menu: menu,
   commands: commands,
+  comments: comments,
   tools: tools,
   panels: panels,
   variableTypes: variableTypes,

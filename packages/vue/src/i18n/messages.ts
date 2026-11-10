@@ -1,4 +1,5 @@
 import { commandMessageDefaults } from '#vue/i18n/messages/commands'
+import { commentMessageDefaults } from '#vue/i18n/messages/comments'
 import { dialogMessageDefaults } from '#vue/i18n/messages/dialogs'
 import { menuMessageDefaults } from '#vue/i18n/messages/menu'
 import { pageMessageDefaults } from '#vue/i18n/messages/pages'
@@ -16,6 +17,7 @@ export {
 } from '#vue/i18n/messages/variable-types'
 export { pageMessages, pageMessageDefaults } from '#vue/i18n/messages/pages'
 export { dialogMessages, dialogMessageDefaults } from '#vue/i18n/messages/dialogs'
+export { commentMessages, commentMessageDefaults } from '#vue/i18n/messages/comments'
 
 export const messageDefaults = {
   menu: menuMessageDefaults,
@@ -24,5 +26,6 @@ export const messageDefaults = {
   panels: panelMessageDefaults,
   variableTypes: variableTypeMessageDefaults,
   pages: pageMessageDefaults,
-  dialogs: dialogMessageDefaults
+  dialogs: dialogMessageDefaults,
+  comments: commentMessageDefaults
 } as const

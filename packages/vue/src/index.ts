@@ -371,6 +371,7 @@ export {
   useVariableTypeMessages,
   usePageMessages,
   useDialogMessages,
+  useCommentMessages,
   i18n
 } from '#vue/i18n'
 export {

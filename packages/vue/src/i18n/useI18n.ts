@@ -11,7 +11,8 @@ import {
   panelMessages,
   variableTypeMessages,
   pageMessages,
-  dialogMessages
+  dialogMessages,
+  commentMessages
 } from '#vue/i18n/messages'
 
 /**
@@ -64,6 +65,10 @@ export function useDialogMessages() {
   return useI18nNamespace(dialogMessages)
 }
 
+export function useCommentMessages() {
+  return useI18nNamespace(commentMessages)
+}
+
 export function useI18n() {
   return {
     menu: useMenuMessages(),
@@ -73,6 +78,7 @@ export function useI18n() {
     variableTypes: useVariableTypeMessages(),
     pages: usePageMessages(),
     dialogs: useDialogMessages(),
+    comments: useCommentMessages(),
     locale: useStore(locale) as Ref<Locale>,
     availableLocales: AVAILABLE_LOCALES,
     localeLabels: LOCALE_LABELS,
