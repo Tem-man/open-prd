@@ -5,6 +5,7 @@ import { useEditorCommands, useI18n } from '@open-pencil/vue'
 
 import { useEditorStore } from '@/app/editor/active-store'
 import { executeClipboardCommand } from '@/app/editor/clipboard/system'
+import { useComments } from '@/app/comments/use'
 import { createSharedEditorMenuActions } from '@/app/shell/menu/editor-actions'
 import type { AppMenuActionItem, AppMenuEntry, AppMenuGroupSchema } from '@/app/shell/menu/schema'
 import { APP_MENU_SCHEMA } from '@/app/shell/menu/schema'
@@ -78,6 +79,8 @@ export function useAppMenu() {
     if (store.state.selectedIds.size > 0) void store.exportSelection(1, format)
   }
 
+  const comments = useComments()
+
   const actions: Partial<Record<string, () => void>> = {
     new: () => {
       void import('@/app/tabs').then((m) => m.createTab())
@@ -93,6 +96,7 @@ export function useAppMenu() {
     'export-svg': () => exportSelection('svg'),
     'export-pptx': () => exportSelection('pptx'),
     'export-fig': () => exportSelection('fig'),
+    'view-comments': () => comments.toggleOnCanvas(),
     ...createSharedEditorMenuActions(setTheme)
   }
 
@@ -106,6 +110,8 @@ export function useAppMenu() {
         return store.state.autosaveEnabled
       case 'profiler':
         return store.renderer?.profiler.hudVisible ?? false
+      case 'view-comments':
+        return comments.showOnCanvas.value
       case 'theme-light':
         return theme.value === 'light'
       case 'theme-dark':
@@ -125,6 +131,8 @@ export function useAppMenu() {
         }
       case 'profiler':
         return () => store.toggleProfiler()
+      case 'view-comments':
+        return itemAction(item)
       case 'theme-light':
       case 'theme-dark':
       case 'theme-auto':

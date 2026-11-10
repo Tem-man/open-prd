@@ -3,14 +3,17 @@ import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 
 import { useI18n } from '@open-pencil/vue'
 import { useAIChat } from '@/app/ai/chat/use'
+import { useEditorStore } from '@/app/editor/active-store'
 
 import ChatPanel from './ChatPanel.vue'
 import CodePanel from './CodePanel.vue'
+import CommentsPanel from './comments/CommentsPanel.vue'
 import DesignPanel from './DesignPanel.vue'
 import ZoomDropdown from './editor/ZoomDropdown.vue'
 
 const { activeTab } = useAIChat()
 const { panels } = useI18n()
+const store = useEditorStore()
 </script>
 
 <template>
@@ -19,7 +22,12 @@ const { panels } = useI18n()
     class="flex min-w-0 flex-1 flex-col overflow-hidden border-l border-border bg-panel"
     style="contain: paint layout style"
   >
-    <TabsRoot v-model="activeTab" class="flex min-h-0 flex-1 flex-col">
+    <CommentsPanel v-if="store.state.activeTool === 'COMMENT'" />
+    <TabsRoot
+      v-else
+      v-model="activeTab"
+      class="flex min-h-0 flex-1 flex-col"
+    >
       <TabsList class="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
         <TabsTrigger
           value="design"

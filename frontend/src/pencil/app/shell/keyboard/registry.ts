@@ -159,6 +159,11 @@ export function registerKeyboardShortcuts(options: KeyboardShortcutOptions) {
       keys: 'Shift+KeyA',
       run: ({ actions }) => actions.toggleAutoLayout()
     },
+    {
+      id: 'view-comments',
+      keys: appMenuTinykeysShortcut('view-comments') ?? 'Shift+KeyC',
+      run: ({ actions }) => actions.toggleComments()
+    },
     ...commandShortcuts('selection.bringToFront', 'selection.sendToBack'),
     { id: 'delete-backspace', keys: 'Backspace', run: ({ actions }) => actions.smartDelete(false) },
     { id: 'delete', keys: 'Delete', run: ({ actions }) => actions.smartDelete(false) },

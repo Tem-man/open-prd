@@ -17,46 +17,46 @@ open-prd 里**评论功能完全不存在**（全仓 grep `comment|Comment` 在�
 
 ### 1.1 引擎层现状（`packages/*`，直接可用 / 需补 / 需确认）
 
-| 项 | 现状 | 对评论的影响 |
-| --- | --- | --- |
-| `Tool` 联合类型 | `packages/core/src/editor/types.ts:18-29`，11 个工具，**无 `'COMMENT'`** | 新增枚举值；所有 `Record<Tool,…>` 侧表联动改 |
-| 工具表 | `packages/core/src/editor/tool-registry.ts`（10 项）+ `TOOL_SHORTCUTS`（**无 `KeyC`，无占用冲突**） | 加 `{ key:'COMMENT', label:'Comment', shortcut:'C' }` |
-| 画布工具输入 | `packages/vue/src/canvas/tool-input/use.ts` 的 `handleToolMouseDown` 是 **if 链**（非上游最新的 `CANVAS_TOOLS` 注册表） | 不加分支；Comment 工具的画布点击由应用层捕获层吞掉（同上游设计） |
-| 工具光标 | `packages/vue/src/editor/tool-cursor/index.ts`，`Record<Tool,string>` 纯 CSS 光标，无 comment.svg | 简化：`COMMENT: 'copy'`（或后续补 SVG 光标） |
-| pluginData | `SceneNode.pluginData: PluginDataEntry[]`（`scene-graph/src/types.ts:508`，条目 `{ pluginId, key, value: string }` :287），**无 readPluginData/withPluginData 辅助、无 OPEN_PENCIL_PLUGIN_DATA 字段表** | 需新建一个小工具模块（读写 + 常量） |
-| SceneGraph API | `rootId/getNode/updateNode/hitTest/getAbsolutePosition` 均在（`scene-graph/src/index.ts`）；nanoevents `node:created/:updated/:reparented/:reordered/:deleted` | 评论依赖的图 API 基本齐全；**无 `closest()`**（需补） |
-| 随机 ID | `randomHex/randomInt/randomIndex` 已有（`scene-graph/src/index.ts:4` → `random.ts`，crypto） | 直接用于 `c_`/`r_` ID |
-| 撤销 | **命令式** `UndoManager`（forward/inverse 闭包栈，`scene-graph/src/undo.ts`）+ 显式 `ctx.undo.push`（如 `core/src/editor/undo.ts:37`） | 评论写入根节点不会自动进 undo —— 天然满足"评论不入 undo"；页面快照恢复（`editor/history/snapshot.ts`）只操作 page 子树，不触根 pluginData（仍需验证项 V2） |
-| `.fig` 持久化 | 导出已接 pluginData：`packages/fig/src/node-change/export-node.ts:837-838` `mergePluginData(node.pluginData)`，解析侧 `convert.ts:678` | **评论作为根节点 pluginData 自动随 `.fig` 持久化**，后端零改动 |
-| 归属常量 | `OPEN_PENCIL_PLUGIN_ID` 定义在 `packages/fig/src/node-change/plugin-data.ts`；scene-graph 侧无 | 评论字段常量放 scene-graph，避免反向依赖 |
+| 项              | 现状                                                                                                                                                                                                    | 对评论的影响                                                                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Tool` 联合类型 | `packages/core/src/editor/types.ts:18-29`，11 个工具，**无 `'COMMENT'`**                                                                                                                                | 新增枚举值；所有 `Record<Tool,…>` 侧表联动改                                                                                                               |
+| 工具表          | `packages/core/src/editor/tool-registry.ts`（10 项）+ `TOOL_SHORTCUTS`（**无 `KeyC`，无占用冲突**）                                                                                                     | 加 `{ key:'COMMENT', label:'Comment', shortcut:'C' }`                                                                                                      |
+| 画布工具输入    | `packages/vue/src/canvas/tool-input/use.ts` 的 `handleToolMouseDown` 是 **if 链**（非上游最新的 `CANVAS_TOOLS` 注册表）                                                                                 | 不加分支；Comment 工具的画布点击由应用层捕获层吞掉（同上游设计）                                                                                           |
+| 工具光标        | `packages/vue/src/editor/tool-cursor/index.ts`，`Record<Tool,string>` 纯 CSS 光标，无 comment.svg                                                                                                       | 简化：`COMMENT: 'copy'`（或后续补 SVG 光标）                                                                                                               |
+| pluginData      | `SceneNode.pluginData: PluginDataEntry[]`（`scene-graph/src/types.ts:508`，条目 `{ pluginId, key, value: string }` :287），**无 readPluginData/withPluginData 辅助、无 OPEN_PENCIL_PLUGIN_DATA 字段表** | 需新建一个小工具模块（读写 + 常量）                                                                                                                        |
+| SceneGraph API  | `rootId/getNode/updateNode/hitTest/getAbsolutePosition` 均在（`scene-graph/src/index.ts`）；nanoevents `node:created/:updated/:reparented/:reordered/:deleted`                                          | 评论依赖的图 API 基本齐全；**无 `closest()`**（需补）                                                                                                      |
+| 随机 ID         | `randomHex/randomInt/randomIndex` 已有（`scene-graph/src/index.ts:4` → `random.ts`，crypto）                                                                                                            | 直接用于 `c_`/`r_` ID                                                                                                                                      |
+| 撤销            | **命令式** `UndoManager`（forward/inverse 闭包栈，`scene-graph/src/undo.ts`）+ 显式 `ctx.undo.push`（如 `core/src/editor/undo.ts:37`）                                                                  | 评论写入根节点不会自动进 undo —— 天然满足"评论不入 undo"；页面快照恢复（`editor/history/snapshot.ts`）只操作 page 子树，不触根 pluginData（仍需验证项 V2） |
+| `.fig` 持久化   | 导出已接 pluginData：`packages/fig/src/node-change/export-node.ts:837-838` `mergePluginData(node.pluginData)`，解析侧 `convert.ts:678`                                                                  | **评论作为根节点 pluginData 自动随 `.fig` 持久化**，后端零改动                                                                                             |
+| 归属常量        | `OPEN_PENCIL_PLUGIN_ID` 定义在 `packages/fig/src/node-change/plugin-data.ts`；scene-graph 侧无                                                                                                          | 评论字段常量放 scene-graph，避免反向依赖                                                                                                                   |
 
 ### 1.2 壳层现状（`frontend/src/pencil/`）
 
-| 项 | 现状 | 集成点 |
-| --- | --- | --- |
-| 评论状态/组件 | 无 `app/comments`、`components/comments`、theme；i18n 无 comments 命名空间 | 全部新建，从当前 open-pencil 树移植 |
-| 画布挂载 | `components/EditorCanvas.vue`（201 行收窄版）：scene/overlay 双 canvas、`ContextMenuRoot`+`CanvasMenu`、`useCanvasVirtualReference` 挂锚自动布局 padding 编辑器（:101,142-177） | CommentsLayer 挂在第二个 `<canvas>`（:124）之后；`useCanvasVirtualReference` 直接复用为卡片锚 |
-| 右侧栏 | `components/PropertiesPanel.vue`：Design/Code/AI 三 Tabs，`useAIChat().activeTab` 驱动 | Comment 工具激活时整栏替换为 CommentsPanel（同上游） |
-| 工具条 | `components/Toolbar/Toolbar.vue`：`toolLabels`(:28-40)、`toolShortcuts`(:42-54) `Record<Tool,…>` 硬编码；`app/editor/icons.ts:22` `toolIcons` | 三处集合加 COMMENT（图标 lucide `message-circle`） |
-| 键盘 | `app/shell/keyboard/registry.ts`（tinykeys + 命令绑定）；**无上游 onEscape 栈** | Shift+C 走 registry 加一条；Escape 关卡片由 CommentsLayer 自行监听 keydown |
-| 偏好设置 | **未迁移**（`app/settings/` 只有 credentials+dialog） | 新建轻量 `app/settings/preferences.ts`（VueUse `useLocalStorage`） |
-| 身份/协作 | `app/collab/use.ts` 为 no-op 桩（迁移裁掉协作） | 无多端：作者取本地身份（localStorage），`authorColor` 单色或从调色板派生 |
-| 自动保存 | `app/document/autosave/create.ts` `watchDebounced(state.sceneVersion, 3000)` → `saveCurrentDocument` → `exportFigFile(graph)`（`app/document/io/source.ts:50`）→ `PUT/POST /api/prototypes/:id` 原子写（`backend/src/services/prototypeStore.ts:42` tmp+rename） | 评论写根节点 → 若 sceneVersion 递增（V1）则 autosave 自动覆盖，后端零改动 |
-| i18n | nanostores；命名空间 = `packages/vue/src/i18n/messages/<ns>.ts` + `locales/<locale>/<ns>.json`，`messages.ts:20-28` 聚合 `messageDefaults`；语言可切换（en + 8 语言） | 新增 `comments` 命名空间（messages 文件 + 8 个 locale json + index 注册） |
-| Markdown 渲染 | **无渲染器**（`app/shell/markdown/index.ts` 仅 `export default undefined`）；但 `vue-stream-markdown@^1.0.3`、`marked@^18` 都在 `frontend/package.json` deps | 评论文本的 Markdown 渲染方案见 §7.3 |
-| 依赖就绪 | `@vueuse/core 14.2.1`（`createGlobalState`）、`tailwind-variants`、`reka-ui 2.9.2`、`valibot` 均已装 | 组件可按上游原样移植 |
+| 项            | 现状                                                                                                                                                                                                                                                             | 集成点                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 评论状态/组件 | 无 `app/comments`、`components/comments`、theme；i18n 无 comments 命名空间                                                                                                                                                                                       | 全部新建，从当前 open-pencil 树移植                                                           |
+| 画布挂载      | `components/EditorCanvas.vue`（201 行收窄版）：scene/overlay 双 canvas、`ContextMenuRoot`+`CanvasMenu`、`useCanvasVirtualReference` 挂锚自动布局 padding 编辑器（:101,142-177）                                                                                  | CommentsLayer 挂在第二个 `<canvas>`（:124）之后；`useCanvasVirtualReference` 直接复用为卡片锚 |
+| 右侧栏        | `components/PropertiesPanel.vue`：Design/Code/AI 三 Tabs，`useAIChat().activeTab` 驱动                                                                                                                                                                           | Comment 工具激活时整栏替换为 CommentsPanel（同上游）                                          |
+| 工具条        | `components/Toolbar/Toolbar.vue`：`toolLabels`(:28-40)、`toolShortcuts`(:42-54) `Record<Tool,…>` 硬编码；`app/editor/icons.ts:22` `toolIcons`                                                                                                                    | 三处集合加 COMMENT（图标 lucide `message-circle`）                                            |
+| 键盘          | `app/shell/keyboard/registry.ts`（tinykeys + 命令绑定）；**无上游 onEscape 栈**                                                                                                                                                                                  | Shift+C 走 registry 加一条；Escape 关卡片由 CommentsLayer 自行监听 keydown                    |
+| 偏好设置      | **未迁移**（`app/settings/` 只有 credentials+dialog）                                                                                                                                                                                                            | 新建轻量 `app/settings/preferences.ts`（VueUse `useLocalStorage`）                            |
+| 身份/协作     | `app/collab/use.ts` 为 no-op 桩（迁移裁掉协作）                                                                                                                                                                                                                  | 无多端：作者取本地身份（localStorage），`authorColor` 单色或从调色板派生                      |
+| 自动保存      | `app/document/autosave/create.ts` `watchDebounced(state.sceneVersion, 3000)` → `saveCurrentDocument` → `exportFigFile(graph)`（`app/document/io/source.ts:50`）→ `PUT/POST /api/prototypes/:id` 原子写（`backend/src/services/prototypeStore.ts:42` tmp+rename） | 评论写根节点 → 若 sceneVersion 递增（V1）则 autosave 自动覆盖，后端零改动                     |
+| i18n          | nanostores；命名空间 = `packages/vue/src/i18n/messages/<ns>.ts` + `locales/<locale>/<ns>.json`，`messages.ts:20-28` 聚合 `messageDefaults`；语言可切换（en + 8 语言）                                                                                            | 新增 `comments` 命名空间（messages 文件 + 8 个 locale json + index 注册）                     |
+| Markdown 渲染 | **无渲染器**（`app/shell/markdown/index.ts` 仅 `export default undefined`）；但 `vue-stream-markdown@^1.0.3`、`marked@^18` 都在 `frontend/package.json` deps                                                                                                     | 评论文本的 Markdown 渲染方案见 §7.3                                                           |
+| 依赖就绪      | `@vueuse/core 14.2.1`（`createGlobalState`）、`tailwind-variants`、`reka-ui 2.9.2`、`valibot` 均已装                                                                                                                                                             | 组件可按上游原样移植                                                                          |
 
 ### 1.3 移植源（d:\AI\Donjet\open-pencil 当前工作树）
 
-| 上游文件 | 处置 |
-| --- | --- |
-| `packages/scene-graph/src/comments/{schema,threads,document,list,merge,index}.ts` | **直迁 + API 适配**（见 §3） |
-| `src/app/comments/{use,document,format}.ts` | **直迁 + 裁剪**（单机无协作 → 精简 sync/merge 路径） |
-| `src/components/comments/*`（12 组件 + author/ui/usePinDrag + 示例 threads.ts） | **直迁 + 少量适配**（Tailwind 主题同源可用） |
-| `src/theme/comments.ts` | 直迁 |
-| i18n `messages/comments.ts` + `locales/*/comments.json` | 直迁 + 注册 |
-| `markerdown` 渲染组件 `src/components/markdown/` | 方案见 §7.3 |
-| AI 评论工具 `packages/core/src/tools/comments.ts` | P3 可选（见 §8） |
+| 上游文件                                                                          | 处置                                                 |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `packages/scene-graph/src/comments/{schema,threads,document,list,merge,index}.ts` | **直迁 + API 适配**（见 §3）                         |
+| `src/app/comments/{use,document,format}.ts`                                       | **直迁 + 裁剪**（单机无协作 → 精简 sync/merge 路径） |
+| `src/components/comments/*`（12 组件 + author/ui/usePinDrag + 示例 threads.ts）   | **直迁 + 少量适配**（Tailwind 主题同源可用）         |
+| `src/theme/comments.ts`                                                           | 直迁                                                 |
+| i18n `messages/comments.ts` + `locales/*/comments.json`                           | 直迁 + 注册                                          |
+| `markerdown` 渲染组件 `src/components/markdown/`                                  | 方案见 §7.3                                          |
+| AI 评论工具 `packages/core/src/tools/comments.ts`                                 | P3 可选（见 §8）                                     |
 
 ---
 
@@ -97,16 +97,20 @@ packages/scene-graph/src/comments/
 
 ```ts
 // key 沿用上游约定
-export const OPEN_PENCIL_PLUGIN_ID = 'open-pencil'   // 与 packages/fig/src/node-change/plugin-data.ts 的常量对齐（实施时取该常量原名与值）
-export const COMMENTS_PLUGIN_KEY = 'comments'
+export const OPEN_PENCIL_PLUGIN_ID = "open-pencil"; // 与 packages/fig/src/node-change/plugin-data.ts 的常量对齐（实施时取该常量原名与值）
+export const COMMENTS_PLUGIN_KEY = "comments";
 
-function findEntry(pluginData: PluginDataEntry[], key: string): PluginDataEntry | undefined
+function findEntry(
+	pluginData: PluginDataEntry[],
+	key: string,
+): PluginDataEntry | undefined;
 // readComments: JSON.parse(entry.value) → commentThreadsSchema 校验
 // writeComments: 读 root → 拼 entry 数组 → graph.updateNode(root.id, { pluginData: [...] })
 //   threads 为空 → 移除该条目（同上游 writeComments 语义）
 ```
 
 要点（与上游一致）：
+
 - `writeComments` 是 `graph.updateNode` 的普通写入：触发渲染失效与保存请求（autosave），**不进 undo**（命令式栈不会自动包它）。
 - schema 继续"宽松解析、单条损坏牺牲单条"；`updatedAt` 空值回退 `createdAt`。
 - `commentAnchor` 依赖 `graph.hitTest` + "钉到顶层层"：上游用 `graph.closest()`，基线版没有。**在 threads.ts 内用父链 walk 实现**（从命中节点沿 `parentId` 上溯，直到父亲是页面/root 或 SECTION 的直接子层；带父环保护），避免为一次移植给 SceneGraph 加公开 API。若实施时倾向给 `index.ts` 补一个私有 `ancestorChain()`，需走 `packages/tsconfig.json` 同步检查（include 是通配，自动覆盖）。
@@ -158,14 +162,14 @@ src/pencil/app/comments/
 
 ```ts
 export function followDocumentComments(storeRef, onDocumentChange) {
-  const threads = ref<CommentThread[]>([])
-  // bind(store)：订阅 editor 事件
-  //   node:updated(root) → show(_comments.readComments(graph))          # 本会话/AI 工具/撤销(passthrough)后的重读
-  //   node:updated(其他)/node:reparented → rememberPositions()           # Pin 最后位置缓存
-  //   node:deleted → detachFromLayer(id)                                 # 层删 Pin 留位（nodeId:null + lastSeen 坐标）
-  //   graph 替换（readDocument 换图）→ onDocumentChange + 全量重读
-  // mutate(change) = readComments → change → writeComments → show
-  // update(id, edit) = mutate(editCommentThread(..., now(), edit))      # updatedAt 戳
+	const threads = ref<CommentThread[]>([]);
+	// bind(store)：订阅 editor 事件
+	//   node:updated(root) → show(_comments.readComments(graph))          # 本会话/AI 工具/撤销(passthrough)后的重读
+	//   node:updated(其他)/node:reparented → rememberPositions()           # Pin 最后位置缓存
+	//   node:deleted → detachFromLayer(id)                                 # 层删 Pin 留位（nodeId:null + lastSeen 坐标）
+	//   graph 替换（readDocument 换图）→ onDocumentChange + 全量重读
+	// mutate(change) = readComments → change → writeComments → show
+	// update(id, edit) = mutate(editCommentThread(..., now(), edit))      # updatedAt 戳
 }
 ```
 
@@ -191,13 +195,13 @@ open-prd 无 Tauri 原生菜单，桌面菜单是壳内 `shell/menu/`，P2 可�
 
 ### 6.1 组件清单（从上游整组移植）
 
-| 文件 | 说明 |
-| --- | --- |
-| `CommentsLayer.vue` | 画布覆盖层：Pin 渲染、捕获层、拖拽、草稿+线程卡片 popover、Pin 右键、滚轮转发 |
-| `CommentsPanel.vue` | 侧栏列表：搜索/筛选/排序（`listCommentThreads` + `commentThreadNumbers`） |
-| `CommentPin.vue` / `CommentThreadCard.vue` / `CommentComposer.vue` / `CommentMessage.vue` / `CommentListItem.vue` / `CommentActionsMenu.vue` / `CommentDeleteDialog.vue` / `CommentTime.vue` | 同上游 |
-| `author.ts` / `ui.ts` / `usePinDrag.ts` | 同上游（`pinPosition` 经 store 提供） |
-| `src/pencil/theme/comments.ts` | tv 主题直迁 |
+| 文件                                                                                                                                                                                         | 说明                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `CommentsLayer.vue`                                                                                                                                                                          | 画布覆盖层：Pin 渲染、捕获层、拖拽、草稿+线程卡片 popover、Pin 右键、滚轮转发 |
+| `CommentsPanel.vue`                                                                                                                                                                          | 侧栏列表：搜索/筛选/排序（`listCommentThreads` + `commentThreadNumbers`）     |
+| `CommentPin.vue` / `CommentThreadCard.vue` / `CommentComposer.vue` / `CommentMessage.vue` / `CommentListItem.vue` / `CommentActionsMenu.vue` / `CommentDeleteDialog.vue` / `CommentTime.vue` | 同上游                                                                        |
+| `author.ts` / `ui.ts` / `usePinDrag.ts`                                                                                                                                                      | 同上游（`pinPosition` 经 store 提供）                                         |
+| `src/pencil/theme/comments.ts`                                                                                                                                                               | tv 主题直迁                                                                   |
 
 适配点：
 
@@ -284,12 +288,12 @@ valibot 校验，Vercel AI SDK 的调用链在 `frontend/src/pencil/app/ai/tools
 移植上游 4 个工具（`packages/core/src/tools/comments.ts`，参数 schema 描述完全照搬），依赖 §三的
 repository，无需 `openpencil-api` 层 —— 工具直接 `getComments(graph, {...}).toJSON()`。
 
-| 工具 | 摘要 |
-| --- | --- |
-| `get_comments` | 读（`{ kind:'sync', mutation:'none' }`），默认只列未解决 |
-| `add_comment` | `{sync, document}`；`text`、`node?/page?/x?/y?/author?` |
-| `reply_to_comment` | 未知 id 返回 `{error}`，不瞎造 |
-| `resolve_comment` | `resolved?: boolean`（默认 true，false 重开） |
+| 工具               | 摘要                                                     |
+| ------------------ | -------------------------------------------------------- |
+| `get_comments`     | 读（`{ kind:'sync', mutation:'none' }`），默认只列未解决 |
+| `add_comment`      | `{sync, document}`；`text`、`node?/page?/x?/y?/author?`  |
+| `reply_to_comment` | 未知 id 返回 `{error}`，不瞎造                           |
+| `resolve_comment`  | `resolved?: boolean`（默认 true，false 重开）            |
 
 注册到 `registry-extended.ts` + 前端 catalog 默认启用集；i18n 键（工具描述走英文默认，无需 locale）。
 字段对齐（`author`）用 §5.2 identity；缺省作者名 `"Agent"`。
@@ -298,13 +302,13 @@ repository，无需 `openpencil-api` 层 —— 工具直接 `getComments(graph,
 
 ## 九、持久化 / 撤销 / 自动保存（验证计划 V1–V4）
 
-| # | 验证 | 已有事实 | 若失败 |
-| --- | --- | --- | --- |
-| V1 | 评论写入会推进 autosave：`graph.updateNode(root,{pluginData})` → sceneVersion 递增 | autosave 挂 `state.sceneVersion`（`autosave/create.ts:20-21`）；updateNode emit `node:updated`。**sceneVersion 的递增点在 core 会话（实施时找 sceneVersion++ 的触发集合，断定"任意节点变更都推进"还是白名单）** | 在 `writeComments` 后手动 bump（或经 ctx提供的 render/request 接口），并注明未来上游对齐 |
-| V2 | 撤销永不回滚评论：命令式 undo 无评论条目；页面快照 undo（`editor/history/snapshot.ts`）只恢复 page 子树 | 快照恢复不触 root pluginData；实施时写一条手动脚本验证（造评论 → 画形状 → 撤销 → 评论在） | 若有其他"恢复图"路径（readDocument 重载）依赖旧快照，重载后 comment 重读即可（本就全量重读） |
-| V3 | `.fig` 往返不丢评论：`exportFigFile` → 重开 → 评论仍在（根 pluginData） | `export-node.ts:837`、`convert.ts:678` 已通 pluginData | 手动：保存 → 刷新 → Pin 还在 |
-| V4 | Comment 工具激活时画布无副作用绘制/误选中 | `tool-input/use.ts` if 链默认落空 | 加 `tool === 'COMMENT' → return` 短路 |
-| V5 | 自动保存原子性无回归（tmp+rename 已） | `prototypeStore.ts:41-50` | — |
+| #   | 验证                                                                                                    | 已有事实                                                                                                                                                                                                        | 若失败                                                                                       |
+| --- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| V1  | 评论写入会推进 autosave：`graph.updateNode(root,{pluginData})` → sceneVersion 递增                      | autosave 挂 `state.sceneVersion`（`autosave/create.ts:20-21`）；updateNode emit `node:updated`。**sceneVersion 的递增点在 core 会话（实施时找 sceneVersion++ 的触发集合，断定"任意节点变更都推进"还是白名单）** | 在 `writeComments` 后手动 bump（或经 ctx提供的 render/request 接口），并注明未来上游对齐     |
+| V2  | 撤销永不回滚评论：命令式 undo 无评论条目；页面快照 undo（`editor/history/snapshot.ts`）只恢复 page 子树 | 快照恢复不触 root pluginData；实施时写一条手动脚本验证（造评论 → 画形状 → 撤销 → 评论在）                                                                                                                       | 若有其他"恢复图"路径（readDocument 重载）依赖旧快照，重载后 comment 重读即可（本就全量重读） |
+| V3  | `.fig` 往返不丢评论：`exportFigFile` → 重开 → 评论仍在（根 pluginData）                                 | `export-node.ts:837`、`convert.ts:678` 已通 pluginData                                                                                                                                                          | 手动：保存 → 刷新 → Pin 还在                                                                 |
+| V4  | Comment 工具激活时画布无副作用绘制/误选中                                                               | `tool-input/use.ts` if 链默认落空                                                                                                                                                                               | 加 `tool === 'COMMENT' → return` 短路                                                        |
+| V5  | 自动保存原子性无回归（tmp+rename 已）                                                                   | `prototypeStore.ts:41-50`                                                                                                                                                                                       | —                                                                                            |
 
 后端**零改动**：评论在 `.fig` 里，(`/api/prototypes/:id` 读写原型文件，无需新端点/新表；
 `backend/src/routes/prototypes.ts` 不碰)。
@@ -314,28 +318,33 @@ repository，无需 `openpencil-api` 层 —— 工具直接 `getComments(graph,
 ## 十、分阶段任务
 
 ### P0 — 数据层与工具枚举（引擎，可独立合入）
+
 - `packages/scene-graph/src/comments/`（schema/threads/repository/list/index）+ 桶文件导出；
   pluginData 读写小工具；`randomHex` 复用。
 - `Tool` 加 `'COMMENT'`；`EDITOR_TOOLS`/`TOOL_SHORTCUTS`/`TOOL_CURSORS`；tools i18n 键。
 - **验收**：typecheck 通过；`writeComments` 写入后 `readComments` 往返；V1/V4 定论。
 
 ### P1 — 应用状态 + 评论主链路（可用）
+
 - `app/comments/{use,document,format,identity}.ts` + `app/settings/preferences.ts`。
 - `components/comments/*` + `theme/comments.ts` + i18n comments 命名空间（≥ zh-CN，英文默认）
-  + markdown 渲染（§6.3 方案）。
+  - markdown 渲染（§6.3 方案）。
 - 集成：EditorCanvas 挂层、PropertiesPanel takeover、Toolbar 三处集合、Escape 处理。
-- **验收**：走完 §7.5 全链路（含拖 Pin、解决/重开/删除、列表筛选编号、Shift+C）；V2/V3 手动验证过。
+- **验收**：走完 §7.5 全链路（含拖 Pin、解决/重开/删除、列表筛选编号、Shift+C）；V2/V3 使用浏览自动化工具验证过。
 
 ### P2 — 打磨
+
 - View→Comments 复选项（`shell/menu/schema.ts` + `app-menu.ts` checked 逻辑）；SVG 评论光标资产；
   Avatar 组件补齐/最大化对齐上游视觉；`commentPreview` 移植；Mobile（`MobileHud/MobileDrawer`）里
   CommentsPanel 复用（上游做法：Comment 工具激活时抽屉换评论列表）。
 
 ### P3 — AI 工具（可选）
+
 - `packages/core/src/tools/comments.ts` 4 工具 + registry-extended + 前端 catalog 默认启用；
   manual 验证"问 AI 拿未解决评论/让它回复"。
 
 ### P4（显式不做）
+
 - 多人协作/多端合并/Y 房间同步 —— 未来如做，骨架已在（document.ts 事件形状与上游同构）。
 - Present/放映视图中显示评论 Pin（上游 present 视图也无 Pin）。
 - 脚本 API（`openpencil.getComments` 等 eval 层）—— open-prd 无此需求。
@@ -345,19 +354,19 @@ repository，无需 `openpencil-api` 层 —— 工具直接 `getComments(graph,
 
 ## 十一、风险对照
 
-| 风险 | 影响 | 处置 |
-| --- | --- | --- |
-| 引擎基线与上游最新差异（tool-input if 链 vs `CANVAS_TOOLS`、无 closest、无 prefs 体系） | 移植不是复制即用 | §3/§4/§5 已按基线落地；所有适配点集中在 `repository.ts` / `threads.ts` 局部函数与壳层接线 |
-| `sceneVersion` 白名单可能不含 pluginData 变更 | 保存不触发 | V1 验证 + 手动 bump 兜底（改动小、可回补） |
-| TypeScript 6.0 vs 上游 5.8 | 新文件类型报错 | 新文件按 `packages/tsconfig.json` 规则写（`noUnusedLocals:false` 宽松档，strict 保留） |
-| 上游 `CommentsLayer` 依赖未迁组件（PersonAvatar/AvatarStack/MarkdownContent） | 一处编译断 | §6.1.5、§6.3 两个替代方案；优先"整组补迁" |
-| `useCanvasVirtualReference` 与上游 PopoverContent 参考语义差（多一层封装） | 卡片位置偏 | EditorCanvas 已有同用法先例（padding 编辑器），按同模式传 anchor |
-| 删除层后 Pin 落点 drift（坐标基准换层数） | 视觉小 bug | `detachFromLayer` + `rememberPositions` 照迁 + 手动验收"删层 Pin 留位" |
-| `PropertiesPanel` takeover 与 AI activeTab 状态互踩 | 退出工具后 Tab 错位 | takeover 用 `v-if` 短路、不动 TabsRoot state；退出即还原 |
+| 风险                                                                                    | 影响                | 处置                                                                                      |
+| --------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------- |
+| 引擎基线与上游最新差异（tool-input if 链 vs `CANVAS_TOOLS`、无 closest、无 prefs 体系） | 移植不是复制即用    | §3/§4/§5 已按基线落地；所有适配点集中在 `repository.ts` / `threads.ts` 局部函数与壳层接线 |
+| `sceneVersion` 白名单可能不含 pluginData 变更                                           | 保存不触发          | V1 验证 + 手动 bump 兜底（改动小、可回补）                                                |
+| TypeScript 6.0 vs 上游 5.8                                                              | 新文件类型报错      | 新文件按 `packages/tsconfig.json` 规则写（`noUnusedLocals:false` 宽松档，strict 保留）    |
+| 上游 `CommentsLayer` 依赖未迁组件（PersonAvatar/AvatarStack/MarkdownContent）           | 一处编译断          | §6.1.5、§6.3 两个替代方案；优先"整组补迁"                                                 |
+| `useCanvasVirtualReference` 与上游 PopoverContent 参考语义差（多一层封装）              | 卡片位置偏          | EditorCanvas 已有同用法先例（padding 编辑器），按同模式传 anchor                          |
+| 删除层后 Pin 落点 drift（坐标基准换层数）                                               | 视觉小 bug          | `detachFromLayer` + `rememberPositions` 照迁 + 使用浏览自动验收"删层 Pin 留位"            |
+| `PropertiesPanel` takeover 与 AI activeTab 状态互踩                                     | 退出工具后 Tab 错位 | takeover 用 `v-if` 短路、不动 TabsRoot state；退出即还原                                  |
 
 ---
 
-## 十二、验收清单（对齐上游 e2e 场景，手动执行）
+## 十二、验收清单（对齐上游 e2e 场景，使用浏览自动化工具执行）
 
 1. `C` 选 Comment 工具：侧栏变评论列表；画布捕获态，点击 → 空 Pin + 输入框聚焦。
 2. 输入文本 Enter：创建线程，卡片转线程态、回复框聚焦；列表出现一项（编号 #1）。
@@ -374,6 +383,7 @@ repository，无需 `openpencil-api` 层 —— 工具直接 `getComments(graph,
 13. 暗色/亮色主题下 Pin/卡片可读（theme/comments.ts 用 panel/accent 令牌，与编辑器同源）。
 
 依赖命令（提交前）：
+
 ```
 pnpm --filter frontend typecheck
 pnpm --filter frontend typecheck:pencil

@@ -111,6 +111,7 @@ export const APP_MENU_SCHEMA = [
       { id: 'zoom-out', label: 'Zoom Out', shortcut: 'MOD+-' },
       { type: 'separator' },
       { id: 'present', label: 'Present Prototype' },
+      { id: 'view-comments', label: 'Comments', shortcut: 'SHIFT+C', checkbox: true },
       { type: 'separator' },
       {
         id: 'theme',

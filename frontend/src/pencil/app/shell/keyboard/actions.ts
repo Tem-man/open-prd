@@ -4,6 +4,7 @@ import { opacityFromBuffer } from '@open-pencil/core/editor'
 import type { useEditorCommands, useViewportKind } from '@open-pencil/vue'
 
 import type { EditorStore } from '@/app/editor/active-store'
+import { useComments } from '@/app/comments/use'
 
 type KeyboardActionsOptions = {
   store: EditorStore
@@ -69,8 +70,14 @@ export function createKeyboardActions({
       store.exitContainer()
       return
     }
+    // Under the Comment tool, Escape closes an open card first and leaves the tool second.
+    if (store.state.activeTool === 'COMMENT' && useComments().closeCard()) return
     store.clearSelection()
     store.setTool('SELECT')
+  }
+
+  function toggleComments() {
+    useComments().toggleOnCanvas()
   }
 
   function toggleAutoLayout() {
@@ -136,6 +143,7 @@ export function createKeyboardActions({
     toggleAutoLayout,
     toggleUI,
     toggleAI,
+    toggleComments,
     exportSelectionPng,
     opacityDigit
   }

@@ -97,6 +97,8 @@
 	--color-ruler-tick: rgb(102, 102, 102);
 	--color-ruler-text: rgb(140, 140, 140);
 	--color-ruler-label: rgb(255, 255, 255);
+	/* One step below the default sm scale, as the comments and panel themes use it. */
+	--text-2xs: 0.6875rem;
 }
 
 /*
