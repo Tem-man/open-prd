@@ -14,6 +14,7 @@ import type { Vector } from '@open-pencil/scene-graph/primitives'
 import { toolCursor, useCommentMessages } from '@open-pencil/vue'
 
 import { useComments } from '@/app/comments/use'
+import { useCommentIdentity } from '@/app/comments/identity'
 import { useEditorStore } from '@/app/editor/active-store'
 import { COMMENT_PIN_SIZE } from '@/theme/comments'
 import { useMenuUI } from '@/components/ui/menu'
@@ -43,10 +44,14 @@ const { canvasEl } = defineProps<{
 const store = useEditorStore()
 const comments = useComments()
 const author = useCommentAuthor()
+const { name: myName, color: myColor } = useCommentIdentity()
 const messages = useCommentMessages()
 const menuCls = useMenuUI({ content: 'min-w-40' })
 const ui = commentsTheme()
-const threadCard = 'flex max-h-[min(28rem,70vh)] w-80 flex-col overflow-hidden'
+// The thread card floats over the canvas like the draft card: an opaque white rounded card, since
+// the popover portals to the body and inherits nothing from the editor's scoped resets.
+const threadCard =
+  'flex max-h-[min(28rem,70vh)] w-80 flex-col overflow-hidden rounded-xl bg-panel shadow-[0_8px_30px_rgb(0_0_0/0.4)] ring-1 ring-black/10'
 const { activeThreadId, draft, showOnCanvas, listShowResolved } = comments
 const commenting = computed(() => store.state.activeTool === 'COMMENT')
 
@@ -243,6 +248,8 @@ function closeCard() {
             v-model="draftText"
             bare
             :label="messages.addComment"
+            :author="myName"
+            :author-color="myColor"
             @submit="postDraft"
             @cancel="closeCard"
           />

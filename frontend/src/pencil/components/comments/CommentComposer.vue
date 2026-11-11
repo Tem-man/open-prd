@@ -6,6 +6,8 @@ import { useCommentMessages } from '@open-pencil/vue'
 
 import { useButtonUI } from '@/components/ui/button'
 
+import type { Color } from '@open-pencil/scene-graph/primitives'
+
 import {
   commentFormatForKey,
   continueList,
@@ -13,16 +15,21 @@ import {
   type CommentEdit
 } from '@/app/comments/format'
 
+import { useCommentAuthor } from './author'
+import CommentAvatar from './CommentAvatar.vue'
 import { comments } from './ui'
 
 /**
  * Where a comment or reply is written. Enter sends and Shift+Enter starts a new line or list
  * item; Figma's shortcuts format the selection as Markdown (`format.ts`).
  */
-const { label, bare = false } = defineProps<{
+const { label, bare = false, author = '', authorColor } = defineProps<{
   label: string
   /** The composer is its card's whole content, as a new comment's is. */
   bare?: boolean
+  /** Who is writing: their avatar leads the composer, as in Figma's new-comment bubble. */
+  author?: string
+  authorColor?: Color
 }>()
 
 const emit = defineEmits<{ submit: [text: string]; cancel: [] }>()
@@ -35,6 +42,8 @@ const messages = useCommentMessages()
 const ui = computed(() => comments({ bare }))
 const send = useButtonUI({ tone: 'accent', shape: 'pill', size: 'sm' })
 const empty = computed(() => text.value.trim() === '')
+
+const who = useCommentAuthor()
 
 function submit() {
   if (empty.value) return
@@ -85,6 +94,12 @@ defineExpose({ focus })
 
 <template>
   <form data-slot="comment-composer" :class="ui.composer()" @submit.prevent="submit">
+    <CommentAvatar
+      v-if="author"
+      :name="who.name(author)"
+      :color="who.color(authorColor)"
+      :class="'ml-0.5'"
+    />
     <textarea
       ref="input"
       v-model="text"
@@ -99,9 +114,9 @@ defineExpose({ focus })
       type="submit"
       :disabled="empty"
       :aria-label="messages.send"
-      :class="[send.base, 'size-6 shrink-0 px-0']"
+      :class="[send.base, 'size-7 shrink-0 px-0']"
     >
-      <icon-lucide-arrow-up class="size-3.5" />
+      <icon-lucide-arrow-up class="size-4 shrink-0" />
     </button>
   </form>
 </template>

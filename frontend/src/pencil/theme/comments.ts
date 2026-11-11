@@ -19,9 +19,10 @@ export default {
     pinPreviewBody: 'flex w-max max-w-56 flex-col py-0.5 pr-2 pl-2 text-xs',
     pinText: 'line-clamp-2 break-words text-surface',
     card: 'flex max-h-[min(28rem,70vh)] w-80 flex-col overflow-hidden p-0',
-    // A new comment is the composer alone, floating beside its pin, as in Figma.
+    // A new comment is the composer alone, floating beside its pin, as in Figma: a white pill
+    // with the author's avatar leading the input and the accent send button closing the row.
     draftCard:
-      'w-72 rounded-[1.25rem] p-0 focus-within:shadow-[0_0_0_1px_var(--color-accent),0_8px_30px_rgb(0_0_0/0.4)]',
+      'w-72 rounded-[1.25rem] bg-panel p-1 shadow-[0_8px_30px_rgb(0_0_0/0.4)] ring-1 ring-black/10 focus-within:ring-2 focus-within:ring-accent',
     threadCard: 'flex min-h-0 flex-col',
     thread: 'scrollbar-thin flex min-h-0 flex-col gap-3 overflow-y-auto px-3 py-2.5',
     message: 'group/message grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5',
@@ -36,7 +37,7 @@ export default {
     composer:
       'flex items-end gap-1 rounded-lg border border-border bg-input py-1 pr-1 pl-3 focus-within:border-panel-focus focus-within:ring-1 focus-within:ring-accent/25',
     composerInput:
-      'scrollbar-thin max-h-40 min-w-0 flex-1 resize-none bg-transparent py-0.5 text-xs leading-5 text-surface outline-none placeholder:text-muted',
+      'scrollbar-thin max-h-40 min-w-0 flex-1 resize-none border-0 bg-transparent py-0.5 text-xs leading-5 text-surface outline-none placeholder:text-muted',
     panel: 'flex min-h-0 flex-1 flex-col',
     panelSearch: 'shrink-0 border-b border-border px-3 py-2',
     list: 'scrollbar-thin min-h-0 flex-1 overflow-y-auto',
@@ -57,7 +58,7 @@ export default {
     bare: {
       true: {
         composer:
-          'rounded-[1.25rem] border-0 bg-transparent py-1.5 pr-1.5 focus-within:border-0 focus-within:ring-0'
+          'items-center rounded-[1.25rem] border-0 bg-transparent py-1 pr-1 pl-1.5 focus-within:border-0 focus-within:ring-0'
       }
     }
   }

@@ -4,6 +4,7 @@ import { populateAndApplyOverrides } from '@open-pencil/fig/instance-overrides'
 import type { InstanceNodeChange } from '@open-pencil/fig/instance-overrides'
 import {
   applyStyleRefsToFields,
+  extractPluginData,
   guidToString,
   nodeChangeToProps,
   shouldImportTextAsAutoSize,
@@ -44,6 +45,10 @@ function applyImportedDocumentMetadata(graph: SceneGraph, docNc: NodeChange | un
   rootNode.source.format = 'fig'
   rootNode.source.fig.rawNodeFields.strokeJoin = docNc.strokeJoin
   rootNode.source.fig.rawNodeFields.strokeWeight = docNc.strokeWeight
+  // The document node change is not run through `nodeChangeToProps` (the root already exists),
+  // so its plugin data — e.g. canvas comments stored under the open-pencil plugin id — must be
+  // extracted explicitly or it is silently dropped on every import.
+  rootNode.pluginData = extractPluginData(docNc)
 }
 
 function assetRefKey(assetRef: AssetRef): string {

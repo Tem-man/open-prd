@@ -25,6 +25,7 @@ import IconButton from '@/components/ui/IconButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppPlaceholder from '@/components/ui/AppPlaceholder.vue'
 import { menuItem, useMenuUI } from '@/components/ui/menu'
+import { iconButtonClass } from '@/theme/icon-button'
 import ZoomDropdown from '@/components/editor/ZoomDropdown.vue'
 import PanelHeader from '@/components/ui/panel/PanelHeader.vue'
 
@@ -38,6 +39,7 @@ const comments = useComments()
 const messages = useCommentMessages()
 const menuCls = useMenuUI({ content: 'min-w-52' })
 const itemCls = menuItem({ justify: 'start', class: 'relative pl-7' })
+const iconBtnCls = iconButtonClass()
 const ui = commentsTheme()
 const { listQuery, listShowResolved, listOnlyPage, listSort, listOnlyMine } = comments
 
@@ -75,11 +77,15 @@ function setSort(value: unknown) {
       <template #actions>
         <ZoomDropdown />
         <DropdownMenuRoot :modal="false">
-          <DropdownMenuTrigger as-child>
-            <IconButton :label="messages.filterAndSort" :active="filtered">
-              <icon-lucide-list-filter class="size-3.5" />
-            </IconButton>
-          </DropdownMenuTrigger>
+        <!-- A real button, not `as-child` over IconButton: the popper needs the trigger's
+             element as its anchor or the menu drops at the viewport's top-left corner. -->
+        <DropdownMenuTrigger
+          :class="iconButtonClass({ active: filtered })"
+          :aria-label="messages.filterAndSort"
+          :data-state="filtered ? 'on' : 'off'"
+        >
+          <icon-lucide-list-filter class="size-3.5" />
+        </DropdownMenuTrigger>
           <DropdownMenuPortal>
             <DropdownMenuContent :class="menuCls.content" align="end" :side-offset="4">
               <DropdownMenuRadioGroup :model-value="listSort" @update:model-value="setSort">
@@ -149,10 +155,8 @@ function setSort(value: unknown) {
           >
             <template #actions>
               <DropdownMenuRoot :modal="false">
-                <DropdownMenuTrigger as-child>
-                  <IconButton :label="messages.moreActions">
-                    <icon-lucide-ellipsis class="size-3.5" />
-                  </IconButton>
+                <DropdownMenuTrigger :class="iconBtnCls" :aria-label="messages.moreActions">
+                  <icon-lucide-ellipsis class="size-3.5" />
                 </DropdownMenuTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuContent :class="menuCls.content" align="end" :side-offset="4">

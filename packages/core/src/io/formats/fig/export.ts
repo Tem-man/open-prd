@@ -3,7 +3,7 @@ import type { CanvasKit } from 'canvaskit-wasm'
 import { deflateSync, inflateSync } from 'fflate'
 
 import { compressFigDataSync } from '@open-pencil/fig'
-import { buildComponentPropIndex, stringToGuid } from '@open-pencil/fig/node-change'
+import { buildComponentPropIndex, mergePluginData, stringToGuid } from '@open-pencil/fig/node-change'
 import { initCodec, getCompiledSchema, getSchemaBytes } from '@open-pencil/kiwi/fig/codec'
 import type { NodeChange } from '@open-pencil/kiwi/fig/codec'
 import { decodeBinarySchema, compileSchema, ByteBuffer } from '@open-pencil/kiwi/schema-runtime'
@@ -411,7 +411,14 @@ export async function exportFigFile(
 
   const documentNc = makeDocumentNodeChange(docGuid, graph.documentColorSpace)
   const rootNode = graph.getNode(graph.rootId)
-  if (rootNode) Object.assign(documentNc, rootNode.source.fig.rawNodeFields)
+  if (rootNode) {
+    Object.assign(documentNc, rootNode.source.fig.rawNodeFields)
+    // The document node change is synthesized (not run through sceneNodeToKiwi), so its
+    // pluginData — e.g. canvas comments stored under the open-pencil plugin id — must be
+    // merged explicitly or it is silently dropped from every export.
+    const documentPluginData = mergePluginData(rootNode.pluginData)
+    if (documentPluginData.length > 0) documentNc.pluginData = documentPluginData
+  }
   const nodeChanges: KiwiNodeChange[] = [documentNc]
 
   const blobs: Uint8Array[] = []
