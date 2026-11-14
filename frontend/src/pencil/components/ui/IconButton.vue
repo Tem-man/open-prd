@@ -17,7 +17,7 @@ const {
   disabled?: boolean
   label?: string
   side?: 'top' | 'bottom' | 'left' | 'right'
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
   type?: 'button' | 'submit' | 'reset'
 }>()
 

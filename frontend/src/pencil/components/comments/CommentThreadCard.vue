@@ -34,7 +34,14 @@
 
 	const messages = useCommentMessages();
 	const menuCls = useMenuUI({ content: "min-w-40" });
-	const iconBtnCls = iconButtonClass({ size: "lg" });
+	const iconBtnCls = iconButtonClass({ size: "md" });
+	// The card's header shows the same full-size, high-contrast speech bubble as the reference:
+	// PanelHeader's default 3.5 muted glyph is too small and faint here, and its 14px grid column
+	// would clip a larger icon, so widen that column for this header only.
+	const headerUI = {
+		root: "grid-cols-[1.125rem_minmax(0,1fr)_auto] gap-2",
+		icon: "size-[1.125rem] text-muted",
+	};
 	const ui = comments();
 	const replyText = ref("");
 	const composer = useTemplateRef<{ focus: () => void }>("composer");
@@ -55,8 +62,10 @@
 		:aria-label="messages.comment"
 		:class="ui.threadCard()"
 	>
-		<PanelHeader>
-			<template #icon><icon-lucide-message-circle class="size-3.5" /></template>
+		<PanelHeader :ui="headerUI">
+			<template #icon
+				><icon-lucide-message-circle class="size-[1.125rem] shrink-0"
+			/></template>
 			{{ messages.comment }}
 			<template #actions>
 				<DropdownMenuRoot v-if="$slots.menu" :modal="false">
@@ -66,7 +75,7 @@
 						:class="iconBtnCls"
 						:aria-label="messages.moreActions"
 					>
-						<icon-lucide-ellipsis class="size-5" />
+						<icon-lucide-ellipsis class="size-4 shrink-0" />
 					</DropdownMenuTrigger>
 					<DropdownMenuPortal>
 						<DropdownMenuContent
@@ -81,15 +90,18 @@
 				<IconButton
 					:label="thread.resolved ? messages.reopen : messages.resolve"
 					:active="thread.resolved"
-					size="lg"
+					size="md"
 					data-command="comment-resolve"
 					@click="emit('resolve', thread.id, !thread.resolved)"
 				>
-					<icon-lucide-circle-check-big v-if="thread.resolved" class="size-5" />
-					<icon-lucide-circle-check v-else class="size-5" />
+					<icon-lucide-circle-check-big
+						v-if="thread.resolved"
+						class="size-4 shrink-0"
+					/>
+					<icon-lucide-circle-check v-else class="size-4 shrink-0" />
 				</IconButton>
-				<IconButton :label="messages.close" size="lg" @click="emit('close')">
-					<icon-lucide-x class="size-5" />
+				<IconButton :label="messages.close" size="md" @click="emit('close')">
+					<icon-lucide-x class="size-4 shrink-0" />
 				</IconButton>
 			</template>
 		</PanelHeader>
@@ -112,9 +124,10 @@
 				<template #actions>
 					<IconButton
 						:label="messages.deleteReply"
+						size="lg"
 						@click="emit('deleteReply', thread.id, entry.id)"
 					>
-						<icon-lucide-trash-2 class="size-3" />
+						<icon-lucide-trash-2 class="size-3.5 shrink-0" />
 					</IconButton>
 				</template>
 			</CommentMessage>

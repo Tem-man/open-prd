@@ -7,8 +7,9 @@ const theme = {
   variants: {
     size: {
       sm: 'size-5 rounded border-none text-sm leading-none',
-      // The comment card's header actions sit over a roomy white card, so they read bigger.
-      lg: 'size-7 rounded border-none text-base leading-none',
+      // Standalone actions (e.g. a reply's delete button) can be roomier than a
+      // panel header action. shrink-0 keeps the SVG from being squeezed by flex.
+      lg: 'size-7 shrink-0 rounded border-none text-base leading-none',
       md: panelIconButtonBase
     },
     active: {
@@ -30,7 +31,12 @@ const iconButton = tv(theme)
 /** The icon button's classes for when a component must render its own button element
  *  (reka-ui's `as-child` triggers need a real element to anchor their popper to). */
 export function iconButtonClass(
-  options?: { size?: 'sm' | 'md'; active?: boolean; disabled?: boolean; class?: string }
+  options?: {
+    size?: 'sm' | 'md' | 'lg'
+    active?: boolean
+    disabled?: boolean
+    class?: string
+  }
 ) {
   return iconButton(options)
 }

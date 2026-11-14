@@ -65,25 +65,14 @@
 	<header class="g-nav">
 		<div class="g-nav__left">
 			<div class="g-logo" @click="router.push('/')">
-				<div class="g-logo-icon">
-					<svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-						<rect
-							x="3"
-							y="2"
-							width="14"
-							height="16"
-							rx="2"
-							stroke="currentColor"
-							stroke-width="1.6"
-						/>
-						<path
-							d="M7 7h6M7 10.5h6M7 14h4"
-							stroke="currentColor"
-							stroke-width="1.4"
-							stroke-linecap="round"
-						/>
-					</svg>
-				</div>
+				<img
+					class="g-logo-icon"
+					src="/favicon.svg?v=2"
+					width="28"
+					height="28"
+					alt=""
+					draggable="false"
+				/>
 				<span class="g-logo-text">Open PRD</span>
 			</div>
 
@@ -255,13 +244,11 @@
 		&-icon {
 			width: 28px;
 			height: 28px;
-			border-radius: 6px;
-			background: var(--color-primary);
-			color: #fff;
-			display: flex;
-			align-items: center;
-			justify-content: center;
+			border-radius: 7px;
+			display: block;
+			object-fit: contain;
 			flex-shrink: 0;
+			box-shadow: 0 1px 3px rgba(49, 46, 129, 0.18);
 		}
 
 		&-text {

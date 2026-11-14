@@ -26,7 +26,8 @@ export default {
     threadCard: 'flex min-h-0 flex-col',
     thread: 'scrollbar-thin flex min-h-0 flex-col gap-3 overflow-y-auto px-3 py-2.5',
     message: 'group/message grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2 gap-y-0.5',
-    messageMeta: 'flex h-6 min-w-0 items-center gap-1.5 text-xs',
+    // Roomy enough for the (lg) reply action button without clipping it.
+    messageMeta: 'flex min-h-7 min-w-0 items-center gap-1.5 text-xs',
     messageAuthor: 'min-w-0 truncate font-semibold text-surface',
     messageTime: 'shrink-0 text-2xs text-muted',
     messageActions:
