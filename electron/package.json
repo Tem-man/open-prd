@@ -2,12 +2,14 @@
   "name": "electron",
   "private": true,
   "version": "0.1.0",
+  "description": "OpenPRD desktop application",
+  "author": "OpenPRD",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "dist": "electron-builder",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dist:dir": "electron-builder --dir",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

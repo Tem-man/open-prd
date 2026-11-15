@@ -1,0 +1,77 @@
+name: Desktop Release
+
+# 三平台原生构建：macOS dmg 必须在 macOS 主机（hdiutil / 签名工具链），
+# Linux AppImage 建议在 Ubuntu 主机，Windows NSIS 在 Windows 主机。
+# 本机跨平台构建 mac 会被 scripts/build-desktop.mjs 明确拒绝，Linux 在
+# Windows 上也不稳定，因此统一走这里。
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: "架构（x64 / arm64，留空用各平台默认）"
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            command: pnpm dist:win
+            artifact: windows-x64
+          - name: macOS arm64
+            os: macos-latest
+            command: pnpm dist:mac -- --arch=arm64
+            artifact: macos-arm64
+          - name: Linux x64
+            os: ubuntu-latest
+            command: pnpm dist:linux
+            artifact: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 由 frontend/public/favicon.svg 渲染出 icon.ico / icon.icns / icon.png，
+      # runner 需自带 Chrome 或 Chromium（三个平台的 GitHub runner 均有）。
+      - name: Generate icons
+        run: pnpm icon
+
+      - name: Build desktop app
+        run: ${{ matrix.command }}
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openprd-${{ matrix.artifact }}
+          if-no-files-found: error
+          path: |
+            electron/release/*/*.exe
+            electron/release/*/*.dmg
+            electron/release/*/*.zip
+            electron/release/*/*.AppImage
+            electron/release/*/*.deb

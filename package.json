@@ -11,6 +11,10 @@
     "typecheck": "pnpm --filter frontend typecheck && pnpm --filter backend typecheck",
     "start": "pnpm --filter daemon start",
     "stop": "pnpm --filter daemon stop",
-    "restart": "pnpm --filter daemon restart"
+    "restart": "pnpm --filter daemon restart",
+    "dist:win": "node scripts/build-desktop.mjs --platform=win32",
+    "dist:mac": "node scripts/build-desktop.mjs --platform=darwin",
+    "dist:linux": "node scripts/build-desktop.mjs --platform=linux",
+    "icon": "python scripts/generate-icon.py"
   }
 }

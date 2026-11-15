@@ -7,6 +7,14 @@ out/
 .DS_Store
 Thumbs.db
 
+# Windows 桌面打包中间产物与安装包输出
+.packaging/
+electron/release/
+
+# Python 图标生成脚本的字节码缓存
+__pycache__/
+*.pyc
+
 # Cursor IDE & Spec Kit（本地工具配置，不提交到仓库）
 .cursor/
 .specify/

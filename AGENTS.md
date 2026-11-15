@@ -13,7 +13,7 @@
 | Agent          | LangChain.js（默认），预留接口支持切换至本地 Claude Code 或 Codex    |
 | 数据持久化存储 | SQLite+ better-sqlite3                                               |
 | 模型 Provider  | `@langchain/openai`（GPT-4o）、`@langchain/anthropic`（Claude）      |
-| 桌面打包       | Electron 33 + electron-vite 3 + electron-builder 25                  |
+| 桌面打包       | Electron 42 + electron-vite 5 + electron-builder 26（Windows NSIS / portable、macOS dmg / zip、Linux AppImage / deb） |
 | 原型设计编辑器 | OpenPencil 引擎源码（CanvasKit/Skia WASM + Yoga WASM）+ Tailwind v4  |
 | 包管理         | **pnpm only**（禁止使用 npm 安装任何包）                             |
 
@@ -72,6 +72,14 @@ pnpm --filter backend dev
 # 构建
 pnpm --filter frontend build
 pnpm --filter backend build
+
+# 桌面应用打包（输出 electron/release/<version>/）
+pnpm dist:win              # Windows NSIS + portable (x64)
+pnpm dist:mac              # macOS dmg + zip（须在 macOS 主机执行）
+pnpm dist:linux            # Linux AppImage + deb（建议在 Linux 主机执行）
+pnpm dist:mac -- --arch=arm64   # 指定架构
+pnpm dist:win -- --dir    # 仅生成 unpacked 目录，调试用
+pnpm icon                 # 由 favicon.svg 生成 icon.ico / icon.icns / icon.png
 ```
 
 ---
@@ -486,8 +494,7 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
   import，且不引入 preflight（改为手写的作用域 reset），以免冲掉其余页面的 Sass/CSS 变量体系。
 - **静态资产不入库**。`canvaskit.wasm` 与内置字体由 `vite/pencil-assets.ts` 从
   `node_modules` / `packages/core/assets` 同步进 `frontend/public/`，已在 `.gitignore` 中排除。
-- **`base: "./"` 不能改回 `/`**。CanvasKit 与字体在运行时按 URL 抓取，Electron 用 `file://`
-  加载构建产物，根绝对路径会落到文件系统根目录。
+- **`base` 有两种取值，不要随意改默认值**。`frontend/vite.config.ts` 默认 `"./"`（Web 可部署到子路径）；桌面构建由 `scripts/build-desktop.mjs` 注入 `ELECTRON_BUILD=1` 切到 `"/"`。桌面版改由主进程内 Express 以 `http://127.0.0.1:<port>/` 同源托管，`"./"` 在 SPA 深链刷新时会把 `./assets/*` 解析成 `/session/assets/*`；CanvasKit 按 `BASE_URL` 抓取的 `/canvaskit.wasm` 也只有根路径能命中静态目录。旧的「`file://` 下不能用 `/`」约束已随 HTTP 托管方案失效。
 - **画布挂载用 `useCanvas(canvasRef, editor)` 配普通 `<canvas>`**，不要用
   `CanvasRoot` / `CanvasSurface`，原因见 `PENCIL_UPSTREAM.md` 的「已知偏差」。
 
@@ -500,7 +507,7 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 
 ### 已知未完成项
 
-- Electron 生产环境下路由仍是 `createWebHistory`，`file://` 加载时无法进入 `/prototype`。
+- ~~Electron 生产环境下 `createWebHistory` + `file://` 无法进入 `/prototype`~~ —— 已由桌面版 HTTP 同源托管 + SPA fallback + `ELECTRON_BUILD` base 开关解决（见 `docs/plan-windows-exe-packaging-C.md`）。
 - P1 已完成三栏布局 + 图层树 + 设计面板 + 底部工具条；Code/AI 完整能力、持久化、放映、矢量化仍按计划后续阶段推进。
 - `@/components/*` 在 `src/pencil/` 源码内会被 Vite 插件改写为 `@pencil/components/*`，避免与业务侧 `src/components` 冲突。
 
@@ -508,26 +515,31 @@ CREATE UNIQUE INDEX idx_prd_versions_active ON prd_versions (prd_id) WHERE is_ac
 
 ## Electron 桌面应用支持
 
-本项目支持打包为跨平台桌面应用（Windows / macOS / Linux），桌面壳层位于 `electron/` workspace 包，使用 **electron-vite** 构建、**electron-builder** 打包。
+桌面壳层位于 `electron/` workspace 包，工具链为 **Electron 42 + electron-vite 5 + electron-builder 26**，由 `scripts/build-desktop.mjs` 统一编排，支持 **Windows（NSIS + portable）、macOS（dmg + zip）、Linux（AppImage + deb）** 三平台，x64 / arm64。
+
+**平台限制**：macOS dmg 依赖 `hdiutil` 与签名工具链，只能在 macOS 主机构建（脚本会直接拒绝在其它平台执行 `dist:mac`）；Linux 包建议在原生 Linux 或 Docker 中构建。三平台正式发版走 `.github/workflows/desktop-release.yml` 的 matrix（windows-latest / macos-latest / ubuntu-latest）。
 
 **架构要点**：
 
-- electron-vite 负责构建 `main` + `preload`，渲染进程复用 `frontend/` 的 Vite 配置
-- 主进程直接 `import` backend 的 `startServer()`，内嵌 Express，通过 IPC 将端口传给渲染进程
-- 原生模块 `better-sqlite3` 需执行 `pnpm --filter electron rebuild` 重编译
-- 生产环境数据库路径切换为 `app.getPath('userData')/prd.db`
+- 主进程按文件路径 `pathToFileURL(<resources>/backend/dist/index.js)` 动态 `import()` backend，在主进程内启动 Express；**不使用 `file://` 加载页面**
+- Express 绑定 `127.0.0.1` 的随机端口，同时提供 `/api/*` 与 `frontend/dist` 静态资源 + SPA fallback，窗口 `loadURL(http://127.0.0.1:<port>/)`；因此前端 40+ 处相对 `fetch('/api/...')` 与 `createWebHistory` 均无需改动
+- 后端由 `pnpm --filter backend deploy --prod .packaging/backend` 生成自包含目录，作为 `extraResources` 放在 asar 外；`backend/package.json` 的 `files: ["dist"]` 保证 `.env` / `src` 不进包
+- `better-sqlite3` 必须在**隔离副本**上按**目标平台/架构**下载 Electron ABI 预编译包（`electron-v<ABI>-<platform>-<arch>`）后注入 deploy 产物：pnpm deploy 在 Windows 上使用硬链接，直接 rebuild 会污染主仓库 `node_modules`；Electron 42（ABI 146）的 win32-x64 / darwin-x64 / darwin-arm64 / linux-x64 / linux-arm64 预编译包均可用
+- 数据由 `app.getPath('userData')` 决定：Windows `%APPDATA%/OpenPRD/`、macOS `~/Library/Application Support/OpenPRD/`、Linux `~/.config/OpenPRD/`（`prd.db`、`prototypes/*.fig`、`skills/`、`.env`、`logs/`），覆盖升级与卸载均保留
+- 图标唯一权威源是 `frontend/public/favicon.svg`，`pnpm icon` 由它生成 `icon.ico`（Windows）、`icon.icns`（macOS）、`icon.png`（Linux）
 
-**pnpm-workspace.yaml** 需包含 `electron` 包：
+**命令**：
 
-```yaml
-packages:
-  - "frontend"
-  - "backend"
-  - "electron"
-  - "packages/*"
+```bash
+pnpm dist:win              # Windows NSIS + portable，输出 electron/release/<version>/*.exe
+pnpm dist:mac              # macOS dmg + zip（仅 macOS 主机）
+pnpm dist:linux            # Linux AppImage + deb（建议 Linux 主机）
+pnpm dist:mac -- --arch=arm64     # 指定架构
+pnpm dist:win -- --dir     # 仅生成 unpacked 目录，调试用
+pnpm icon                  # 由 favicon.svg 生成三平台图标
 ```
 
-> 完整实现规范（目录结构、配置文件、代码示例、打包配置）见 [`docs/electron-guide.md`](./docs/electron-guide.md)。
+> 完整设计与实施记录见 [`docs/plan-windows-exe-packaging-C.md`](./docs/plan-windows-exe-packaging-C.md)，桌面壳实现说明见 [`docs/electron-guide.md`](./docs/electron-guide.md)。
 
 <!-- OPENWIKI:START -->
 

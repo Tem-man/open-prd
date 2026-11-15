@@ -7,26 +7,63 @@ files:
   - out/
   - "!out/**/*.map"
 extraResources:
+  # 展平后的后端运行目录。必须把 node_modules 拆成独立条目：
+  # 从父目录整体复制时 electron-builder 会按目录名排除掉 node_modules，
+  # 而 from 直接指向该目录时，其内部相对路径不再含该名称，可完整复制。
+  - from: ../.packaging/runtime/dist/
+    to: backend/dist/
+  - from: ../.packaging/runtime/package.json
+    to: backend/package.json
+  - from: ../.packaging/runtime/node_modules/
+    to: backend/node_modules/
   - from: ../frontend/dist/
     to: frontend/dist/
-  - from: ../backend/dist/
-    to: backend/dist/
-  # 内置 Skill（只读）；打包后 <resources>/skills 与 backend 内置目录解析结果一致。
-  # 其中遗留的 skill-custom-* 会在首次启动时被迁移脚本拷入 userData。
+  # 仅内置 Skill（只读）；用户自建的 skill-custom-* 属于用户数据，不进安装包。
   - from: ../skills/
     to: skills/
+    filter:
+      - "**/*"
+      - "!skill-custom-*/**"
+# 原生模块由 scripts/build-desktop.mjs 显式 rebuild，禁止 electron-builder 用 Node ABI 再编一遍
+npmRebuild: false
+nodeGypRebuild: false
 win:
+  icon: build/icon.ico
+  # 架构由 scripts/build-desktop.mjs 的 --x64 / --arm64 决定，不在 yml 写死
   target:
     - target: nsis
-      arch: [x64]
+    - target: portable
+  requestedExecutionLevel: asInvoker
 mac:
+  icon: build/icon.icns
+  category: public.app-category.productivity
+  # 无 Apple Developer 证书：跳过签名与公证，产出未签名的 dmg / zip
+  identity: null
+  hardenedRuntime: false
   target:
     - target: dmg
-      arch: [x64, arm64]
+    - target: zip
+  artifactName: ${productName}-${version}-${arch}.${ext}
 linux:
+  icon: build/icon.png
+  category: Utility
+  # electron-builder 26 会由 package name 推导 AppImage 内部二进制名，显式指定更稳
+  executableName: openprd
   target:
-    - target: AppImage
-      arch: [x64]
+    - AppImage
+    - deb
+  artifactName: ${productName}-${version}-${arch}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  perMachine: false
+  # 本项目 publish: null、未接 electron-updater，差分包没有消费者；
+  # 关闭后不再生成 *.exe.blockmap。将来做自动更新时改回 true。
+  differentialPackage: false
+  artifactName: ${productName}-Setup-${version}.${ext}
+  createDesktopShortcut: true
+  shortcutName: ${productName}
+  deleteAppDataOnUninstall: false
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+publish: null

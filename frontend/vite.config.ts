@@ -14,10 +14,12 @@ import { rawTextAssetsPlugin } from "./vite/raw-markdown";
 const repoRoot = path.resolve(__dirname, "..");
 
 export default defineConfig({
-	// Electron loads the built index.html over file://, where root-absolute asset URLs resolve
-	// against the filesystem root. This also keeps CanvasKit's runtime `/canvaskit.wasm` fetch,
-	// which is derived from BASE_URL, pointing next to the document.
-	base: "./",
+	// Web 构建保持相对 base（可部署到子路径）。桌面构建由 scripts/build-desktop.mjs
+	// 注入 ELECTRON_BUILD=1 切到根路径：页面由主进程内 Express 以
+	// http://127.0.0.1:<port>/ 同源托管，`./` 在 SPA 深链刷新时会把 ./assets/*
+	// 解析成 /session/assets/* 而白屏；CanvasKit 按 BASE_URL 抓取的
+	// /canvaskit.wasm 也只有根路径能命中静态目录。
+	base: process.env.ELECTRON_BUILD === "1" ? "/" : "./",
 	plugins: [
 		rawTextAssetsPlugin(),
 		pencilAssetsPlugin(repoRoot),
