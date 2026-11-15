@@ -2,6 +2,7 @@ node_modules/
 backend/data/
 **/.env
 dist/
+docs/
 out/
 *.db
 .DS_Store
