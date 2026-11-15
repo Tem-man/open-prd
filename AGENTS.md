@@ -19,6 +19,18 @@
 
 > **重要约束**：所有第三方包的安装只允许使用 `pnpm`，严禁使用 `npm install`。
 
+### Node 版本（固定 24.9.0）
+
+项目固定 Node **24.9.0**：`.nvmrc` + `package.json` 的 `engines: ">=24.9.0 <25"`，CI 通过 `node-version-file: .nvmrc` 读取同一版本。切换 Node 大版本会让 `better-sqlite3` 的原生二进制 ABI 失配，`pnpm dev` 报 `NODE_MODULE_VERSION` 不匹配。
+
+```bash
+nvm use 24.9.0     # Windows 用 nvm-windows；fnm 可直接 `fnm use` 读 .nvmrc
+pnpm install        # 版本不匹配时 pnpm 会给出 engines 警告
+pnpm dev
+```
+
+若确实要在另一个 Node 大版本下临时开发，用**那个 Node** 执行一次 `pnpm fix:native`（详见 `docs/electron-guide.md`）。桌面打包链路不依赖宿主 Node ABI，不受此约束影响。
+
 ---
 
 ## 模型 Provider 配置
@@ -72,6 +84,9 @@ pnpm --filter backend dev
 # 构建
 pnpm --filter frontend build
 pnpm --filter backend build
+
+# 切换 Node 大版本后（pnpm dev 报 NODE_MODULE_VERSION 不匹配）
+pnpm fix:native
 
 # 桌面应用打包（输出 electron/release/<version>/）
 pnpm dist:win              # Windows NSIS + portable (x64)

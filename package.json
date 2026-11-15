@@ -2,6 +2,9 @@
   "name": "open-prd",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=24.9.0 <25"
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter frontend --filter backend dev",
     "dev:frontend": "pnpm --filter frontend dev",
@@ -15,6 +18,7 @@
     "dist:win": "node scripts/build-desktop.mjs --platform=win32",
     "dist:mac": "node scripts/build-desktop.mjs --platform=darwin",
     "dist:linux": "node scripts/build-desktop.mjs --platform=linux",
-    "icon": "python scripts/generate-icon.py"
+    "icon": "python scripts/generate-icon.py",
+    "fix:native": "node scripts/fix-native-module.mjs"
   }
 }

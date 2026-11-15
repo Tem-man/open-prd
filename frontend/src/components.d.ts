@@ -260,6 +260,7 @@ declare module 'vue' {
     ProviderSettingsLink: typeof import('./pencil/components/settings/provider/ProviderSettingsLink.vue')['default']
     ProviderSetup: typeof import('./pencil/components/chat/ProviderSetup.vue')['default']
     QuestionForm: typeof import('./components/QuestionForm.vue')['default']
+    ReasoningContent: typeof import('./pencil/components/chat/ReasoningContent.vue')['default']
     RgbFields: typeof import('./pencil/components/color-picker-panel/RgbFields.vue')['default']
     RoleAssignments: typeof import('./pencil/components/settings/models/RoleAssignments.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
