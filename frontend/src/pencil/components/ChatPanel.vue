@@ -6,7 +6,7 @@
 		ScrollAreaViewport,
 	} from "reka-ui";
 	import { refAutoReset } from "@vueuse/core";
-	import { computed, markRaw, nextTick, ref, watch } from "vue";
+	import { computed, markRaw, onBeforeUnmount, ref, watch } from "vue";
 
 	import { isReasoningUIPart, isTextUIPart, isToolUIPart } from "ai";
 
@@ -73,13 +73,40 @@
 		return last.role === "assistant" && didHitStepLimit();
 	});
 
+	/**
+	 * Every streamed chunk replaces the assistant message. Deep-watching the whole message
+	 * tree made Vue traverse every part and queue a `nextTick` + smooth scroll for each
+	 * reasoning delta. On a high-frequency reasoning stream the microtask queue never
+	 * drained, starving input events and rendering (Chrome's "page unresponsive" dialog).
+	 * Track a cheap scalar fingerprint and coalesce scrolling into one animation frame.
+	 */
+	const contentFingerprint = computed(() => {
+		const list = messages.value;
+		const last = list[list.length - 1];
+		if (!last) return "0";
+		const parts = last.parts;
+		const lastPart = parts[parts.length - 1];
+		const textLength =
+			lastPart && (isReasoningUIPart(lastPart) || isTextUIPart(lastPart))
+				? lastPart.text.length
+				: 0;
+		return `${list.length}:${parts.length}:${textLength}`;
+	});
+
+	let scrollFrame = 0;
 	function scrollToBottom() {
-		nextTick(() => {
-			messagesEnd.value?.scrollIntoView({ behavior: "smooth", block: "end" });
+		if (scrollFrame) return;
+		scrollFrame = requestAnimationFrame(() => {
+			scrollFrame = 0;
+			// `smooth` restarts a scroll animation and forces a layout flush on every delta.
+			messagesEnd.value?.scrollIntoView({ behavior: "auto", block: "end" });
 		});
 	}
 
-	watch(messages, scrollToBottom, { deep: true });
+	watch([contentFingerprint, status], scrollToBottom);
+	onBeforeUnmount(() => {
+		if (scrollFrame) cancelAnimationFrame(scrollFrame);
+	});
 	watch(
 		() => chat.value?.error,
 		(error) => {

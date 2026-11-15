@@ -47,7 +47,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # 与 .nvmrc 保持同一 Node 版本，避免 dev/打包环境 ABI 分裂
+          node-version-file: .nvmrc
           cache: pnpm
 
       - name: Install dependencies

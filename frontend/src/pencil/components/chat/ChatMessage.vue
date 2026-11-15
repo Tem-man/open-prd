@@ -5,6 +5,7 @@ import { Markdown } from 'vue-stream-markdown'
 import { vTestId } from '@open-pencil/vue'
 import 'vue-stream-markdown/index.css'
 
+import ReasoningContent from './ReasoningContent.vue'
 import type { UIDataTypes, UIMessage, UIMessagePart, UITools } from 'ai'
 
 const { message } = defineProps<{ message: UIMessage }>()
@@ -128,11 +129,10 @@ function partKey(part: UIMessagePart<UIDataTypes, UITools>, index: number): stri
               <CollapsibleContent
                 class="data-[state=closed]:collapsible-up data-[state=open]:collapsible-down overflow-hidden"
               >
-                <p
-                  class="mt-1 max-h-40 overflow-y-auto rounded bg-input p-2 text-[10px] leading-relaxed whitespace-pre-wrap text-muted"
-                >
-                  {{ part.text }}
-                </p>
+                <ReasoningContent
+                  :text="part.text"
+                  :streaming="part.state === 'streaming'"
+                />
               </CollapsibleContent>
             </CollapsibleRoot>
           </div>

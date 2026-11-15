@@ -117,6 +117,8 @@ pnpm icon                  # 由 favicon.svg 渲染并生成 icon.ico / icon.icn
 - 前端走 `build:desktop`（纯 `vite build`）。`frontend` 的 `build`（含 `vue-tsc -b`）目前存在一批**既存类型错误**（迁移的 pencil 源码引用了 `@tauri-apps/plugin-*`、`storybook`，以及 `Uint8Array` 的 BlobPart 类型），与打包链路无关，故不阻塞打包；类型治理另立计划。
 - `backend/package.json` 的 `files: ["dist"]` 保证 deploy 只带 `dist/`，不带 `.env` / `src/`；脚本另做一次 fail-fast 扫描。
 - 首次构建需联网下载 Electron / NSIS 资源，可设置 `ELECTRON_MIRROR`、`ELECTRON_BUILDER_BINARIES_MIRROR` 走镜像。
+- **切换 Node 大版本**（如 22 ↔ 24）会让主仓库 `better-sqlite3` 的 `.node` ABI 失配，`pnpm dev` 报 `NODE_MODULE_VERSION` 不匹配 / `ERR_DLOPEN_FAILED`。执行 `pnpm fix:native`（必须**用你实际使用的那个 Node** 运行）：脚本按当前 Node ABI 取官方预编译包，断开与 pnpm store 的硬链接后写入主仓库，并实加载验证。桌面打包不受影响——`scripts/build-desktop.mjs` 在隔离副本里按 Electron ABI 单独处理原生模块。
+- **固定 Node 版本不会影响打包**：项目用 `.nvmrc`（24.9.0）+ `engines: ">=24.9.0 <25"` 统一开发环境，CI 用 `node-version-file: .nvmrc` 对齐。这些配置只作用于 `pnpm install` 与版本管理器；`scripts/build-desktop.mjs` 取的是 **Electron 版本（ABI 146）** 对应的预编译包，与宿主 Node 的 ABI 无关，electron-builder / Vite / electron-vite 也不会因此改变行为。已生成的 exe 自带 Electron 运行时，更是不受影响。打包脚本里**特意不加** Node 版本检查，就是为了让它能在任意受支持的 Node 上运行。
 
 ---
 
