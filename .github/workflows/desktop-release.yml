@@ -1,26 +1,29 @@
-name: Desktop Release (macOS / Linux)
+name: Desktop Release (Windows / macOS / Linux)
 
 # 为什么必须有这条流水线：
 #   macOS dmg 依赖 hdiutil（只有 macOS 有），AppImage / deb 依赖原生 Linux 工具链。
 #   在 Windows 上交叉构建出来的 mac/Linux 包不可靠，统一交给 GitHub 原生 runner。
+#   Windows NSIS + portable 同样在这里构建，三平台发版保持同一份代码、同一个版本号。
 #
 # 触发方式：
 #   1) Actions 页面手动 "Run workflow"（默认构建 macOS arm64 + Linux x64，产物在 Artifacts）
-#   2) push v* tag → 构建 macOS arm64 / x64 + Linux x64，并自动发布 GitHub Release
+#      platform 可选 windows / mac / linux / mac-linux / all
+#   2) push v* tag → 构建 Windows x64 + macOS arm64/x64 + Linux x64，并自动发布 GitHub Release
 #
-# 产物都是「未签名」的：仓库没有 Apple Developer 证书，mac 包首次打开需要
-#   右键 → 打开，或执行 `xattr -cr /Applications/OpenPRD.app`。
+# 产物都是「未签名」的：仓库没有 Apple Developer / Windows 代码签名证书。
+#   mac 包首次打开需要右键 → 打开，或执行 `xattr -cr /Applications/OpenPRD.app`。
 
 on:
   workflow_dispatch:
     inputs:
       platform:
-        description: "构建平台（all 会额外包含 Windows）"
+        description: "构建平台（all = 全部目标，含 Windows）"
         required: true
         default: mac-linux
         type: choice
         options:
           - mac-linux
+          - windows
           - mac
           - linux
           - all
@@ -79,12 +82,12 @@ jobs:
             { id: 'macos-x64',   name: 'macOS x64 (Intel)',           os: 'macos-15-intel',   group: 'mac',   platform: 'darwin', arch: 'x64',   release: true  },
             { id: 'linux-x64',   name: 'Linux x64',                    os: 'ubuntu-24.04',     group: 'linux', platform: 'linux',  arch: 'x64',   release: true  },
             { id: 'linux-arm64', name: 'Linux arm64',                  os: 'ubuntu-24.04-arm', group: 'linux', platform: 'linux',  arch: 'arm64', release: false },
-            { id: 'windows-x64', name: 'Windows x64',                  os: 'windows-latest',   group: 'win',   platform: 'win32',  arch: 'x64',   release: false },
+            { id: 'windows-x64', name: 'Windows x64',                  os: 'windows-latest',   group: 'windows', platform: 'win32',  arch: 'x64',   release: true  },
           ];
 
           let selected;
           if (process.env.WF_EVENT === 'push') {
-            // 打 tag 发版：mac 双架构 + Linux x64，不跑实验性的 linux-arm64，也不重复构建 Windows
+            // 打 tag 发版：Windows x64 + mac 双架构 + Linux x64，不跑实验性的 linux-arm64
             selected = all.filter(t => t.release);
           } else {
             const platform = process.env.WF_PLATFORM || 'mac-linux';
@@ -92,10 +95,10 @@ jobs:
             const linuxArch = process.env.WF_LINUX_ARCH || 'x64';
             selected = all.filter(t => {
               const inPlatform = platform === 'all'
-                || (platform === 'mac-linux' && t.group !== 'win')
+                || (platform === 'mac-linux' && t.group !== 'windows')
                 || platform === t.group;
               if (!inPlatform) return false;
-              if (t.group === 'win') return true;
+              if (t.group === 'windows') return true;
               const want = t.group === 'mac' ? macArch : linuxArch;
               return want === 'both' || want === t.arch;
             });
