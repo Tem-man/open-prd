@@ -487,9 +487,9 @@ async function main() {
 main().catch((err) => {
 	console.error(`\n${TAG} 失败：`, err instanceof Error ? err.message : err);
 	console.error(
-		"提示：首次构建需联网下载对应平台的 Electron / 打包工具资源；可配置 " +
-			"ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ 与 " +
-			"ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/",
+		"提示：真正的失败原因在上方子进程的原始输出里（本脚本只转发退出码）。" +
+			"仅当日志出现下载超时 / 404 时才需要配置 ELECTRON_MIRROR 与 " +
+			"ELECTRON_BUILDER_BINARIES_MIRROR；其它报错请按原始输出排查。",
 	);
 	process.exit(1);
 });

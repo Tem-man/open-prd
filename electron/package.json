@@ -3,7 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "description": "OpenPRD desktop application",
-  "author": "OpenPRD",
+  "homepage": "https://github.com/Tem-man/open-prd",
+  "author": {
+    "name": "OpenPRD",
+    "email": "Tem-man@users.noreply.github.com"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
