@@ -9,6 +9,8 @@ name: Desktop Release (Windows / macOS / Linux)
 #   1) Actions 页面手动 "Run workflow"（默认构建 macOS arm64 + Linux x64，产物在 Artifacts）
 #      platform 可选 windows / mac / linux / mac-linux / all
 #   2) push v* tag → 构建 Windows x64 + macOS arm64/x64 + Linux x64，并自动发布 GitHub Release
+#   3) 手动触发时勾选 publish_release → 该次 run 的产物也发布到 GitHub Release
+#      （想要全平台安装包就把 platform 选 all）
 #
 # 产物都是「未签名」的：仓库没有 Apple Developer / Windows 代码签名证书。
 #   mac 包首次打开需要右键 → 打开，或执行 `xattr -cr /Applications/OpenPRD.app`。
@@ -45,6 +47,16 @@ on:
           - x64
           - arm64
           - both
+      publish_release:
+        description: "构建完成后发布到 GitHub Release（全平台请配合 platform=all）"
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: "Release 标签，留空自动用 v<应用版本>（如 v0.1.0）"
+        required: false
+        default: ""
+        type: string
   push:
     tags:
       - "v*"
@@ -218,7 +230,11 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: build
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    if: >-
+      ${{
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.publish_release)
+      }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -238,11 +254,18 @@ jobs:
 
       - name: Create or update release
         shell: bash
+        # download-artifact 只取「本次 run」的 artifacts，所以想要全平台安装包，
+        # 手动触发时 platform 必须选 all（历史 run 的产物不会自动汇总）。
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
         run: |
           set -euo pipefail
+          if [ -z "${TAG:-}" ]; then
+            TAG="v$(node -p "require('./electron/package.json').version")"
+          fi
+          echo "Release 标签：$TAG"
+
           mapfile -t files < <(find dist-artifacts -type f \
             \( -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.exe' \) | sort)
           if [ "${#files[@]}" -eq 0 ]; then
@@ -253,9 +276,16 @@ jobs:
           files+=(SHA256SUMS.txt)
           echo "发布 ${#files[@]} 个文件到 $TAG"
           printf '  %s\n' "${files[@]}"
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
           else
+            # --verify-tag 要求远端已有该标签；手动发布时按需先建轻量标签并推送
+            if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+              git tag "$TAG"
+              git push origin "$TAG"
+              echo "已创建标签 $TAG"
+            fi
             gh release create "$TAG" "${files[@]}" \
               --title "OpenPRD $TAG" --generate-notes --verify-tag
           fi
