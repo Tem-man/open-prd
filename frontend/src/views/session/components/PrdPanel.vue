@@ -8,12 +8,14 @@
 	 * 支持导出 PRD
 	 */
 	import { computed, watch } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { useMessagesStore } from "@/stores/messages";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdEditStore } from "@/stores/prdEdit";
 	import PrdSectionList from "./PrdSectionList.vue";
 	import ProgressSteps from "./ProgressSteps.vue";
 
+	const { prd: t } = useI18n();
 	const messagesStore = useMessagesStore();
 	const sessionsStore = useSessionsStore();
 	const prdEditStore = usePrdEditStore();
@@ -87,10 +89,9 @@
 							/>
 						</svg>
 					</div>
-				<p class="empty-title">PRD 内容将在此实时生成</p>
+				<p class="empty-title">{{ t.emptyTitle }}</p>
 				<p class="empty-sub">
-					在左侧对话区描述你的产品需求，我将自动构建结构化的<br />PRD
-					文档。支持多轮对话逐步细化。
+					{{ t.emptyDesc1 }}<br />{{ t.emptyDesc2 }}
 				</p>
 				<div class="progress-wrap">
 					<ProgressSteps :steps="messagesStore.workflowSteps" />

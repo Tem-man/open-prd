@@ -1,6 +1,7 @@
 <script setup lang="ts">
 	import { onMounted, ref, computed, watch } from "vue";
 	import { useRouter, useRoute } from "vue-router";
+	import { useI18n } from "@open-pencil/vue";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrototypesStore } from "@/stores/prototypes";
 	import ConfirmDialog from "./components/ConfirmDialog.vue";
@@ -12,6 +13,7 @@
 		| { kind: "prd"; id: string; title: string }
 		| { kind: "proto"; id: string; title: string };
 
+	const { home } = useI18n();
 	const router = useRouter();
 	const route = useRoute();
 	const sessionsStore = useSessionsStore();
@@ -49,15 +51,15 @@
 	}
 
 	const createSectionTitle = computed(() => {
-		if (activeTypeTab.value === "eval") return "新建需求评估";
-		if (activeTypeTab.value === "proto") return "新建原型设计";
-		return "新建 PRD";
+		if (activeTypeTab.value === "eval") return home.value.newEval;
+		if (activeTypeTab.value === "proto") return home.value.newProto;
+		return home.value.newPrd;
 	});
 	const createButtonLabel = computed(() => {
-		if (creating.value) return "创建中…";
-		if (activeTypeTab.value === "eval") return "新建需求评估";
-		if (activeTypeTab.value === "proto") return "新建原型设计";
-		return "新建 PRD";
+		if (creating.value) return home.value.creating;
+		if (activeTypeTab.value === "eval") return home.value.newEval;
+		if (activeTypeTab.value === "proto") return home.value.newProto;
+		return home.value.newPrd;
 	});
 
 	function openModuleManager() {
@@ -73,7 +75,7 @@
 				projectName.value = "";
 			} catch (e) {
 				console.error(e);
-				alert(e instanceof Error ? e.message : "创建原型失败");
+				alert(e instanceof Error ? e.message : home.value.createProtoFailed);
 			} finally {
 				creating.value = false;
 			}
@@ -97,7 +99,7 @@
 		deleteTarget.value = {
 			kind: "prd",
 			id: session.id,
-			title: session.title || "未命名 PRD",
+			title: session.title || home.value.untitledPrd,
 		};
 	}
 
@@ -106,7 +108,7 @@
 		deleteTarget.value = {
 			kind: "proto",
 			id: proto.id,
-			title: proto.title || "未命名原型",
+			title: proto.title || home.value.untitledProto,
 		};
 	}
 
@@ -151,27 +153,26 @@
 		return CARD_GRADIENTS[i % CARD_GRADIENTS.length];
 	}
 
-	const STATUS_LABEL: Record<string, string> = {
-		active: "进行中",
-		completed: "已完成",
-		failed: "失败",
-		cancelled: "已取消",
+	const statusLabel = (s: Session): string => {
+		const map: Record<string, string> = {
+			active: home.value.statusActive,
+			completed: home.value.statusCompleted,
+			failed: home.value.statusFailed,
+			cancelled: home.value.statusCancelled,
+		};
+		return map[s.status ?? "active"] ?? home.value.statusActive;
 	};
-
-	function statusLabel(s: Session) {
-		return STATUS_LABEL[s.status ?? "active"] ?? "进行中";
-	}
 
 	function relativeTime(ts: number) {
 		const diff = Date.now() - ts;
 		const m = Math.floor(diff / 60000);
-		if (m < 1) return "刚刚";
-		if (m < 60) return `${m} 分钟前`;
+		if (m < 1) return home.value.justNow;
+		if (m < 60) return home.value.minutesAgo({ n: m });
 		const h = Math.floor(m / 60);
-		if (h < 24) return `${h} 小时前`;
+		if (h < 24) return home.value.hoursAgo({ n: h });
 		const d = Math.floor(h / 24);
-		if (d < 7) return `${d} 天前`;
-		return `${Math.floor(d / 7)} 周前`;
+		if (d < 7) return home.value.daysAgo({ n: d });
+		return home.value.weeksAgo({ n: Math.floor(d / 7) });
 	}
 
 	function formatFileSize(bytes: number) {
@@ -199,14 +200,14 @@
 					:class="{ active: activeTypeTab === 'eval' }"
 					@click="setHomeTab('eval')"
 				>
-					需求评估
+					{{ home.tabEval }}
 				</button>
 				<button
 					class="type-tab"
 					:class="{ active: activeTypeTab === 'proto' }"
 					@click="setHomeTab('proto')"
 				>
-					原型设计
+					{{ home.tabProto }}
 				</button>
 			</nav>
 
@@ -216,14 +217,14 @@
 			<div class="create-section">
 				<h3 class="create-section-title">{{ createSectionTitle }}</h3>
 				<div class="create-field">
-					<label class="create-field-label">项目名称</label>
-					<input
-						v-model="projectName"
-						type="text"
-						class="create-field-input"
-						placeholder="输入项目名称..."
-						@keydown.enter="onCreateClick"
-					/>
+				<label class="create-field-label">{{ home.projectName }}</label>
+				<input
+					v-model="projectName"
+					type="text"
+					class="create-field-input"
+					:placeholder="home.projectNamePlaceholder"
+					@keydown.enter="onCreateClick"
+				/>
 				</div>
 				<button class="create-btn" :disabled="creating" @click="onCreateClick">
 					<svg viewBox="0 0 16 16" fill="none">
@@ -256,14 +257,14 @@
 						:class="{ active: activeViewTab === 'eval' }"
 						@click="setHomeTab('eval')"
 					>
-						需求评估
+						{{ home.tabEval }}
 					</button>
 					<button
 						class="view-pill"
 						:class="{ active: activeViewTab === 'proto' }"
 						@click="setHomeTab('proto')"
 					>
-						原型设计
+						{{ home.tabProto }}
 					</button>
 				</div>
 				<div class="main-tools">
@@ -283,13 +284,13 @@
 								stroke-linecap="round"
 							/>
 						</svg>
-						<input type="text" placeholder="搜索..." />
+						<input type="text" :placeholder="home.searchPlaceholder" />
 					</div>
 					<button
 						class="view-mode-btn"
 						:class="{ active: viewMode === 'grid' }"
 						@click="viewMode = 'grid'"
-						title="网格视图"
+						:title="home.gridView"
 					>
 						<svg viewBox="0 0 16 16" fill="none">
 							<rect
@@ -334,7 +335,7 @@
 						class="view-mode-btn"
 						:class="{ active: viewMode === 'list' }"
 						@click="viewMode = 'list'"
-						title="列表视图"
+						:title="home.listView"
 					>
 						<svg viewBox="0 0 16 16" fill="none">
 							<path
@@ -352,7 +353,7 @@
 			<div v-if="activeViewTab === 'prd'" class="content-area">
 				<!-- 加载中 -->
 				<div v-if="sessionsStore.loading" class="empty-state">
-					<p>加载中...</p>
+					<p>{{ home.loading }}</p>
 				</div>
 
 				<!-- 空状态 -->
@@ -361,7 +362,7 @@
 					class="empty-state"
 				>
 					<div class="empty-icon">📄</div>
-					<p>还没有 PRD 文档，点击「新建 PRD」开始创作</p>
+					<p>{{ home.emptyPrd }}</p>
 				</div>
 
 				<!-- 卡片网格 -->
@@ -377,12 +378,12 @@
 						@click="router.push(`/session/${session.id}`)"
 					>
 						<div class="card-preview" :style="{ background: cardGradient(i) }">
-							<span>PRD 封面预览</span>
+							<span>{{ home.prdCover }}</span>
 						</div>
 						<button
 							class="card-delete-btn"
 							@click="confirmDeleteSession($event, session)"
-							title="删除"
+							:title="home.delete"
 						>
 							<svg viewBox="0 0 16 16" fill="none">
 								<path
@@ -394,7 +395,7 @@
 							</svg>
 						</button>
 						<div class="card-body">
-							<p class="card-title">{{ session.title || "未命名 PRD" }}</p>
+							<p class="card-title">{{ session.title || home.untitledPrd }}</p>
 							<div class="card-meta">
 								<span class="tag tag-style">Open PRD</span>
 								<span class="tag" :class="`tag-${session.status ?? 'active'}`">
@@ -411,14 +412,14 @@
 			<div v-else-if="activeViewTab === 'eval'" class="content-area">
 				<div class="empty-state">
 					<div class="empty-icon">🔍</div>
-					<p>需求评估功能即将上线</p>
+					<p>{{ home.evalComingSoon }}</p>
 				</div>
 			</div>
 
 			<!-- 内容区：原型设计 tab -->
 			<div v-else class="content-area">
 				<div v-if="prototypesStore.loading" class="empty-state">
-					<p>加载中...</p>
+					<p>{{ home.loading }}</p>
 				</div>
 
 				<div
@@ -426,7 +427,7 @@
 					class="empty-state"
 				>
 					<div class="empty-icon">✏️</div>
-					<p>还没有原型，点击「新建原型设计」开始创作</p>
+					<p>{{ home.emptyProto }}</p>
 				</div>
 
 				<div
@@ -448,13 +449,13 @@
 									: cardGradient(i),
 							}"
 						>
-							<span v-if="!proto.thumbnail">原型预览</span>
-						</div>
-						<button
-							class="card-delete-btn"
-							title="删除"
-							@click="confirmDeletePrototype($event, proto)"
-						>
+						<span v-if="!proto.thumbnail">{{ home.protoPreview }}</span>
+					</div>
+					<button
+						class="card-delete-btn"
+						:title="home.delete"
+						@click="confirmDeletePrototype($event, proto)"
+					>
 							<svg viewBox="0 0 16 16" fill="none">
 								<path
 									d="M4 4l8 8M12 4l-8 8"
@@ -465,9 +466,9 @@
 							</svg>
 						</button>
 						<div class="card-body">
-							<p class="card-title">{{ proto.title || "未命名原型" }}</p>
-							<div class="card-meta">
-								<span class="tag tag-style">原型</span>
+						<p class="card-title">{{ proto.title || home.untitledProto }}</p>
+						<div class="card-meta">
+							<span class="tag tag-style">{{ home.tagPrototype }}</span>
 								<span class="tag tag-active">{{
 									formatFileSize(proto.fileSize)
 								}}</span>
@@ -494,8 +495,7 @@
 		@confirm="doDelete"
 		@cancel="cancelDelete"
 	>
-		确定要删除「<strong>{{ deleteTarget?.title }}</strong
-		>」吗？<br />此操作不可撤销。
+		{{ home.deleteConfirm({ name: deleteTarget?.title ?? "" }) }}
 	</ConfirmDialog>
 </template>
 

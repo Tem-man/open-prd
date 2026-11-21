@@ -1,3 +1,4 @@
+import { sessionMessages } from '@open-pencil/vue'
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
@@ -53,8 +54,8 @@ export const useSessionsStore = defineStore("sessions", () => {
 			body: JSON.stringify({ selectedModules: selectedModuleIds }),
 		});
 		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: "更新失败" }));
-			throw new Error((err as { error?: string }).error ?? "更新失败");
+			const err = await res.json().catch(() => ({ error: sessionMessages.get().errUpdate }));
+			throw new Error((err as { error?: string }).error ?? sessionMessages.get().errUpdate);
 		}
 		const data = (await res.json()) as {
 			selectedModules: Array<{ id: string; name: string }>;

@@ -12,7 +12,17 @@ import {
   variableTypeMessages,
   pageMessages,
   dialogMessages,
-  commentMessages
+  commentMessages,
+  shellMessages,
+  homeMessages,
+  sessionMessages,
+  versionMessages,
+  exportMessages,
+  moduleMessages,
+  prdMessages,
+  historyMessages,
+  prototypeMessages,
+  editorMessages
 } from '#vue/i18n/messages'
 
 /**
@@ -69,6 +79,46 @@ export function useCommentMessages() {
   return useI18nNamespace(commentMessages)
 }
 
+export function useShellMessages() {
+  return useI18nNamespace(shellMessages)
+}
+
+export function useHomeMessages() {
+  return useI18nNamespace(homeMessages)
+}
+
+export function useSessionMessages() {
+  return useI18nNamespace(sessionMessages)
+}
+
+export function useVersionMessages() {
+  return useI18nNamespace(versionMessages)
+}
+
+export function useExportMessages() {
+  return useI18nNamespace(exportMessages)
+}
+
+export function useModuleMessages() {
+  return useI18nNamespace(moduleMessages)
+}
+
+export function usePrdMessages() {
+  return useI18nNamespace(prdMessages)
+}
+
+export function useHistoryMessages() {
+  return useI18nNamespace(historyMessages)
+}
+
+export function usePrototypeMessages() {
+  return useI18nNamespace(prototypeMessages)
+}
+
+export function useEditorMessages() {
+  return useI18nNamespace(editorMessages)
+}
+
 export function useI18n() {
   return {
     menu: useMenuMessages(),
@@ -79,6 +129,16 @@ export function useI18n() {
     pages: usePageMessages(),
     dialogs: useDialogMessages(),
     comments: useCommentMessages(),
+    shell: useShellMessages(),
+    home: useHomeMessages(),
+    session: useSessionMessages(),
+    version: useVersionMessages(),
+    export: useExportMessages(),
+    module: useModuleMessages(),
+    prd: usePrdMessages(),
+    history: useHistoryMessages(),
+    prototype: usePrototypeMessages(),
+    editor: useEditorMessages(),
     locale: useStore(locale) as Ref<Locale>,
     availableLocales: AVAILABLE_LOCALES,
     localeLabels: LOCALE_LABELS,

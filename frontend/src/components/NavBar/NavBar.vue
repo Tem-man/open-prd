@@ -1,6 +1,7 @@
 <script setup lang="ts">
 	import { ref, computed, nextTick } from "vue";
 	import { useRoute, useRouter } from "vue-router";
+	import { useI18n } from "@open-pencil/vue";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { useMessagesStore } from "@/stores/messages";
 	import { usePrdEditStore } from "@/stores/prdEdit";
@@ -11,6 +12,7 @@
 		openVersions: [];
 	}>();
 
+	const { shell } = useI18n();
 	const route = useRoute();
 	const router = useRouter();
 	const sessionsStore = useSessionsStore();
@@ -42,8 +44,8 @@
 	const modeHint = computed(() => {
 		if (!editingActiveSection.value || !sectionToolbar.value) return "";
 		return sectionToolbar.value.editSubMode === "text"
-			? "文字编辑模式 · ESC 返回"
-			: "单击选元素 · Ctrl/⌘+单击多选格 · 双击编文字";
+			? shell.value.textEditHint
+			: shell.value.selectHint;
 	});
 	const sectionSaveBusy = computed(
 		() =>
@@ -81,7 +83,7 @@
 				<div class="session-nav">
 					<button
 						class="g-icon-btn btn-back"
-						title="返回"
+						:title="shell.back"
 						@click="router.push('/')"
 					>
 						<svg viewBox="0 0 16 16" fill="none">
@@ -101,10 +103,10 @@
 							:contenteditable="editingTitle"
 							@blur="finishEditTitle"
 							@keydown.enter.prevent="finishEditTitle"
-							>{{ currentSession?.title || "未命名 PRD" }}</span
-						>
-					</div>
-					<button class="g-icon-btn" title="编辑标题" @click="startEditTitle">
+						>{{ currentSession?.title || shell.untitledPrd }}</span
+					>
+				</div>
+				<button class="g-icon-btn" :title="shell.editTitle" @click="startEditTitle">
 						<svg viewBox="0 0 16 16" fill="none">
 							<path
 								d="M11.5 2.5a1.414 1.414 0 012 2L5 13H3v-2L11.5 2.5z"
@@ -139,17 +141,17 @@
 						<button
 							type="button"
 							class="btn-export"
-							title="保存手动修改"
+							:title="shell.saveManual"
 							:disabled="sectionSaveBusy"
 							@click="sectionToolbar.save()"
 						>
 							<icon-lucide-save />
-							{{ sectionToolbar.saving ? "保存中…" : "保存" }}
+							{{ sectionToolbar.saving ? shell.saving : shell.save }}
 						</button>
 						<button
 							type="button"
 							class="g-icon-btn"
-							title="退出编辑"
+							:title="shell.exitEdit"
 							:disabled="sectionSaveBusy"
 							@click="sectionToolbar.cancelEdit()"
 						>
@@ -160,11 +162,11 @@
 						<button
 							type="button"
 							class="btn-export"
-							title="编辑此模块"
+							:title="shell.editThis"
 							@click="sectionToolbar.startEdit()"
 						>
 							<icon-lucide-pencil />
-							编辑
+							{{ shell.edit }}
 						</button>
 					</template>
 				</template>
@@ -174,18 +176,18 @@
 					@click="emit('openVersions')"
 				>
 					<icon-lucide-git-branch />
-					版本
+					{{ shell.versions }}
 				</button>
 				<button v-if="hasPrd" class="btn-outline" @click="emit('openExport')">
 					<icon-lucide-download />
-					导出
+					{{ shell.export }}
 				</button>
 			</template>
 
 			<button
 				v-if="!isSessionPage"
 				class="g-icon-btn"
-				title="设置"
+				:title="shell.settings"
 				@click="openSettingsDialog()"
 			>
 				<svg viewBox="0 0 24 24" fill="none">

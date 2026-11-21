@@ -1,4 +1,5 @@
 import { readonly, ref } from 'vue'
+import { prototypeMessages } from '@open-pencil/vue'
 
 /**
  * PRD「原型设计依据」上下文。
@@ -87,7 +88,7 @@ export function htmlToBasisText(html: string): string {
 }
 
 function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}\n（内容已截断）` : text
+  return text.length > max ? `${text.slice(0, max)}\n${prototypeMessages.get().truncated}` : text
 }
 
 /**

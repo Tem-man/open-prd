@@ -1,5 +1,8 @@
 <script setup lang="ts">
 	import { nextTick, ref, watch } from "vue";
+	import { useI18n } from "@open-pencil/vue";
+
+	const { session: t } = useI18n();
 
 	const props = defineProps<{
 		thinking: string;
@@ -50,7 +53,7 @@
 				<icon-lucide-brain v-else />
 			</span>
 			<span class="thinking-label">
-				{{ streaming ? "正在思考" : "思考过程" }}
+				{{ streaming ? t.thinking : t.reasoning }}
 			</span>
 			<icon-lucide-chevron-down
 				class="thinking-chevron"

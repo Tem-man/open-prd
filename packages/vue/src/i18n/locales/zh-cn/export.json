@@ -1,0 +1,18 @@
+{
+  "title": "导出 PRD",
+  "close": "关闭",
+  "desc": "选择导出格式，将 PRD 下载到本地：",
+  "htmlTitle": "HTML 网页",
+  "htmlDesc": "完整的交互式网页，保留所有样式和图表",
+  "markdownDesc": "纯文本格式，适合导入 Notion、GitHub 等",
+  "pdfTitle": "PDF 文档",
+  "pdfDesc": "适合打印和正式交付的版式文档",
+  "docxTitle": "Word 文档",
+  "docxDesc": "可在 Word 中编辑与批注的 .docx 文档，图表转为图片",
+  "cancel": "取消",
+  "exporting": "导出中…",
+  "confirm": "确认导出",
+  "sessionUnavailable": "当前会话不可用，无法导出",
+  "sectionsEmpty": "PRD 模块内容为空，无法导出",
+  "exportFailed": "导出 Word 失败，请重试"
+}

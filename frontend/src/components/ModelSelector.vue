@@ -1,5 +1,6 @@
 <script setup lang="ts">
 	import { computed, onMounted, onUnmounted, ref } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import {
 		aiModelSettings,
 		isACPModelProfile,
@@ -11,6 +12,7 @@
 	} from "@/app/ai/models";
 	import { openSettingsDialog } from "@/app/settings/dialog";
 
+	const { editor: t } = useI18n();
 	const open = ref(false);
 	const rootRef = ref<HTMLElement | null>(null);
 
@@ -33,12 +35,12 @@
 			profile.name.trim() ||
 			profile.customModelID.trim() ||
 			profile.modelID ||
-			"未命名模型"
+			t.value.unnamedModel
 		);
 	}
 
 	const selectedName = computed(() =>
-		selected.value ? displayName(selected.value) : "选择模型",
+		selected.value ? displayName(selected.value) : t.value.selectModel,
 	);
 
 	function isSelected(profile: AIModelProfile): boolean {
@@ -140,7 +142,7 @@
 					</svg>
 				</button>
 				<div v-if="prdModels.length === 0" class="model-selector__empty">
-					暂无可用模型
+					{{ t.noModels }}
 				</div>
 			</div>
 
@@ -165,9 +167,9 @@
 							stroke="currentColor"
 							stroke-width="1.5"
 						/>
-					</svg>
-					添加模型
-				</button>
+				</svg>
+				{{ t.addModel }}
+			</button>
 			</div>
 		</div>
 	</div>

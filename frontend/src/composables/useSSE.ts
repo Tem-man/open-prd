@@ -1,3 +1,9 @@
+import { locale, sessionMessages } from "@open-pencil/vue";
+
+/** 当前界面语言对应的 Accept-Language 值；SSE fetch 不能直接用 apiFetch，故单独提供 header。 */
+function acceptLanguageHeader(): Record<string, string> {
+	return { "Accept-Language": locale.get() === "zh-CN" ? "zh-CN" : "en" };
+}
 import { useMessagesStore } from "@/stores/messages";
 import { usePrdEditStore } from "@/stores/prdEdit";
 import { usePrdVersionsStore } from "@/stores/prdVersions";
@@ -39,7 +45,7 @@ async function requirePrdLlmPayload(): Promise<PrdLlmPayload | null> {
 	try {
 		return await resolvePrdLlmPayload();
 	} catch (err) {
-		showToast(err instanceof Error ? err.message : "模型配置不可用");
+		showToast(err instanceof Error ? err.message : sessionMessages.get().modelUnavailable);
 		return null;
 	}
 }
@@ -219,10 +225,11 @@ async function consumeStream(
 					fetchPrdHtml(sessionId, messagesStore);
 
 					// 拼装成功通知消息
-					let successMsg = "✅ PRD 已生成完成，点击右侧面板查看";
+					const t = sessionMessages.get();
+					let successMsg = `✅ ${t.prdGenerated}`;
 					if (evt.warnings && evt.warnings.length > 0) {
 						successMsg +=
-							"\n\n⚠️ 检测到以下潜在问题，部分图表可能无法正常渲染：\n" +
+							`\n\n⚠️ ${t.warningsDetected}\n` +
 							evt.warnings.map((w) => `• ${w}`).join("\n");
 					}
 					// 会话包含「原型设计依据」模块时，引导用户据此生成原型稿
@@ -230,11 +237,10 @@ async function consumeStream(
 						(s) => s.id === "prototype",
 					);
 					if (hasPrototypeBasis) {
-						successMsg +=
-							"\n\n💡 这份 PRD 已包含「原型设计依据」模块，可以直接据此生成原型稿。";
+						successMsg += `\n\n💡 ${t.prototypeBasisTip}`;
 						messagesStore.addStaticAssistantMessage(sessionId, successMsg, {
 							type: "create-prototype",
-							label: "使用此 PRD 生成原型稿",
+							label: t.useForPrototype,
 						});
 					} else {
 						messagesStore.addStaticAssistantMessage(sessionId, successMsg);
@@ -277,7 +283,9 @@ async function fetchPrdHtml(
 	sessionId: string,
 	messagesStore: ReturnType<typeof useMessagesStore>,
 ) {
-	const res = await fetch(`/api/sessions/${sessionId}/prd`);
+	const res = await fetch(`/api/sessions/${sessionId}/prd`, {
+		headers: acceptLanguageHeader(),
+	});
 	if (!res.ok) return;
 	const data = (await res.json()) as { html?: string };
 	if (data.html) messagesStore.setPrdHtml(data.html);
@@ -326,7 +334,7 @@ function handleEditEvent(
 			}
 			return true;
 		case "section_edit_error":
-			showToast(evt.message || "编辑失败，请重试");
+			showToast(evt.message || sessionMessages.get().editFailed);
 			prdEditStore.cancelEdit();
 			prdEditStore.aiEditingSection = null;
 			return true;
@@ -408,7 +416,10 @@ export function useSSE() {
 			try {
 				res = await fetch(`/api/sessions/${sessionId}/messages`, {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...acceptLanguageHeader(),
+					},
 					body: requestBody,
 					signal,
 				});
@@ -421,7 +432,7 @@ export function useSSE() {
 			}
 
 			if (!res.ok || !res.body) {
-				let detail = `请求失败：${res.status}`;
+				let detail = sessionMessages.get().requestFailed({ status: res.status });
 				try {
 					const errBody = (await res.json()) as { error?: string };
 					if (errBody.error) detail = errBody.error;
@@ -461,6 +472,7 @@ export function useSSE() {
 						headers: {
 							"Content-Type": "application/json",
 							"Last-Event-ID": lastEventId,
+							...acceptLanguageHeader(),
 						},
 						body: requestBody,
 						signal,
@@ -546,7 +558,10 @@ export function useSSE() {
 			try {
 				res = await fetch(`/api/sessions/${sessionId}/messages/retry`, {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: {
+						"Content-Type": "application/json",
+						...acceptLanguageHeader(),
+					},
 					body: JSON.stringify({ mode, sectionId, llm }),
 					signal,
 				});
@@ -559,7 +574,7 @@ export function useSSE() {
 			}
 
 			if (!res.ok || !res.body) {
-				showToast(`重试请求失败：${res.status}`);
+				showToast(sessionMessages.get().retryRequestFailed({ status: res.status }));
 				if (!isPrdMode) messagesStore.finalizeMessage(tempId);
 				return;
 			}
@@ -589,6 +604,7 @@ export function useSSE() {
 						headers: {
 							"Content-Type": "application/json",
 							"Last-Event-ID": lastEventId,
+							...acceptLanguageHeader(),
 						},
 						body: JSON.stringify({ mode, sectionId, llm }),
 						signal,

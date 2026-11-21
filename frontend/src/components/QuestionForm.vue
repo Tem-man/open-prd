@@ -1,5 +1,6 @@
 <script setup lang="ts">
 	import { ref, computed } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import type { QuestionForm, Question } from "@/types";
 
 	const props = defineProps<{
@@ -14,6 +15,8 @@
 	const emit = defineEmits<{
 		submit: [answersText: string, answers: Record<string, string | string[]>];
 	}>();
+
+	const { session: t } = useI18n();
 
 	// 每道题的答案状态
 	// single_choice: string（选中的选项）
@@ -109,7 +112,7 @@
 			<div v-for="q in safeQuestions" :key="q.id" class="question-item">
 				<!-- 题目标题 -->
 				<div class="question-label">
-					<span class="label-text">{{ q.label }}</span>
+					<span class="label-text">{{ q.labelI18n ?? q.label }}</span>
 					<span v-if="q.required" class="required-mark">*</span>
 				</div>
 
@@ -140,7 +143,7 @@
 					<textarea
 						v-model="answers[q.id] as string"
 						class="text-input"
-						:placeholder="q.placeholder || '请输入...'"
+						:placeholder="q.placeholderI18n ?? q.placeholder ?? t.inputPlaceholder"
 						:disabled="disabled"
 						rows="3"
 					/>
@@ -151,7 +154,7 @@
 		<!-- 底部操作栏 -->
 		<div class="form-footer">
 			<span v-if="hintText !== ''" class="footer-hint">
-				{{ hintText ?? '选填项可以跳过，Agent 会使用默认值' }}
+				{{ hintText ?? t.optionalHint }}
 			</span>
 			<button
 				type="button"
@@ -159,7 +162,7 @@
 				:disabled="!isComplete || disabled"
 				@click="handleSubmit"
 			>
-				{{ submitLabel ?? '发送答案' }}
+				{{ submitLabel ?? t.submitAnswers }}
 			</button>
 		</div>
 	</div>

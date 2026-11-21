@@ -29,7 +29,7 @@
 	const IS_DEV = import.meta.env.DEV;
 
 	const { isConfigured, ensureChat, resetChat } = useAIChat();
-	const { dialogs } = useI18n();
+	const { dialogs, prototype: t } = useI18n();
 
 	const chat = ref<Chat<UIMessage> | null>(null);
 
@@ -182,10 +182,10 @@
 				v-if="prdBasis"
 				data-test-id="prd-basis-badge"
 				class="mx-3 mt-2 flex shrink-0 items-center gap-1.5 rounded-md bg-accent/10 px-2.5 py-1.5 text-xs text-accent"
-				title="AI 生成原型时将遵循 PRD「原型设计依据」中的页面清单、结构与设计规范"
+				:title="t.basisBadgeTitle"
 			>
 				<icon-lucide-file-text class="size-3.5 shrink-0" />
-				<span class="truncate">已关联 PRD「原型设计依据」</span>
+				<span class="truncate">{{ t.basisBadge }}</span>
 				<button
 					v-if="messages.length > 0"
 					type="button"
@@ -193,7 +193,7 @@
 					:disabled="isBusy"
 					@click="generateFromPrdBasis"
 				>
-					重新生成
+					{{ t.regen }}
 				</button>
 			</div>
 			<ScrollAreaRoot class="min-h-0 flex-1">
@@ -205,7 +205,7 @@
 						class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
 					>
 						<icon-lucide-sparkles class="size-6 text-accent" />
-						<p class="text-sm text-foreground">PRD「原型设计依据」已就绪</p>
+						<p class="text-sm text-foreground">{{ t.basisReady }}</p>
 						<button
 							type="button"
 							class="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
@@ -213,10 +213,10 @@
 							@click="generateFromPrdBasis"
 						>
 							<icon-lucide-play class="size-3" />
-							{{ isBusy ? "正在生成…" : "一键生成原型稿" }}
+							{{ isBusy ? t.generating : t.generateFromPrd }}
 						</button>
 						<p class="text-xs text-muted">
-							也可以在下方输入框直接描述你想要的页面或调整
+							{{ t.generateHint }}
 						</p>
 					</div>
 

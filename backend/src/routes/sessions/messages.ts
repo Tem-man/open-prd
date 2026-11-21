@@ -1,6 +1,7 @@
 import type { IRouter, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { getDb } from "../../db/client.js";
+import { getLocale, type Locale } from "../../i18n/locale.js";
 import { getAgentDriver } from "../../services/agent/orchestrator.js";
 import {
 	createTurnRecorder,
@@ -134,6 +135,7 @@ interface AgentTurnOptions {
 	userMessage: string;
 	target: ComposerTarget | null;
 	llmConfig: LlmRuntimeConfig | undefined;
+	locale: Locale;
 	partialReply?: string;
 	priorThinking?: string;
 }
@@ -200,6 +202,7 @@ async function streamAgentTurn(
 					sessionId,
 					userMessage: opts.userMessage,
 					target: opts.target,
+					locale: opts.locale,
 					partialReply: opts.partialReply,
 					signal: controller.signal,
 					recorder,
@@ -434,6 +437,7 @@ export function registerMessages(router: IRouter): void {
 			userMessage: userContent,
 			target,
 			llmConfig,
+			locale: getLocale(req),
 		});
 	});
 
@@ -487,6 +491,7 @@ export function registerMessages(router: IRouter): void {
 				userMessage: lastUserMsg,
 				target: null,
 				llmConfig,
+				locale: getLocale(req),
 				partialReply: resume?.content || undefined,
 				priorThinking: resume?.thinking || undefined,
 			});

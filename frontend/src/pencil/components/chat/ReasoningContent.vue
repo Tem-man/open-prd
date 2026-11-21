@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from '@open-pencil/vue'
 
 const props = defineProps<{
   text: string
   streaming: boolean
 }>()
+
+const { prototype: t } = useI18n()
 
 const container = ref<HTMLParagraphElement | null>(null)
 const following = ref(true)
@@ -91,7 +94,7 @@ onBeforeUnmount(() => {
       class="absolute bottom-2 right-2 rounded-full border border-border bg-panel px-2 py-0.5 text-[10px] text-surface hover:bg-hover"
       @click="resume"
     >
-      ↓ 回到最新
+      ↓ {{ t.backToLatest }}
     </button>
   </div>
 </template>

@@ -124,9 +124,9 @@
 					</div>
 					<span class="tooltip-label">{{ step.label }}</span>
 					<span class="tooltip-status">
-						<template v-if="step.status === 'done'">已完成</template>
-						<template v-else-if="step.status === 'active'">进行中</template>
-						<template v-else>待开始</template>
+								<template v-if="step.status === 'done'">已完成</template>
+								<template v-else-if="step.status === 'active'">进行中</template>
+								<template v-else>待开始</template>
 					</span>
 				</div>
 			</div>

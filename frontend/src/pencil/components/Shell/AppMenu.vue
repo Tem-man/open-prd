@@ -60,7 +60,7 @@
 		if (input) void rename.focusInput(input);
 	});
 
-	const { dialogs, menu: t } = useI18n();
+	const { dialogs, menu: t, prototype: tp } = useI18n();
 
 	const { topMenus } = useAppMenu();
 	const menuCls = useMenuUI();
@@ -71,11 +71,11 @@
 <template>
 	<div class="shrink-0 border-b border-border">
 		<div class="flex items-center gap-2 px-2 py-1.5">
-			<Tip label="返回首页">
+			<Tip :label="tp.backHome">
 				<button
 					type="button"
 					data-test-id="app-back-home"
-					aria-label="返回首页"
+					:aria-label="tp.backHome"
 					class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-hover hover:text-surface"
 					@click="goHome"
 				>

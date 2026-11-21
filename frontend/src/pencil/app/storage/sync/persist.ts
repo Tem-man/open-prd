@@ -1,3 +1,4 @@
+import { prototypeMessages } from "@open-pencil/vue";
 import type { StorageProviderID } from "@pencil/app/integrations/storage/types";
 
 /*
@@ -28,8 +29,8 @@ export async function persistStorageCanvasLocally(
 		body: options.figBytes,
 	});
 	if (!res.ok) {
-		const err = await res.json().catch(() => ({ error: "保存失败" }));
-		throw new Error((err as { error?: string }).error ?? "保存失败");
+		const err = await res.json().catch(() => ({ error: prototypeMessages.get().saveFailed }));
+		throw new Error((err as { error?: string }).error ?? prototypeMessages.get().saveFailed);
 	}
 
 	// Keep title in sync when the user renames via AppMenu double-click.

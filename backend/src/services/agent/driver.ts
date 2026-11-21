@@ -1,3 +1,4 @@
+import type { Locale } from "../../i18n/locale.js";
 import type {
 	ComposerTarget,
 	OrchestratorEvent,
@@ -9,6 +10,8 @@ export interface AgentTurnInput {
 	/** 当前用户消息（已写入 DB） */
 	userMessage: string;
 	target: ComposerTarget | null;
+	/** 界面语言，决定 AI 回复与表单文案的语言 */
+	locale: Locale;
 	/** 续写：上一轮被中断时已输出的文本 */
 	partialReply?: string;
 	signal: AbortSignal;

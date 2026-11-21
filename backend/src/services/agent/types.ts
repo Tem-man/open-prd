@@ -1,3 +1,4 @@
+import type { Locale } from "../../i18n/locale.js";
 import type { TableElementPath } from "../../routes/sessions/helpers/htmlPatch.js";
 import type { SelectedModule } from "../prompts.js";
 
@@ -98,6 +99,8 @@ export interface OrchestratorContext {
 	prdId: string | null;
 	modules: SelectedModule[];
 	target: ComposerTarget | null;
+	/** 界面语言，驱动 prompt 与工具文案 */
+	locale: Locale;
 	signal: AbortSignal;
 	recorder: TurnRecorder;
 	emit: (evt: OrchestratorEvent) => void;

@@ -1,0 +1,23 @@
+{
+  "emptyTitle": "PRD 内容将在此实时生成",
+  "emptyDesc1": "在左侧对话区描述你的产品需求，我将自动构建结构化的",
+  "emptyDesc2": "PRD 文档。支持多轮对话逐步细化。",
+  "progressOverview": "进度总览",
+  "statusDone": "已完成",
+  "statusActive": "进行中",
+  "statusPending": "待开始",
+  "mindmapNotFound": "未找到思维导图数据",
+  "mermaidSyntaxError": "Mermaid 语法错误，已恢复原内容",
+  "multiSelectSameRow": "多选仅限同行",
+  "defaultSectionTitle": "信息架构",
+  "exportMindmap": "导出思维导图为 Markdown",
+  "confirmDelete": "确认删除",
+  "deleteWarning": "删除后将立即保存，此操作不可撤销。",
+  "textMode": "文字模式",
+  "editEntity": "编辑实体",
+  "insertRow": "插入行",
+  "deleteRow": "删除行",
+  "elementAiPlaceholder": "告诉 AI 如何修改选中元素…",
+  "tableAiPlaceholder": "告诉 AI 如何修改整张表格…",
+  "aiRewriting": "AI 正在重写…"
+}

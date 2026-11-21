@@ -8,7 +8,17 @@ export {
   useVariableTypeMessages,
   usePageMessages,
   useDialogMessages,
-  useCommentMessages
+  useCommentMessages,
+  useShellMessages,
+  useHomeMessages,
+  useSessionMessages,
+  useVersionMessages,
+  useExportMessages,
+  useModuleMessages,
+  usePrdMessages,
+  useHistoryMessages,
+  usePrototypeMessages,
+  useEditorMessages
 } from '#vue/i18n/useI18n'
 export { i18n } from '#vue/i18n/create'
 export {
@@ -30,5 +40,15 @@ export {
   pageMessages,
   dialogMessages,
   commentMessages,
+  shellMessages,
+  homeMessages,
+  sessionMessages,
+  versionMessages,
+  exportMessages,
+  moduleMessages,
+  prdMessages,
+  historyMessages,
+  prototypeMessages,
+  editorMessages,
   messageDefaults
 } from '#vue/i18n/messages'

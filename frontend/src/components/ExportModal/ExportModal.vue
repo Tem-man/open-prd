@@ -1,5 +1,6 @@
 <script setup lang="ts">
 	import { ref, computed } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { useMessagesStore } from "@/stores/messages";
 	import { usePrdEditStore } from "@/stores/prdEdit";
@@ -7,6 +8,7 @@
 
 	const visible = defineModel<boolean>({ default: false });
 
+	const { export: t } = useI18n();
 	const sessionsStore = useSessionsStore();
 	const messagesStore = useMessagesStore();
 	const prdEditStore = usePrdEditStore();
@@ -28,7 +30,7 @@
 	async function exportDocx() {
 		const session = currentSession.value;
 		if (!session?.id) {
-			exportError.value = "当前会话不可用，无法导出";
+			exportError.value = t.value.sessionUnavailable;
 			return;
 		}
 		exporting.value = true;
@@ -42,13 +44,13 @@
 				title: s.title,
 				html: s.html,
 			}));
-			if (!sections.length) throw new Error("PRD 模块内容为空，无法导出");
+			if (!sections.length) throw new Error(t.value.sectionsEmpty);
 			await exportPrdToDocx({ title: session.title || "prd", sections });
 			close();
 		} catch (err) {
 			console.error("[docx] 导出失败", err);
 			exportError.value =
-				err instanceof Error ? err.message : "导出 Word 失败，请重试";
+				err instanceof Error ? err.message : t.value.exportFailed;
 		} finally {
 			exporting.value = false;
 		}
@@ -95,12 +97,12 @@
 		<div class="modal-mask" v-if="visible" @click.self="close">
 			<div class="modal-card">
 				<div class="modal-header">
-					<span class="modal-title">导出 PRD</span>
-					<button class="modal-close" @click="close" title="关闭">
-						<icon-lucide-x />
-					</button>
-				</div>
-				<p class="modal-desc">选择导出格式，将 PRD 下载到本地：</p>
+				<span class="modal-title">{{ t.title }}</span>
+				<button class="modal-close" @click="close" :title="t.close">
+					<icon-lucide-x />
+				</button>
+			</div>
+			<p class="modal-desc">{{ t.desc }}</p>
 
 				<div class="format-list">
 					<label
@@ -117,8 +119,8 @@
 							<icon-lucide-globe />
 						</div>
 						<div class="format-info">
-							<strong>HTML 网页</strong>
-							<span>完整的交互式网页，保留所有样式和图表</span>
+							<strong>{{ t.htmlTitle }}</strong>
+							<span>{{ t.htmlDesc }}</span>
 						</div>
 						<div
 							class="format-radio"
@@ -141,7 +143,7 @@
 						</div>
 						<div class="format-info">
 							<strong>Markdown</strong>
-							<span>纯文本格式，适合导入 Notion、GitHub 等</span>
+							<span>{{ t.markdownDesc }}</span>
 						</div>
 						<div
 							class="format-radio"
@@ -155,8 +157,8 @@
 							<icon-lucide-file-text />
 						</div>
 						<div class="format-info">
-							<strong>PDF 文档</strong>
-							<span>适合打印和正式交付的版式文档</span>
+							<strong>{{ t.pdfTitle }}</strong>
+							<span>{{ t.pdfDesc }}</span>
 						</div>
 						<div
 							class="format-radio"
@@ -176,8 +178,8 @@
 							<icon-lucide-file-type />
 						</div>
 						<div class="format-info">
-							<strong>Word 文档</strong>
-							<span>可在 Word 中编辑与批注的 .docx 文档，图表转为图片</span>
+							<strong>{{ t.docxTitle }}</strong>
+							<span>{{ t.docxDesc }}</span>
 						</div>
 						<div
 							class="format-radio"
@@ -189,16 +191,16 @@
 				<p v-if="exportError" class="modal-error">{{ exportError }}</p>
 
 				<div class="modal-footer">
-					<button class="btn-cancel" :disabled="exporting" @click="close">
-						取消
-					</button>
+				<button class="btn-cancel" :disabled="exporting" @click="close">
+					{{ t.cancel }}
+				</button>
 					<button
 						class="btn-confirm"
 						:disabled="exporting"
 						:class="{ loading: exporting }"
 						@click="handleExport"
 					>
-						{{ exporting ? "导出中…" : "确认导出" }}
+						{{ exporting ? t.exporting : t.confirm }}
 					</button>
 				</div>
 			</div>

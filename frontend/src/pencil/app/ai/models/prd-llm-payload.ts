@@ -1,4 +1,5 @@
 import type { AIProviderID } from '@open-pencil/core/constants'
+import { prototypeMessages } from '@open-pencil/vue'
 
 import { resolveAIModelRole } from '@/app/ai/models/store'
 import { resolveModelConnectionAPIKey } from '@/app/ai/models/runtime'
@@ -52,7 +53,7 @@ export async function resolvePrdLlmPayload(): Promise<PrdLlmPayload> {
   const resolved = resolveAIModelRole('prd')
   if (!resolved) {
     openSettingsDialog('ai')
-    throw new Error('请先在设置中为「PRD 代理」配置模型')
+    throw new Error(prototypeMessages.get().configurePrdModel)
   }
 
   const { profile, connection } = resolved
@@ -61,20 +62,20 @@ export async function resolvePrdLlmPayload(): Promise<PrdLlmPayload> {
   if (!isPrdSupportedProvider(providerID)) {
     openSettingsDialog('ai')
     throw new Error(
-      '当前「PRD 代理」模型提供商暂不支持（ACP / Google）。请改用 OpenAI 兼容或 Anthropic 兼容提供商',
+      prototypeMessages.get().prdProviderUnsupported,
     )
   }
 
   const apiKey = await resolveModelConnectionAPIKey(connection.id)
   if (!apiKey?.trim()) {
     openSettingsDialog('ai')
-    throw new Error('请先在设置中填写「PRD 代理」模型的 API Key')
+    throw new Error(prototypeMessages.get().configurePrdApiKey)
   }
 
   const model = profile.customModelID.trim() || profile.modelID
   if (!model) {
     openSettingsDialog('ai')
-    throw new Error('请先在设置中为「PRD 代理」选择模型 ID')
+    throw new Error(prototypeMessages.get().selectPrdModelId)
   }
 
   const baseURL = defaultBaseURLForProvider(providerID, connection.customBaseURL)
@@ -83,7 +84,7 @@ export async function resolvePrdLlmPayload(): Promise<PrdLlmPayload> {
     !baseURL
   ) {
     openSettingsDialog('ai')
-    throw new Error('请先在设置中填写兼容提供商的 Base URL')
+    throw new Error(prototypeMessages.get().configureBaseUrl)
   }
 
   return {

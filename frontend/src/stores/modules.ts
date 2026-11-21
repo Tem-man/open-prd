@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { sessionMessages } from '@open-pencil/vue'
 import { defineStore } from 'pinia'
 import type { ModuleTemplate } from '@/types'
 
@@ -10,7 +11,7 @@ export const useModulesStore = defineStore('modules', () => {
     loading.value = true
     try {
       const res = await fetch('/api/modules')
-      if (!res.ok) throw new Error('获取模块列表失败')
+      if (!res.ok) throw new Error(sessionMessages.get().errFetchModules)
       library.value = await res.json() as ModuleTemplate[]
     } finally {
       loading.value = false
@@ -24,8 +25,8 @@ export const useModulesStore = defineStore('modules', () => {
       body: JSON.stringify({ name, description: description || undefined }),
     })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '添加失败' }))
-      throw new Error((err as { error?: string }).error ?? '添加失败')
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errAdd }))
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errAdd)
     }
     const module = await res.json() as ModuleTemplate
     library.value.push(module)
@@ -35,8 +36,8 @@ export const useModulesStore = defineStore('modules', () => {
   async function deleteModule(id: string) {
     const res = await fetch(`/api/modules/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) {
-      const err = await res.json().catch(() => ({ error: '删除失败' }))
-      throw new Error((err as { error?: string }).error ?? '删除失败')
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errDelete }))
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errDelete)
     }
     library.value = library.value.filter(m => m.id !== id)
   }
@@ -44,8 +45,8 @@ export const useModulesStore = defineStore('modules', () => {
   async function getSkillContent(moduleId: string): Promise<{ version: number; content: string }> {
     const res = await fetch(`/api/modules/${moduleId}/skill`);
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '获取失败' }));
-      throw new Error((err as { error?: string }).error ?? '获取失败');
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errFetch }));
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errFetch);
     }
     return res.json() as Promise<{ version: number; content: string }>;
   }
@@ -57,21 +58,21 @@ export const useModulesStore = defineStore('modules', () => {
       body: JSON.stringify({ content }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '保存失败' }));
-      throw new Error((err as { error?: string }).error ?? '保存失败');
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errSave }));
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errSave);
     }
     return res.json() as Promise<{ version: number }>;
   }
 
   async function getSkillVersions(moduleId: string): Promise<Array<{ id: string; version: number; isCurrent: boolean; createdAt: number }>> {
     const res = await fetch(`/api/modules/${moduleId}/skill/versions`);
-    if (!res.ok) throw new Error('获取版本列表失败');
+    if (!res.ok) throw new Error(sessionMessages.get().errFetchVersions);
     return res.json() as Promise<Array<{ id: string; version: number; isCurrent: boolean; createdAt: number }>>;
   }
 
   async function getSkillVersion(moduleId: string, versionId: string): Promise<{ version: number; content: string }> {
     const res = await fetch(`/api/modules/${moduleId}/skill/versions/${versionId}`);
-    if (!res.ok) throw new Error('获取版本内容失败');
+    if (!res.ok) throw new Error(sessionMessages.get().errFetchVersionContent);
     return res.json() as Promise<{ version: number; content: string }>;
   }
 
@@ -82,15 +83,15 @@ export const useModulesStore = defineStore('modules', () => {
       body: JSON.stringify({ versionId }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '回滚失败' }));
-      throw new Error((err as { error?: string }).error ?? '回滚失败');
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errRollback }));
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errRollback);
     }
     return res.json() as Promise<{ restoredVersion: number }>;
   }
 
   async function exportSkill(moduleId: string, moduleName: string): Promise<void> {
     const res = await fetch(`/api/modules/${moduleId}/skill/export`);
-    if (!res.ok) throw new Error('导出失败');
+    if (!res.ok) throw new Error(sessionMessages.get().errExport);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -111,8 +112,8 @@ export const useModulesStore = defineStore('modules', () => {
       body: formData,
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '导入失败' }));
-      throw new Error((err as { error?: string }).error ?? '导入失败');
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errImport }));
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errImport);
     }
     const module = await res.json() as ModuleTemplate;
     library.value.push(module);
@@ -123,8 +124,8 @@ export const useModulesStore = defineStore('modules', () => {
   async function duplicateSkill(moduleId: string): Promise<ModuleTemplate> {
     const res = await fetch(`/api/modules/${moduleId}/skill/duplicate`, { method: 'POST' });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '复制失败' }));
-      throw new Error((err as { error?: string }).error ?? '复制失败');
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errCopy }));
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errCopy);
     }
     const module = await res.json() as ModuleTemplate;
     library.value.push(module);
@@ -138,8 +139,8 @@ export const useModulesStore = defineStore('modules', () => {
       body: JSON.stringify({ instruction }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '优化失败' }));
-      throw new Error((err as { error?: string }).error ?? '优化失败');
+      const err = await res.json().catch(() => ({ error: sessionMessages.get().errOptimize }));
+      throw new Error((err as { error?: string }).error ?? sessionMessages.get().errOptimize);
     }
     return res.json() as Promise<{ optimizedContent: string }>;
   }

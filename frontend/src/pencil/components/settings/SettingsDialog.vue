@@ -20,11 +20,24 @@
 		AppDialogRoot,
 	} from "@/components/ui/dialog";
 
-	const { dialogs } = useI18n();
+	const { dialogs, locale, setLocale } = useI18n();
 	const { browserCredentialsRemembered, setRememberCredentials } = useAIChat();
 	function onOpenChange(open: boolean): void {
 		settingsDialogOpen.value = open;
 	}
+
+	// 应用界面只提供简体中文与英文；底层编辑器仍保留其他语言能力。
+	const UI_LOCALES = [
+		{ code: "en", label: "English" },
+		{ code: "zh-CN", label: "中文（简体）" },
+	] as const;
+	const appLocale = computed({
+		get: () => {
+			const current = locale.value;
+			return current === "zh-CN" ? "zh-CN" : "en";
+		},
+		set: (code: "en" | "zh-CN") => setLocale(code),
+	});
 
 	const rememberCredentials = computed({
 		get: () => browserCredentialsRemembered.value,
@@ -69,6 +82,16 @@
 				<button
 					type="button"
 					:class="navigationClass"
+					:data-state="settingsDialogSection === 'general' ? 'active' : 'inactive'"
+					data-test-id="settings-section-general"
+					@click="settingsDialogSection = 'general'"
+				>
+					<icon-lucide-settings-2 class="size-3.5" />
+					{{ dialogs.settingsGeneral }}
+				</button>
+				<button
+					type="button"
+					:class="navigationClass"
 					:data-state="settingsDialogSection === 'ai' ? 'active' : 'inactive'"
 					data-test-id="settings-section-ai"
 					@click="settingsDialogSection = 'ai'"
@@ -92,7 +115,38 @@
 
 			<div class="min-h-0 flex-1 overflow-y-auto p-4">
 				<section
-					v-if="settingsDialogSection === 'ai'"
+					v-if="settingsDialogSection === 'general'"
+					class="flex flex-col gap-3"
+					data-test-id="settings-general-panel"
+				>
+					<h3 class="text-xs font-semibold text-surface">
+						{{ dialogs.settingsGeneral }}
+					</h3>
+					<div class="flex flex-col gap-1.5">
+						<p class="text-[11px] font-medium text-surface">{{ dialogs.language }}</p>
+						<p class="text-[10px] text-muted">{{ dialogs.languageDescription }}</p>
+						<div class="flex gap-1.5" data-test-id="settings-language-options">
+							<button
+								v-for="opt in UI_LOCALES"
+								:key="opt.code"
+								type="button"
+								class="rounded border px-2.5 py-1.5 text-[11px] transition-colors"
+								:class="
+									appLocale === opt.code
+										? 'border-accent bg-accent/10 text-accent'
+										: 'border-border text-muted hover:bg-hover'
+								"
+								:data-state="appLocale === opt.code ? 'active' : 'inactive'"
+								@click="appLocale = opt.code"
+							>
+								{{ opt.label }}
+							</button>
+						</div>
+					</div>
+				</section>
+
+				<section
+					v-else-if="settingsDialogSection === 'ai'"
 					class="flex h-full flex-col"
 					data-test-id="settings-ai-panel"
 				>
@@ -100,7 +154,7 @@
 				</section>
 
 				<!-- Upstream has a third "storage" section for remote S3 sync, which open-prd replaces
-             with its own prototype persistence API, so only these two sections exist here. -->
+             with its own prototype persistence API, so the media section is kept here. -->
 				<section
 					v-else
 					class="flex flex-col gap-2.5"

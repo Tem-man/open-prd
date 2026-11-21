@@ -44,18 +44,25 @@ function findPrdWithContent(sessionId: string): string | null {
 function buildUserContent(
 	userMessage: string,
 	target: ComposerTarget | null,
+	locale: string,
 	partialReply?: string,
 ): string {
 	let content = userMessage;
+	const zh = locale === "zh-CN";
 	if (target) {
 		const label = target.sectionTitle ?? target.sectionId;
 		const scope = target.elementLabel ? `${label} · ${target.elementLabel}` : label;
-		content = `（用户在界面上选中了 PRD「${scope}」，sectionId: ${target.sectionId}）\n${content}`;
+		content = zh
+			? `（用户在界面上选中了 PRD「${scope}」，sectionId: ${target.sectionId}）\n${content}`
+			: `(The user selected PRD section "${scope}" in the UI, sectionId: ${target.sectionId})\n${content}`;
 	}
 	if (partialReply) {
-		content +=
-			`\n\n---\n【系统提示：你之前的回复因超时中断，已输出的内容如下。` +
-			`请从中断处直接续写，不要重复已有内容，不要加任何前缀。】\n\n${partialReply}`;
+		content += zh
+			? `\n\n---\n【系统提示：你之前的回复因超时中断，已输出的内容如下。` +
+				`请从中断处直接续写，不要重复已有内容，不要加任何前缀。】\n\n${partialReply}`
+			: `\n\n---\n[System note: your previous reply was interrupted by a timeout. ` +
+				`What you already output is shown below. Continue from where it stopped — ` +
+				`do not repeat existing content and do not add any preamble.]\n\n${partialReply}`;
 	}
 	return content;
 }
@@ -86,7 +93,7 @@ async function runTurn(
 	modelFactory: () => BaseChatModel,
 	toolsFactory: ToolsFactory,
 ): Promise<AgentTurnResult> {
-	const { sessionId, userMessage, target, partialReply, recorder } = input;
+	const { sessionId, userMessage, target, locale, partialReply, recorder } = input;
 
 	const controller = new AbortController();
 	const forwardAbort = () => controller.abort(input.signal.reason);
@@ -100,19 +107,23 @@ async function runTurn(
 		prdId,
 		modules,
 		target: prdId ? target : null,
+		locale,
 		signal: controller.signal,
 		recorder,
 		emit: onEvent,
 	};
 
-	const { messages: history, summary } = await trimHistory(loadHistory(sessionId, true));
+	const { messages: history, summary } = await trimHistory(
+		loadHistory(sessionId, true, locale),
+	);
 	const systemPrompt = prdId
 		? buildEditPrompt(
 				modules,
 				summary ?? "",
 				ctx.target ? (isElementTarget(ctx.target) ? "element" : "section") : null,
+				locale,
 			)
-		: buildCollectPrompt(modules, summary ?? "");
+		: buildCollectPrompt(modules, summary ?? "", locale);
 
 	let toolsRunning = 0;
 	const middleware: AnyAgentMiddleware[] = [
@@ -157,7 +168,12 @@ async function runTurn(
 	try {
 		armIdle();
 		const stream = await agent.stream(
-			{ messages: [...history, new HumanMessage(buildUserContent(userMessage, ctx.target, partialReply))] },
+			{
+				messages: [
+					...history,
+					new HumanMessage(buildUserContent(userMessage, ctx.target, locale, partialReply)),
+				],
+			},
 			{
 				streamMode: ["messages", "custom"],
 				signal: controller.signal,

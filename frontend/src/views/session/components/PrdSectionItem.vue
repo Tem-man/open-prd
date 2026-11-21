@@ -20,6 +20,7 @@
 		computed,
 		onBeforeUnmount,
 	} from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { usePrdEditStore } from "@/stores/prdEdit";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { useSectionActions } from "@/composables/useSectionActions";
@@ -57,6 +58,7 @@
 		renderType?: string; // 自定义模块的渲染类型，用于按需加载 CDN
 	}>();
 
+	const { editor: t } = useI18n();
 	const prdEditStore = usePrdEditStore();
 	const sessionsStore = useSessionsStore();
 
@@ -153,12 +155,12 @@
 
 	function exportMarkmap() {
 		const title = sessionsStore.currentSession?.title;
-		const sectionTitle = props.title || "信息架构";
+		const sectionTitle = props.title || t.value.defaultSectionTitle;
 		const ok =
 			(contentRef.value !== null &&
 				downloadMarkmapMarkdown(contentRef.value, title, sectionTitle)) ||
 			downloadMarkmapMarkdown(props.html, title, sectionTitle);
-		if (!ok) showLocalToast("未找到思维导图数据");
+		if (!ok) showLocalToast(t.value.mindmapNotFound);
 	}
 
 	// ── Mermaid / markmap 渲染（复用导出页同一份运行时） ───────────────────────
@@ -169,7 +171,7 @@
 		showError = false,
 	): Promise<boolean> {
 		const ok = await runMermaid(nodes, { suppressErrors: false });
-		if (!ok && showError) showLocalToast("Mermaid 语法错误，已恢复原内容");
+		if (!ok && showError) showLocalToast(t.value.mermaidSyntaxError);
 		return ok;
 	}
 
@@ -291,7 +293,7 @@
 		if (selectedCells.value.length > 0) {
 			const anchorRow = selectedCells.value[0].closest("tr");
 			if (row !== anchorRow) {
-				showLocalToast("多选仅限同行");
+				showLocalToast(t.value.multiSelectSameRow);
 				clearHighlight();
 				selectedEl.value = null;
 				selectedTable.value = null;
@@ -328,7 +330,7 @@
 		) {
 			const existingRow = selectedEl.value.closest("tr");
 			if (row !== existingRow) {
-				showLocalToast("多选仅限同行");
+				showLocalToast(t.value.multiSelectSameRow);
 				return true;
 			}
 			clearHighlight(); // 清除 el-selected，selectedCells 置空
@@ -813,7 +815,7 @@
 		const src =
 			temp.querySelectorAll(".mermaid")[idx]?.textContent?.trim() ?? "";
 		if (!src || src.startsWith("<")) {
-			showLocalToast("无法读取 Mermaid 源码，请重新生成此模块");
+			showLocalToast(t.value.mermaidSourceFailed);
 			return "";
 		}
 		return src;
@@ -949,16 +951,16 @@
 		const cancelBtn = document.createElement("button");
 		cancelBtn.type = "button";
 		cancelBtn.className = "mermaid-source-cancel-btn";
-		cancelBtn.textContent = "取消";
-		cancelBtn.title = "取消编辑（Esc）";
+		cancelBtn.textContent = t.value.cancel;
+		cancelBtn.title = t.value.cancelEditHint;
 		cancelBtn.addEventListener("click", () => void cancelMermaidSource());
 		btnGroup.appendChild(cancelBtn);
 
 		const saveBtn = document.createElement("button");
 		saveBtn.type = "button";
 		saveBtn.className = "mermaid-source-save-btn";
-		saveBtn.textContent = "保存";
-		saveBtn.title = "保存（Ctrl+Enter）";
+		saveBtn.textContent = t.value.save;
+		saveBtn.title = t.value.saveHint;
 		saveBtn.addEventListener("click", () => void saveMermaidSource());
 		btnGroup.appendChild(saveBtn);
 
@@ -1254,7 +1256,7 @@
 			? tbody.querySelectorAll("tr")
 			: tr.closest("table")?.querySelectorAll("tbody tr");
 		if (dataRows && dataRows.length <= 1) {
-			showLocalToast("至少保留一行数据");
+			showLocalToast(t.value.keepOneRow);
 			return;
 		}
 		rowToDelete.value = tr;
@@ -1305,16 +1307,16 @@
 			<button
 				class="edit-trigger edit-trigger--ghost"
 				@click.stop="exportMarkmap"
-				title="导出思维导图为 Markdown"
+				:title="t.exportMindmap"
 			>
-				导出
+				{{ t.export }}
 			</button>
 		</div>
 
 		<!-- AI 重写中的遮罩 -->
 		<div v-if="isAiEditing" class="ai-overlay">
 			<span class="ai-overlay-dot" />
-			AI 正在重写…
+			{{ t.aiRewriting }}
 		</div>
 
 		<!-- 内容区 -->
@@ -1349,13 +1351,13 @@
 		<!-- ── 删除行/属性确认弹窗 ── -->
 		<ConfirmDialog
 			:visible="showDeleteConfirm"
-			title="确认删除该行？"
-			confirm-text="确认删除"
-			cancel-text="取消"
+			:title="t.confirmDeleteLine"
+			:confirm-text="t.confirmDelete"
+			:cancel-text="t.cancel"
 			@confirm="confirmDeleteRow"
 			@cancel="cancelDeleteRow"
 		>
-			删除后将立即保存，此操作不可撤销。
+			{{ t.deleteIrreversible }}
 		</ConfirmDialog>
 	</div>
 </template>

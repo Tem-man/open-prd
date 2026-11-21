@@ -13,6 +13,7 @@
 		onBeforeUnmount,
 		nextTick,
 	} from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { usePrdEditStore } from "@/stores/prdEdit";
 	import { useMessagesStore } from "@/stores/messages";
 	import {
@@ -51,6 +52,7 @@
 		"mermaid-edit-source-zone": [zone: "entity" | "relation" | "diagram"];
 	}>();
 
+	const { editor: t } = useI18n();
 	const prdEditStore = usePrdEditStore();
 	const messagesStore = useMessagesStore();
 	const { sendMessage } = useSSE();
@@ -118,28 +120,28 @@
 	});
 
 	// ── 元素标签 label ────────────────────────────────────────────────────────────
-	const TAG_LABELS: Record<string, string> = {
-		H2: "标题",
-		H3: "副标题",
-		H4: "小标题",
-		H5: "小标题",
-		P: "段落",
-		LI: "列表项",
-		TR: "表格行",
-		TD: "单元格",
-		TH: "表头",
-		BLOCKQUOTE: "引用",
-		PRE: "代码块",
-	};
+	const tagLabels = computed<Record<string, string>>(() => ({
+		H2: t.value.elHeading,
+		H3: t.value.elSubheading,
+		H4: t.value.elMinorHeading,
+		H5: t.value.elMinorHeading,
+		P: t.value.elParagraph,
+		LI: t.value.elList,
+		TR: t.value.elTableRow,
+		TD: t.value.elCell,
+		TH: t.value.elTableHead,
+		BLOCKQUOTE: t.value.elQuote,
+		PRE: t.value.elCode,
+	}));
 
 	/** 元素类型标签 - 场景卡片、内容块、图表、思维导图、分组标题 **/
-	const CLASS_LABELS: Array<[string, string]> = [
-		["scenario-card", "场景卡片"],
-		["prd-subsection", "内容块"],
-		["mermaid", "图表"],
-		["markmap-wrap", "思维导图"],
-		["module-header", "分组标题"],
-	];
+	const classLabels = computed<Array<[string, string]>>(() => [
+		["scenario-card", t.value.elScenarioCard],
+		["prd-subsection", t.value.elContentBlock],
+		["mermaid", t.value.elDiagram],
+		["markmap-wrap", t.value.elMindmap],
+		["module-header", t.value.elGroupTitle],
+	]);
 
 	/** 是否处于多格选中状态（≥2 个 td/th 被选中） */
 	const isMultiCell = computed(
@@ -148,15 +150,15 @@
 
 	/** 根据选中元素类型生成感知粒度的 placeholder 文案 */
 	const inputPlaceholder = computed(() => {
-		if (props.entityName) return `告诉 AI 如何修改 ${props.entityName} 实体…`;
+		if (props.entityName) return t.value.aiModifyEntity({ name: props.entityName });
 		if (isMultiCell.value)
-			return `告诉 AI 如何修改这 ${props.selectedCells!.length} 个单元格…`;
+			return t.value.aiModifyCells({ n: props.selectedCells!.length });
 		const tag = props.selectedEl?.tagName;
 		if (tag === "TABLE")
-			return "告诉 AI 如何修改整张表格…（再次单击行/单元格可缩小范围）";
-		if (tag === "TR") return "告诉 AI 如何修改选中行…";
-		if (tag === "TD" || tag === "TH") return "告诉 AI 如何修改选中单元格…";
-		return "告诉 AI 如何修改选中元素…";
+			return t.value.aiModifyTable;
+		if (tag === "TR") return t.value.aiModifyRow;
+		if (tag === "TD" || tag === "TH") return t.value.aiModifyCell;
+		return t.value.aiModifyElement;
 	});
 
 	/** 计算表格内部元素的 DOM 坐标，用于后端精确定位。
@@ -200,7 +202,7 @@
 	/** 元素类型标签 - 场景卡片、内容块、图表、思维导图、分组标题 **/
 	const elementLabel = computed(() => {
 		if (!props.selectedEl) return "";
-		if (props.entityName) return `${props.entityName}实体`;
+		if (props.entityName) return t.value.entitySuffix({ name: props.entityName });
 		// 多选单元格：显示行信息
 		if (isMultiCell.value) {
 			const row = props.selectedEl as HTMLElement;
@@ -208,13 +210,13 @@
 			const rowIndex = table
 				? Array.from(table.rows).indexOf(row as HTMLTableRowElement) + 1
 				: "?";
-			return `已选中 ${props.selectedCells!.length} 个单元格（第 ${rowIndex} 行）`;
+			return t.value.selectedCells({ n: props.selectedCells!.length, row: String(rowIndex) });
 		}
 		const tag = props.selectedEl.tagName;
-		for (const [cls, label] of CLASS_LABELS) {
+		for (const [cls, label] of classLabels.value) {
 			if (props.selectedEl.classList.contains(cls)) return label;
 		}
-		return TAG_LABELS[tag] ?? tag.toLowerCase();
+		return tagLabels.value[tag] ?? tag.toLowerCase();
 	});
 
 	// ── AI 指令提交 ───────────────────────────────────────────────────────────────
@@ -243,13 +245,13 @@
 		};
 		if (props.entityName) return { ...target, entityName: props.entityName };
 		// Mermaid 区域未识别出实体：整模块改写，绝不发 SVG
-		if (el.classList.contains("mermaid")) return { ...target, elementLabel: "图表" };
+		if (el.classList.contains("mermaid")) return { ...target, elementLabel: t.value.elDiagram };
 		if (isMultiCell.value && props.selectedCells) {
 			return {
 				...target,
 				selectedElementHtml: props.selectedCells.map(cleanOuterHtml).join("\n"),
 				tablePath: getTablePath(el, props.selectedCells) ?? undefined,
-				elementLabel: `${props.selectedCells.length}个单元格`,
+				elementLabel: t.value.cellsCount({ n: props.selectedCells.length }),
 			};
 		}
 		return {
@@ -307,36 +309,36 @@
 				<button
 					v-if="!isMultiCell && !mermaidZone"
 					class="text-mode-btn"
-					title="双击可直接编辑文本"
+					:title="t.doubleClickEditText"
 					@click="handleEnterTextMode()"
 				>
-					✎ 文字模式
+					✎ {{ t.textMode }}
 				</button>
 				<!-- Mermaid ER：三个固定按钮，点击任意 Mermaid 区域均显示 -->
 				<template v-if="mermaidZone">
 					<button
 						class="text-mode-btn"
 						:class="{ 'btn--active': mermaidZone === 'entity' }"
-						title="编辑当前实体字段（Ctrl+Enter 保存，Esc 取消）"
+						:title="t.editEntityField"
 						@click="emit('mermaid-edit-source-zone', 'entity')"
 					>
-						✎ 编辑实体
+						✎ {{ t.editEntityBtn }}
 					</button>
 					<button
 						class="text-mode-btn"
 						:class="{ 'btn--active': mermaidZone === 'relation' }"
-						title="编辑所有关系连线（Ctrl+Enter 保存，Esc 取消）"
+						:title="t.editRelations"
 						@click="emit('mermaid-edit-source-zone', 'relation')"
 					>
-						✎ 编辑连线
+						✎ {{ t.editRelationsBtn }}
 					</button>
 					<button
 						class="text-mode-btn"
 						:class="{ 'btn--active': mermaidZone === 'diagram' }"
-						title="编辑所有实体源码（Ctrl+Enter 保存，Esc 取消）"
+						:title="t.editAllEntities"
 						@click="emit('mermaid-edit-source-zone', 'diagram')"
 					>
-						✎ 编辑所有实体
+						✎ {{ t.editAllEntitiesBtn }}
 					</button>
 				</template>
 				<!-- HTML 表格：插入行、删除行 -->
@@ -347,10 +349,10 @@
 						['TR', 'TD', 'TH'].includes(selectedEl?.tagName ?? '')
 					"
 					class="insert-row-btn"
-					title="在此行下方插入新行"
+					:title="t.insertRowBelow"
 					@click="emit('insert-row')"
 				>
-					＋ 插入行
+					＋ {{ t.insertRow }}
 				</button>
 				<button
 					v-if="
@@ -359,7 +361,7 @@
 						['TR', 'TD', 'TH'].includes(selectedEl?.tagName ?? '')
 					"
 					class="delete-row-btn"
-					title="删除此行"
+					:title="t.deleteRowTitle"
 					@click="
 						emit(
 							'delete-row',
@@ -367,16 +369,16 @@
 						)
 					"
 				>
-					🗑 删除行
+					🗑 {{ t.deleteRow }}
 				</button>
 				<!-- HTML 表格：追加行 -->
 				<button
 					v-if="!mermaidZone && selectedEl?.tagName === 'TABLE'"
 					class="insert-row-btn"
-					title="在表格末尾追加新行"
+					:title="t.appendRow"
 					@click="emit('append-row')"
 				>
-					＋ 追加行
+					＋ {{ t.appendRowBtn }}
 				</button>
 				<button class="close-btn" @click="emit('close')">×</button>
 			</div>

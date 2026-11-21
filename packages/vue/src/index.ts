@@ -372,6 +372,16 @@ export {
   usePageMessages,
   useDialogMessages,
   useCommentMessages,
+  useShellMessages,
+  useHomeMessages,
+  useSessionMessages,
+  useVersionMessages,
+  useExportMessages,
+  useModuleMessages,
+  usePrdMessages,
+  useHistoryMessages,
+  usePrototypeMessages,
+  useEditorMessages,
   i18n
 } from '#vue/i18n'
 export {
@@ -392,5 +402,15 @@ export {
   variableTypeMessages,
   pageMessages,
   dialogMessages,
+  shellMessages,
+  homeMessages,
+  sessionMessages,
+  versionMessages,
+  exportMessages,
+  moduleMessages,
+  prdMessages,
+  historyMessages,
+  prototypeMessages,
+  editorMessages,
   messageDefaults
 } from '#vue/i18n'

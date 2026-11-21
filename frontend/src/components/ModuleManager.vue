@@ -10,6 +10,7 @@
 	 */
 
 	import { ref, watch, computed, onMounted, onBeforeUnmount } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { useModulesStore } from "@/stores/modules";
 	import type { ModuleTemplate } from "@/types";
 	import ModuleBuilderPanel from "./ModuleBuilderPanel.vue";
@@ -26,6 +27,7 @@
 		cancel: [];
 	}>();
 
+	const { module: t } = useI18n();
 	const modulesStore = useModulesStore();
 
 	const localSelected = ref<string[]>([]);
@@ -78,7 +80,7 @@
 		const file = (e.target as HTMLInputElement).files?.[0];
 		if (!file) return;
 		if (!file.name.endsWith(".md")) {
-			importError.value = "请上传 .md 格式的 SKILL 文件";
+			importError.value = t.value.uploadMdOnly;
 			return;
 		}
 		importPendingFile.value = file;
@@ -124,7 +126,7 @@
 	);
 
 	const confirmLabel = computed(() =>
-		props.mode === "modal" ? "确认，开始创建 PRD" : "保存模块配置",
+		props.mode === "modal" ? t.value.confirmCreatePrd : t.value.saveConfig,
 	);
 
 	function isSelected(id: string) {
@@ -151,16 +153,16 @@
 	async function handleAddModule() {
 		const name = customModuleName.value.trim();
 		if (!name) {
-			addError.value = "请输入模块名称";
+			addError.value = t.value.nameRequired;
 			return;
 		}
 		if (name.length > 50) {
-			addError.value = "名称不能超过 50 个字符";
+			addError.value = t.value.nameTooLong;
 			return;
 		}
 		const desc = customModuleDescription.value.trim();
 		if (desc.length > 200) {
-			addError.value = "描述不能超过 200 个字符";
+			addError.value = t.value.descTooLong;
 			return;
 		}
 		addError.value = "";
@@ -289,7 +291,7 @@
 				class="mm-container"
 				:class="mode === 'modal' ? 'mm-modal' : 'mm-drawer'"
 				role="dialog"
-				aria-label="模块管理"
+				:aria-label="t.title"
 			>
 				<!-- Header -->
 				<div class="mm-header">
@@ -333,8 +335,8 @@
 							/>
 						</svg>
 						<div>
-							<p class="mm-header-title">模块管理</p>
-							<p class="mm-header-sub">选择并排序 PRD 中包含的模块</p>
+							<p class="mm-header-title">{{ t.title }}</p>
+							<p class="mm-header-sub">{{ t.subtitle }}</p>
 						</div>
 					</div>
 					<button class="mm-close" @click="emit('cancel')">
@@ -353,9 +355,9 @@
 				<div class="mm-body">
 					<!-- 右：已选模块（拖拽排序） -->
 					<div class="mm-selected">
-						<p class="mm-panel-label">
-							已选模块 <span class="mm-count">{{ localSelected.length }}</span>
-						</p>
+					<p class="mm-panel-label">
+						{{ t.selected }} <span class="mm-count">{{ localSelected.length }}</span>
+					</p>
 
 						<div
 							class="mm-selected-list"
@@ -375,7 +377,7 @@
 								@drop="onDrop(i)"
 								@dragend="onDragEnd"
 							>
-								<span class="mm-drag-handle" title="拖拽排序">
+								<span class="mm-drag-handle" :title="t.dragToSort">
 									<svg viewBox="0 0 14 18" fill="none">
 										<circle cx="4" cy="3" r="1.5" fill="#94a3b8" />
 										<circle cx="10" cy="3" r="1.5" fill="#94a3b8" />
@@ -387,12 +389,12 @@
 								</span>
 								<span class="mm-sel-idx">{{ i + 1 }}</span>
 								<span class="mm-sel-name">{{ m.name }}</span>
-								<span v-if="!m.isBuiltin" class="mm-tag mm-tag--custom"
-									>自定义</span
-								>
-								<button
-									class="mm-sel-remove"
-									title="移除"
+							<span v-if="!m.isBuiltin" class="mm-tag mm-tag--custom"
+								>{{ t.custom }}</span
+							>
+							<button
+								class="mm-sel-remove"
+								:title="t.remove"
 									@click="toggleModule(m.id)"
 								>
 									<svg viewBox="0 0 12 12" fill="none">
@@ -423,13 +425,13 @@
 									stroke-linecap="round"
 								/>
 							</svg>
-							<p>请从左侧至少选择一个模块</p>
-						</div>
+						<p>{{ t.selectAtLeastOne }}</p>
 					</div>
+				</div>
 
-					<!-- 左：模块库 -->
-					<div class="mm-library">
-						<p class="mm-panel-label">模块库</p>
+				<!-- 左：模块库 -->
+				<div class="mm-library">
+					<p class="mm-panel-label">{{ t.library }}</p>
 
 						<div class="mm-library-list">
 							<div
@@ -473,14 +475,14 @@
 									class="mm-tag"
 									:class="m.isBuiltin ? 'mm-tag--builtin' : 'mm-tag--custom'"
 								>
-									{{ m.isBuiltin ? "内置" : "自定义" }}
+									{{ m.isBuiltin ? t.builtin : t.custom }}
 								</span>
 
 								<!-- 编辑 Skill 按钮（仅有 skillName 的自定义模块） -->
 								<button
 									v-if="!m.isBuiltin && m.skillName"
 									class="mm-skill-btn"
-									title="编辑 Skill"
+									:title="t.editSkill"
 									@click.stop="openSkillEditor(m)"
 								>
 									<svg viewBox="0 0 14 14" fill="none">
@@ -498,7 +500,7 @@
 								<button
 									v-else-if="m.isBuiltin && m.skillName"
 									class="mm-skill-btn"
-									:title="duplicatingId === m.id ? '复制中…' : '复制定制 Skill'"
+									:title="duplicatingId === m.id ? t.duplicating : t.duplicateSkill"
 									:disabled="duplicatingId !== null"
 									@click.stop="handleDuplicateSkill(m)"
 								>
@@ -525,7 +527,7 @@
 								<button
 									v-if="!m.isBuiltin"
 									class="mm-del-btn"
-									title="删除"
+									:title="t.remove"
 									@click.stop="handleDeleteModule(m)"
 								>
 									<svg viewBox="0 0 14 14" fill="none">
@@ -581,7 +583,7 @@
 											stroke-linecap="round"
 										/>
 									</svg>
-									<span>添加模块</span>
+									<span>{{ t.addModule }}</span>
 									<svg
 										class="mm-add-caret"
 										:class="{ open: showAddMenu }"
@@ -610,8 +612,8 @@
 												/>
 											</svg>
 											<span>
-												<strong>手动添加</strong>
-												<em>填写名称和描述</em>
+												<strong>{{ t.addManual }}</strong>
+												<em>{{ t.addManualDesc }}</em>
 											</span>
 										</button>
 										<button
@@ -635,8 +637,8 @@
 												/>
 											</svg>
 											<span>
-												<strong>使用 AI 创建</strong>
-												<em>两轮问答自动生成 Skill</em>
+												<strong>{{ t.addWithAI }}</strong>
+												<em>{{ t.addWithAIDesc }}</em>
 											</span>
 										</button>
 										<button
@@ -659,8 +661,8 @@
 												/>
 											</svg>
 											<span>
-												<strong>导入 Skill</strong>
-												<em>上传已有 .md 文件</em>
+												<strong>{{ t.importSkill }}</strong>
+												<em>{{ t.importSkillDesc }}</em>
 											</span>
 										</button>
 									</div>
@@ -669,14 +671,14 @@
 
 							<!-- 导入：填写模块名称 -->
 							<div v-if="showImportNameInput" class="mm-add-form">
-								<p class="mm-import-hint">
-									已选文件：{{ importPendingFile?.name }}
-								</p>
+							<p class="mm-import-hint">
+								{{ t.importSelected({ name: importPendingFile?.name ?? "" }) }}
+							</p>
 								<div class="mm-add-fields">
 									<input
 										v-model="importModuleName"
 										class="mm-add-input"
-										placeholder="模块名称（必填）"
+										:placeholder="t.namePlaceholder"
 										maxlength="50"
 										autofocus
 										@keydown.enter="handleImportSkill"
@@ -692,7 +694,7 @@
 										:disabled="importLoading || !importModuleName.trim()"
 										@click="handleImportSkill"
 									>
-										{{ importLoading ? "导入中…" : "确认导入" }}
+										{{ importLoading ? t.importing : t.importConfirm }}
 									</button>
 									<button
 										class="mm-add-cancel"
@@ -702,7 +704,7 @@
 											importError = '';
 										"
 									>
-										取消
+										{{ t.cancel }}
 									</button>
 								</div>
 								<p v-if="importError" class="mm-add-error">{{ importError }}</p>
@@ -721,7 +723,7 @@
 									<input
 										v-model="customModuleName"
 										class="mm-add-input"
-										placeholder="模块名称（必填）"
+										:placeholder="t.namePlaceholder"
 										maxlength="50"
 										autofocus
 										@keydown.enter="handleAddModule"
@@ -734,7 +736,7 @@
 									<textarea
 										v-model="customModuleDescription"
 										class="mm-add-textarea"
-										placeholder="模块描述（可选，将注入提示词中）"
+										:placeholder="t.descPlaceholder"
 										maxlength="200"
 										rows="3"
 										@keydown.esc="
@@ -750,7 +752,7 @@
 										:disabled="addLoading || !customModuleName.trim()"
 										@click="handleAddModule"
 									>
-										{{ addLoading ? "…" : "添加" }}
+										{{ addLoading ? "…" : t.add }}
 									</button>
 									<button
 										class="mm-add-cancel"
@@ -760,7 +762,7 @@
 											addError = '';
 										"
 									>
-										取消
+										{{ t.cancel }}
 									</button>
 								</div>
 							</div>
@@ -771,7 +773,7 @@
 
 				<!-- Footer -->
 				<div class="mm-footer">
-					<button class="mm-btn-cancel" @click="emit('cancel')">取消</button>
+					<button class="mm-btn-cancel" @click="emit('cancel')">{{ t.cancel }}</button>
 					<button
 						class="mm-btn-confirm"
 						:disabled="localSelected.length === 0"

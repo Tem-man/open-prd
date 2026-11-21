@@ -5,7 +5,10 @@
 	 * 点击会话记录，滚动到对应会话记录
 	 */
 	import { computed } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import type { Message } from "@/types";
+
+	const { history: t } = useI18n();
 
 	const props = defineProps<{
 		open: boolean;
@@ -43,18 +46,18 @@
 	});
 
 	function truncate(str: string, max = 24) {
-		if (!str) return "空消息";
+		if (!str) return t.value.emptyMessage;
 		return str.length > max ? str.slice(0, max) + "…" : str;
 	}
 
 	function relativeTime(ts: number) {
 		const diff = Date.now() - ts;
 		const m = Math.floor(diff / 60000);
-		if (m < 1) return "刚刚";
-		if (m < 60) return `${m} 分钟前`;
+		if (m < 1) return t.value.justNow;
+		if (m < 60) return t.value.minutesAgo({ n: m });
 		const h = Math.floor(m / 60);
-		if (h < 24) return `${h} 小时前`;
-		return `${Math.floor(h / 24)} 天前`;
+		if (h < 24) return t.value.hoursAgo({ n: h });
+		return t.value.daysAgo({ n: Math.floor(h / 24) });
 	}
 </script>
 
@@ -71,7 +74,7 @@
 				v-if="open"
 				class="history-drawer"
 				role="dialog"
-				aria-label="历史会话"
+				:aria-label="t.title"
 			>
 				<!-- Header -->
 				<div class="drawer-header">
@@ -85,7 +88,7 @@
 							/>
 						</svg>
 						<div>
-							<p class="drawer-title">本轮对话记录</p>
+							<p class="drawer-title">{{ t.currentRound }}</p>
 							<p class="drawer-subtitle" v-if="currentSessionTitle">
 								{{ currentSessionTitle }}
 							</p>
@@ -114,7 +117,7 @@
 							stroke-linecap="round"
 						/>
 					</svg>
-					<p>还没有对话记录</p>
+					<p>{{ t.empty }}</p>
 				</div>
 
 				<!-- 轮次列表 -->
@@ -151,7 +154,7 @@
 								}}
 							</p>
 							<p class="round-ai-preview pending" v-else>
-								<span class="ai-label">AI</span>回复中…
+								<span class="ai-label">{{ t.aiLabel }}</span>{{ t.replying }}
 							</p>
 						</div>
 

@@ -4,6 +4,7 @@ import {
 	type BaseMessage,
 } from "@langchain/core/messages";
 import { getDb } from "../../db/client.js";
+import type { Locale } from "../../i18n/locale.js";
 import { INTERRUPT_MARKER_RE } from "../pipelineState.js";
 import { extractQuestionForm } from "../../routes/sessions/helpers/questionForm.js";
 import type { EditRecord, FormPayload } from "./types.js";
@@ -41,21 +42,34 @@ function stripImitatedFormSummary(text: string): string {
 		.trim();
 }
 
-function describeForm(form: FormPayload): string {
+function describeForm(form: FormPayload, locale: Locale): string {
+	if (locale === "zh-CN") {
+		return form.action
+			? "[系统] 本轮已调用工具 generate_prd，确认卡片只出现在界面上。等待用户点选；不要在回复中复述或仿写该卡片。"
+			: "[系统] 本轮已调用工具 ask_user_form，题目只出现在界面表单中。等待用户填写；不要把题目或选项写进聊天气泡。";
+	}
 	return form.action
-		? "[系统] 本轮已调用工具 generate_prd，确认卡片只出现在界面上。等待用户点选；不要在回复中复述或仿写该卡片。"
-		: "[系统] 本轮已调用工具 ask_user_form，题目只出现在界面表单中。等待用户填写；不要把题目或选项写进聊天气泡。";
+		? "[System] The generate_prd tool was called this turn; the confirmation card only appears in the UI. Wait for the user to choose; do not repeat or imitate the card in your reply."
+		: "[System] The ask_user_form tool was called this turn; the questions only appear in the UI form. Wait for the user to fill it in; do not put the questions or options in the chat bubble.";
 }
 
-function assistantText(content: string, meta: MessageMeta): string {
+function assistantText(
+	content: string,
+	meta: MessageMeta,
+	locale: Locale,
+): string {
 	const { cleanReply, formData } = extractQuestionForm(content);
 	let text = stripImitatedFormSummary(cleanReply);
-	if (formData) text = `${text}\n\n${describeForm(formData as FormPayload)}`.trim();
+	if (formData)
+		text = `${text}\n\n${describeForm(formData as FormPayload, locale)}`.trim();
 	if (meta.edits && meta.edits.length > 0) {
 		const edited = meta.edits
 			.map((e) => `${e.sectionTitle} v${e.resultVersion}`)
-			.join("、");
-		text = `${text}\n\n（本轮已修改：${edited}）`.trim();
+			.join(locale === "zh-CN" ? "、" : ", ");
+		const zh = locale === "zh-CN";
+		const prefix = zh ? "（本轮已修改：" : "(Edited this turn: ";
+		const suffix = zh ? "）" : ")";
+		text = `${text}\n\n${prefix}${edited}${suffix}`.trim();
 	}
 	return text;
 }
@@ -73,7 +87,11 @@ function userText(content: string, meta: MessageMeta): string {
  * 加载会话文本历史（不含 thinking、不含工具中间消息）。
  * 带中断标记的助手消息会被过滤；默认排除最后一条用户消息（由调用方作为当前输入追加）。
  */
-export function loadHistory(sessionId: string, excludeLastUserMsg = true): BaseMessage[] {
+export function loadHistory(
+	sessionId: string,
+	excludeLastUserMsg = true,
+	locale: Locale = "zh-CN",
+): BaseMessage[] {
 	const db = getDb();
 	const rows = db
 		.prepare(
@@ -92,7 +110,7 @@ export function loadHistory(sessionId: string, excludeLastUserMsg = true): BaseM
 		if (m.role === "user") {
 			messages.push(new HumanMessage(userText(m.content, meta)));
 		} else if (m.role === "assistant") {
-			const text = assistantText(m.content, meta);
+			const text = assistantText(m.content, meta, locale);
 			if (text) messages.push(new AIMessage(text));
 		}
 	}

@@ -1,17 +1,15 @@
 <script setup lang="ts">
-	withDefaults(
-		defineProps<{
-			visible: boolean;
-			title?: string;
-			confirmText?: string;
-			cancelText?: string;
-		}>(),
-		{
-			title: "确认删除",
-			confirmText: "确认删除",
-			cancelText: "取消",
-		},
-	);
+	import { useI18n } from "@open-pencil/vue";
+
+	const { editor: t } = useI18n();
+
+	// 默认值不在 withDefaults 里写死，改在模板用 t.xxx 兜底，才能跟随语言切换
+	defineProps<{
+		visible: boolean;
+		title?: string;
+		confirmText?: string;
+		cancelText?: string;
+	}>();
 
 	const emit = defineEmits<{
 		(e: "confirm"): void;
@@ -41,7 +39,7 @@
 							/>
 						</svg>
 					</div>
-					<h3 class="dialog-title">{{ title }}</h3>
+					<h3 class="dialog-title">{{ title ?? t.confirmDelete }}</h3>
 					<div class="dialog-desc">
 						<slot />
 					</div>
@@ -50,13 +48,13 @@
 							class="dialog-btn dialog-btn--cancel"
 							@click="emit('cancel')"
 						>
-							{{ cancelText }}
+							{{ cancelText ?? t.cancel }}
 						</button>
 						<button
 							class="dialog-btn dialog-btn--confirm"
 							@click="emit('confirm')"
 						>
-							{{ confirmText }}
+							{{ confirmText ?? t.confirmDelete }}
 						</button>
 					</div>
 				</div>

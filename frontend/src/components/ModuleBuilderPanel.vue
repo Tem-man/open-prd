@@ -1,5 +1,6 @@
 <script setup lang="ts">
 	import { ref, computed } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import QuestionForm from "./QuestionForm.vue";
 	import type {
 		QuestionForm as QuestionFormType,
@@ -10,6 +11,8 @@
 		done: [module: ModuleTemplate];
 		cancel: [];
 	}>();
+
+	const { module: t } = useI18n();
 
 	// ── 状态机 ──────────────────────────────────────────────────────────────────
 	type Step = "input" | "points" | "format" | "preview";
@@ -33,17 +36,21 @@
 			{
 				id: "name",
 				label: "模块名称",
+				labelI18n: t.value.nameLabel,
 				type: "text",
 				required: true,
 				placeholder: "例：竞品分析、风险矩阵、上线计划…",
+				placeholderI18n: t.value.nameExample,
 			},
 			{
 				id: "desc",
 				label: "描述一下你想要这个模块展示什么内容",
+				labelI18n: t.value.descLabel,
 				type: "text",
 				required: true,
 				placeholder:
 					"例：对比主要竞品的核心功能、定价和优劣势，帮助团队了解市场格局",
+				placeholderI18n: t.value.descExample,
 			},
 		],
 	}));
@@ -54,6 +61,7 @@
 			{
 				id: "points",
 				label: "AI 建议的内容要点（可多选，可手动增删）",
+				labelI18n: t.value.pointsLabel,
 				type: "multi_choice",
 				required: true,
 				options: suggestedPoints.value,
@@ -74,6 +82,7 @@
 			{
 				id: "format",
 				label: "选择展示形式",
+				labelI18n: t.value.formatLabel,
 				type: "single_choice",
 				required: true,
 				options: FORMAT_OPTIONS,
@@ -103,11 +112,11 @@
 		userDescription.value = parsed["描述一下你想要这个模块展示什么内容"] || "";
 
 		if (!moduleName.value) {
-			error.value = "请填写模块名称";
+			error.value = t.value.nameRequiredFill;
 			return;
 		}
 		if (!userDescription.value) {
-			error.value = "请描述一下这个模块展示的内容";
+			error.value = t.value.descLabel;
 			return;
 		}
 
@@ -123,11 +132,11 @@
 				}),
 			});
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || "请求失败");
+			if (!res.ok) throw new Error(data.error || t.value.requestFailed);
 			suggestedPoints.value = data.points ?? [];
 			// 如果 API 返回空，给一个默认要点防止空表单
 			if (suggestedPoints.value.length === 0) {
-				suggestedPoints.value = ["请手动输入内容要点"];
+				suggestedPoints.value = [t.value.manualPointsPlaceholder];
 			}
 			selectedPoints.value = [...suggestedPoints.value];
 			step.value = "points";
@@ -146,7 +155,7 @@
 			.map((p) => p.trim())
 			.filter(Boolean);
 		if (selectedPoints.value.length === 0) {
-			error.value = "请至少选择一个内容要点";
+			error.value = t.value.pointsRequired;
 			return;
 		}
 		error.value = "";
@@ -193,7 +202,7 @@
 				}),
 			});
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || "生成失败");
+			if (!res.ok) throw new Error(data.error || t.value.generateFailed);
 			skillName.value = data.skillName;
 			skillContent.value = data.skillContent;
 			step.value = "preview";
@@ -220,7 +229,7 @@
 				}),
 			});
 			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || "创建失败");
+			if (!res.ok) throw new Error(data.error || t.value.createFailed);
 			emit("done", data as ModuleTemplate);
 		} catch (e) {
 			error.value = (e as Error).message;
@@ -237,12 +246,15 @@
 	}
 
 	// 步骤标题
-	const STEP_LABELS: Record<Step, string> = {
-		input: "1 / 3  描述模块",
-		points: "2 / 3  确认要点",
-		format: "3 / 3  选择形式",
-		preview: "预览 Skill 规范",
-	};
+	const stepLabel = computed<string>(() => {
+		const map: Record<Step, string> = {
+			input: t.value.stepInput,
+			points: t.value.stepPoints,
+			format: t.value.stepFormat,
+			preview: t.value.stepPreview,
+		};
+		return map[step.value];
+	});
 </script>
 
 <template>
@@ -254,9 +266,9 @@
 				:disabled="loading"
 				@click="step === 'input' ? emit('cancel') : goBack()"
 			>
-				← 返回
-			</button>
-			<span class="mb-step-label">{{ STEP_LABELS[step] }}</span>
+			{{ t.back }}
+		</button>
+		<span class="mb-step-label">{{ stepLabel }}</span>
 		</div>
 
 		<!-- 错误提示 -->
@@ -267,7 +279,7 @@
 			v-if="step === 'input'"
 			:form="inputForm"
 			:disabled="loading"
-			submit-label="AI 分析内容要点 →"
+			:submit-label="t.analyzePoints"
 			hint-text=""
 			@submit="handleInputSubmit"
 		/>
@@ -278,7 +290,7 @@
 				:form="pointsForm"
 				:default-answers="pointsDefaultAnswers"
 				:disabled="loading"
-				submit-label="确认要点，选择展示形式 →"
+				:submit-label="t.confirmPoints"
 				hint-text=""
 				@submit="handlePointsSubmit"
 			/>
@@ -287,17 +299,17 @@
 				<input
 					v-model="customPointInput"
 					class="mb-point-input"
-					placeholder="+ 手动添加要点"
+					:placeholder="t.addPointPlaceholder"
 					maxlength="40"
 					@keydown.enter.prevent="addCustomPoint"
 				/>
 				<button
 					class="mb-point-add-btn"
 					:disabled="!customPointInput.trim()"
-					@click="addCustomPoint"
-				>
-					添加
-				</button>
+				@click="addCustomPoint"
+			>
+				{{ t.add }}
+			</button>
 			</div>
 		</template>
 
@@ -306,7 +318,7 @@
 			v-if="step === 'format'"
 			:form="formatForm"
 			:disabled="loading"
-			submit-label="生成 Skill 规范 →"
+			:submit-label="t.generateSkill"
 			hint-text=""
 			@submit="handleFormatSubmit"
 		/>
@@ -318,14 +330,14 @@
 			</div>
 			<div class="mb-preview-actions">
 				<button class="mb-regen-btn" :disabled="loading" @click="buildSkill">
-					{{ loading ? "生成中…" : "← 重新生成" }}
+					{{ loading ? t.generating : t.regen }}
 				</button>
 				<button
 					class="mb-confirm-btn"
 					:disabled="loading"
 					@click="confirmSkill"
 				>
-					{{ loading ? "创建中…" : "确认，创建模块 ✓" }}
+					{{ loading ? t.creating : t.createModule }}
 				</button>
 			</div>
 		</template>
@@ -333,7 +345,7 @@
 		<!-- loading 遮罩提示 -->
 		<div v-if="loading && step !== 'preview'" class="mb-loading">
 			<span class="mb-loading-dot" />
-			<span>AI 分析中，请稍候…</span>
+			<span>{{ t.analyzing }}</span>
 		</div>
 	</div>
 </template>

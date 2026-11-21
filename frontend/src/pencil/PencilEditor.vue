@@ -2,7 +2,7 @@
 	import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 	import { useEventListener, watchDebounced } from "@vueuse/core";
 	import { useRoute } from "vue-router";
-	import { provideEditor } from "@open-pencil/vue";
+	import { provideEditor, useI18n } from "@open-pencil/vue";
 	import { readFigFile } from "@open-pencil/core/io/formats/fig";
 
 	import { setActiveEditorStore } from "@/app/editor/active-store";
@@ -27,6 +27,7 @@
 		prototypeId: string;
 	}>();
 
+	const { prototype: t } = useI18n();
 	const route = useRoute();
 	const presenting = computed(() => route.name === "prototype-present");
 	const { theme, resolvedTheme } = useAppTheme();
@@ -55,7 +56,7 @@
 
 		const meta = await prototypesStore.fetchMeta(id);
 		if (!meta) {
-			loadError.value = "原型不存在或已被删除";
+			loadError.value = t.value.notFound;
 			clearPrdBasis(); // 释放就绪门闩，避免 ChatPanel 永远等待
 			return;
 		}
@@ -77,7 +78,7 @@
 			await applyImportedDocument(store, imported);
 		}
 
-		store.state.documentName = meta.title || "未命名原型";
+		store.state.documentName = meta.title || t.value.untitled;
 		store.setStorageDocumentSource(
 			{ providerId: OPEN_PRD_PROTOTYPE_PROVIDER, documentId: id },
 			store.state.documentName,
@@ -129,7 +130,7 @@
 	onMounted(() => {
 		void bindPrototype(props.prototypeId).catch((e) => {
 			console.error(e);
-			loadError.value = e instanceof Error ? e.message : "加载原型失败";
+			loadError.value = e instanceof Error ? e.message : t.value.loadFailed;
 			clearPrdBasis(); // 释放就绪门闩，避免 ChatPanel 永远等待
 		});
 	});
@@ -155,7 +156,7 @@
 		<PresentView v-else-if="presenting && ready" />
 		<PencilEditorShell v-else-if="!presenting" />
 		<div v-if="!ready && !loadError" class="prototype-load-mask">
-			正在打开原型…
+			{{ t.opening }}
 		</div>
 	</div>
 </template>

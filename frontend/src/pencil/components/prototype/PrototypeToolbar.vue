@@ -22,7 +22,7 @@ const emit = defineEmits<{
   updateZoomMode: [mode: PresentZoomMode]
 }>()
 
-const { dialogs } = useI18n()
+const { dialogs, prototype: t } = useI18n()
 
 const options = computed(() => props.frames.map((frame) => ({ value: frame.id, label: frame.name })))
 
@@ -31,13 +31,11 @@ const selected = computed({
   set: (frameId: string) => emit('showFrame', frameId)
 })
 
-// open-prd customization: hardcoded Chinese labels like the rest of the custom chrome
-// (ChatPanel etc.), instead of extending the upstream i18n tables under packages/.
-const zoomOptions: { value: PresentZoomMode; label: string }[] = [
-  { value: 'fit', label: '适应窗口' },
-  { value: 'fill-width', label: '适应宽度' },
-  { value: 'actual', label: '实际尺寸' }
-]
+const zoomOptions = computed<{ value: PresentZoomMode; label: string }[]>(() => [
+  { value: 'fit', label: t.value.zoomFit },
+  { value: 'fill-width', label: t.value.zoomFillWidth },
+  { value: 'actual', label: t.value.zoomActual }
+])
 
 const zoom = computed({
   get: () => props.zoomMode,
@@ -53,7 +51,7 @@ const zoom = computed({
     <AppSelect
       v-model="zoom"
       :options="zoomOptions"
-      label="缩放模式"
+      :label="t.zoomMode"
       data-property="present-zoom"
     />
     <AppSelect

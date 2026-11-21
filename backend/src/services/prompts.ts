@@ -2,6 +2,7 @@
  * PRD 编排 Agent 的系统提示词（按阶段切换）。
  * 表单标记常量仅用于消息存储格式（刷新后还原表单），模型不再输出标记。
  */
+import type { Locale } from "../i18n/locale.js";
 export const QUESTION_FORM_START = "[QUESTION_FORM]";
 export const QUESTION_FORM_END = "[/QUESTION_FORM]";
 
@@ -33,10 +34,21 @@ const COMMON_STYLE = `## 对话风格
 - **严禁**在回复文字中输出 HTML、Mermaid、Markdown 代码块或 PRD 正文；PRD 内容只能通过工具产出
 - 向用户提问只能调用 ask_user_form；禁止在正文中写「已向用户发送表单」或罗列题目与选项（那是系统内部备注，不是回复格式）`;
 
+/**
+ * 输出语言指令：追加在 system prompt 末尾，决定模型回复与工具产出（表单题目/选项）的语言。
+ * 英文模式必须显式声明"所有面向用户的文本都用英文"，否则模型会沿用 prompt 正文的中文。
+ */
+function languageInstruction(locale: Locale): string {
+	return locale === "zh-CN"
+		? `\n\n## 输出语言\n用简体中文回复。向用户提问或调用 ask_user_form 时，题目、选项、占位符也一律用简体中文。`
+		: `\n\n## Output language\nRespond in English. All user-facing text — including questions, options and placeholders passed to ask_user_form — must be in English.`;
+}
+
 /** 收集阶段：尚无 PRD 内容。可用工具：ask_user_form、generate_prd。 */
 export function buildCollectPrompt(
 	modules: SelectedModule[],
 	summaryBlock = "",
+	locale: Locale = "zh-CN",
 ): string {
 	return `你是一位资深产品经理，专门负责撰写结构化的产品需求文档（PRD）。
 
@@ -93,7 +105,7 @@ ${formatModuleList(modules)}
 
 ---
 
-${COMMON_STYLE}${summarySection(summaryBlock)}`;
+${COMMON_STYLE}${languageInstruction(locale)}${summarySection(summaryBlock)}`;
 }
 
 /** 编辑阶段：PRD 已生成。可用工具：全部。 */
@@ -101,6 +113,7 @@ export function buildEditPrompt(
 	modules: SelectedModule[],
 	summaryBlock = "",
 	targetKind: "section" | "element" | null = null,
+	locale: Locale = "zh-CN",
 ): string {
 	return `你是一位资深产品经理，正在协助用户完善一份**已经生成**的 PRD 文档。你通过工具读取和修改 PRD，然后用 1–2 句话向用户说明「在哪里改了什么」。
 
@@ -172,5 +185,5 @@ ${
 ---
 
 ${COMMON_STYLE}
-- 修改完成后只用 1–2 句话说明改动位置与结果，不要复述用户指令全文${summarySection(summaryBlock)}`;
+- 修改完成后只用 1–2 句话说明改动位置与结果，不要复述用户指令全文${languageInstruction(locale)}${summarySection(summaryBlock)}`;
 }

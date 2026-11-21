@@ -1,0 +1,16 @@
+{
+  "back": "返回",
+  "untitledPrd": "未命名 PRD",
+  "editTitle": "编辑标题",
+  "textEditHint": "文字编辑模式 · ESC 返回",
+  "selectHint": "单击选元素 · Ctrl/⌘+单击多选格 · 双击编文字",
+  "saveManual": "保存手动修改",
+  "saving": "保存中…",
+  "save": "保存",
+  "exitEdit": "退出编辑",
+  "editThis": "编辑此模块",
+  "edit": "编辑",
+  "versions": "版本",
+  "export": "导出",
+  "settings": "设置"
+}

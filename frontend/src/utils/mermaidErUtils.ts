@@ -1,3 +1,5 @@
+import { editorMessages } from "@open-pencil/vue";
+
 /**
  * mermaidErUtils — Mermaid ER 源码解析 / 分段回写工具函数
  *
@@ -116,7 +118,7 @@ export function isMermaidRelationEl(el: Element): boolean {
 
 /** 根据 zone + entityName 生成编辑器顶部提示文字 */
 export function zoneHintText(zone: MermaidErZone, entityName?: string): string {
-	if (zone === "entity" && entityName) return `编辑实体：${entityName}`;
-	if (zone === "relation") return "编辑关系连线";
-	return "编辑完整 ER 图源码";
+	if (zone === "entity" && entityName) return editorMessages.get().editEntity({ name: entityName });
+	if (zone === "relation") return editorMessages.get().editRelation;
+	return editorMessages.get().editFullEr;
 }

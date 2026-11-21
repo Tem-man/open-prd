@@ -11,6 +11,7 @@
 	 */
 
 	import { ref, computed, nextTick, watch, onUnmounted } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { useMessagesStore } from "@/stores/messages";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdEditStore } from "@/stores/prdEdit";
@@ -28,6 +29,7 @@
 
 	const props = defineProps<{ sessionId: string }>();
 
+	const { session: t } = useI18n();
 	const messagesStore = useMessagesStore();
 	const sessionsStore = useSessionsStore();
 	const prdEditStore = usePrdEditStore();
@@ -84,11 +86,11 @@
 
 	const inputPlaceholder = computed(() => {
 		if (composerTarget.value) {
-			return `告诉 AI 如何修改「${composerTarget.value.sectionTitle ?? "该模块"}」…`;
+			return t.value.composerTarget({
+				section: composerTarget.value.sectionTitle ?? t.value.defaultSection,
+			});
 		}
-		return hasPrd.value
-			? "继续对话，或直接说要改 PRD 的哪里..."
-			: "描述你的产品需求...";
+		return hasPrd.value ? t.value.composerContinue : t.value.composerDefault;
 	});
 
 	async function handleModuleSave() {
@@ -118,7 +120,9 @@
 	/** 只有模块仍停在这次编辑产生的版本时才能撤回，避免覆盖之后的修改 */
 	function canUndo(edit: MessageEdit): boolean {
 		if (edit.rolledBack) return false;
-		const sec = prdEditStore.sections.find((s) => s.sectionId === edit.sectionId);
+		const sec = prdEditStore.sections.find(
+			(s) => s.sectionId === edit.sectionId,
+		);
 		return !!sec && sec.version === edit.resultVersion;
 	}
 
@@ -126,7 +130,11 @@
 		if (!canUndo(edit) || rolling.value || inputBusy.value) return;
 		try {
 			await rollbackSection(props.sessionId, edit.sectionId, msg.id);
-			messagesStore.markEditRolledBack(msg.id, edit.sectionId, edit.resultVersion);
+			messagesStore.markEditRolledBack(
+				msg.id,
+				edit.sectionId,
+				edit.resultVersion,
+			);
 		} catch (e) {
 			console.error("[SessionSidebar] rollback failed:", e);
 		}
@@ -177,7 +185,7 @@
 		if (isCreatingPrototype.value) return;
 		isCreatingPrototype.value = true;
 		try {
-			const title = `${currentSession.value?.title || "未命名"} - 原型`;
+			const title = `${currentSession.value?.title || t.value.untitled} - ${t.value.prototypeSuffix}`;
 			// createPrototype 内部会跳转 /prototype/:id
 			await prototypesStore.createPrototype(title, props.sessionId);
 		} catch (e) {
@@ -250,15 +258,15 @@
 	const pipelineRetryLabel = computed(() => {
 		switch (messagesStore.pipelineState?.lastError?.suggestedMode) {
 			case "retry_last":
-				return "重新生成";
+				return t.value.regen;
 			case "continue_agent":
-				return "继续对话";
+				return t.value.continueChat;
 			case "continue_prd":
-				return "继续生成 PRD";
+				return t.value.continuePrd;
 			case "retry_section":
-				return "重试失败模块";
+				return t.value.retryFailed;
 			default:
-				return "继续";
+				return t.value.continueAction;
 		}
 	});
 
@@ -311,15 +319,22 @@
 		const question = form?.questions[0];
 		const choice = question ? answers[question.id] : undefined;
 		const decisionIdx =
-			typeof choice === "string" ? (question?.options ?? []).indexOf(choice) : -1;
-		const decision = decisionIdx >= 0 ? CONFIRM_DECISIONS[decisionIdx] : undefined;
+			typeof choice === "string"
+				? (question?.options ?? []).indexOf(choice)
+				: -1;
+		const decision =
+			decisionIdx >= 0 ? CONFIRM_DECISIONS[decisionIdx] : undefined;
 		inputText.value = "";
 		isSending.value = true;
 		try {
 			if (action && decision) {
-				await sendMessage(props.sessionId, typeof choice === "string" ? choice : answersText, {
-					confirmAction: { token: action.token, decision },
-				});
+				await sendMessage(
+					props.sessionId,
+					typeof choice === "string" ? choice : answersText,
+					{
+						confirmAction: { token: action.token, decision },
+					},
+				);
 			} else {
 				await sendMessage(props.sessionId, answersText, { isFormAnswer: true });
 			}
@@ -427,21 +442,21 @@
 					modulesOpen = false;
 				"
 			>
-				对话
+				{{ t.tabConversation }}
 			</button>
 			<button
 				class="tab"
 				:class="{ active: activeTab === 'modules' }"
 				@click="openModules"
 			>
-				模块管理
+				{{ t.tabModules }}
 			</button>
 			<button
 				class="tab"
 				:class="{ active: activeTab === 'history' }"
 				@click="openHistory"
 			>
-				历史会话
+				{{ t.tabHistory }}
 			</button>
 		</div>
 
@@ -453,16 +468,16 @@
 					<div class="avatar ai">AI</div>
 					<div class="bubble assistant-bubble">
 						<p>
-							你好！我是你的
-							<strong>PRD 助手</strong
-							>。我可以帮助你从零开始构建一份完整、结构化的产品需求文档。
+							{{ t.welcomeGreeting }}
+							<strong>{{ t.welcomeAssistant }}</strong
+							>{{ t.welcomeIntro }}
 						</p>
-						<p>请告诉我你想做什么产品？越详细越好。比如：</p>
+						<p>{{ t.welcomePrompt }}</p>
 						<ul>
-							<li>产品类型（App / Web / 小程序 / 后台系统）</li>
-							<li>目标用户群体</li>
-							<li>核心功能和业务场景</li>
-							<li>任何你已经思考过的设计方案</li>
+							<li>{{ t.welcomeExample1 }}</li>
+							<li>{{ t.welcomeExample2 }}</li>
+							<li>{{ t.welcomeExample3 }}</li>
+							<li>{{ t.welcomeExample4 }}</li>
 						</ul>
 					</div>
 				</div>
@@ -487,9 +502,7 @@
 					<!-- 流式开始前（内容为空且尚无思考）显示打字动画 -->
 					<div
 						v-if="
-							msg.isStreaming &&
-							!stripFormBlock(msg.content) &&
-							!msg.thinking
+							msg.isStreaming && !stripFormBlock(msg.content) && !msg.thinking
 						"
 						class="bubble assistant-bubble"
 					>
@@ -509,14 +522,16 @@
 					<!-- 对话中断操作气泡 -->
 					<div v-if="msg.interrupted && !msg.isStreaming" class="action-bubble">
 						<span class="action-bubble__icon">⚠</span>
-						<span class="action-bubble__text">回复因超时中断</span>
+						<span class="action-bubble__text">{{ t.interrupted }}</span>
 						<button
 							type="button"
 							class="action-bubble__btn"
 							:disabled="isSending"
 							@click="handleRetryFromBubble(msg.id)"
 						>
-							{{ msg.content.trim().length > 20 ? "继续生成" : "重新生成" }}
+							{{
+								msg.content.trim().length > 20 ? t.continueGenerating : t.regen
+							}}
 						</button>
 					</div>
 					<!-- 结构化提问表单 -->
@@ -538,18 +553,22 @@
 							class="edit-record__row"
 						>
 							<span class="cite-chip"># {{ editLabel(edit) }}</span>
-							<span class="edit-record__version">v{{ edit.resultVersion }}</span>
-							<span v-if="edit.rolledBack" class="edit-record__state">已撤回</span>
+							<span class="edit-record__version"
+								>v{{ edit.resultVersion }}</span
+							>
+							<span v-if="edit.rolledBack" class="edit-record__state">{{
+								t.rolledBack
+							}}</span>
 							<button
 								v-else
 								type="button"
 								class="edit-record__undo"
 								:disabled="!canUndo(edit) || rolling || inputBusy"
-								:title="canUndo(edit) ? '撤回这次修改' : '模块之后又有修改，无法撤回'"
+								:title="canUndo(edit) ? t.undoEdit : t.cannotUndo"
 								@click="handleUndoEdit(msg, edit)"
 							>
 								<icon-lucide-undo-2 />
-								{{ rolling ? "撤回中…" : "撤回" }}
+								{{ rolling ? t.undoing : t.undo }}
 							</button>
 						</div>
 					</div>
@@ -565,7 +584,7 @@
 							:disabled="isCreatingPrototype"
 							@click="handleCreatePrototype"
 						>
-							{{ isCreatingPrototype ? "正在创建原型…" : msg.action.label }}
+							{{ isCreatingPrototype ? t.creatingPrototype : msg.action.label }}
 						</button>
 					</div>
 				</div>
@@ -584,7 +603,7 @@
 							<span class="action-bubble__text">
 								{{
 									messagesStore.pipelineState?.lastError?.message ??
-									"生成中断，可继续完成"
+									t.generateInterrupted
 								}}
 							</span>
 							<button
@@ -604,13 +623,13 @@
 		<!-- ── 对话输入区（选中模块时带 chip，AI 修改同样走对话） ── -->
 		<div class="input-area">
 			<div v-if="isModuleEditing" class="module-edit-actions">
-				<span class="module-edit-hint">正在编辑模块，可直接修改文字后保存，或在下方告诉 AI 如何修改</span>
+				<span class="module-edit-hint">{{ t.editHint }}</span>
 				<button
 					class="mod-btn mod-btn-outline"
 					:disabled="moduleEditBusy"
 					@click="handleModuleSave"
 				>
-					{{ saving ? "保存中…" : "保存文案" }}
+					{{ saving ? t.saving : t.saveDraft }}
 				</button>
 			</div>
 			<div class="input-box" :class="{ disabled: inputBusy }">
@@ -620,7 +639,7 @@
 						<button
 							type="button"
 							class="cite-chip__close"
-							title="取消引用并退出编辑"
+							:title="t.cancelReference"
 							:disabled="moduleEditBusy"
 							@click="handleModuleCancel"
 						>
@@ -639,7 +658,11 @@
 					class="input-textarea"
 				></textarea>
 				<div class="input-actions">
-					<button class="input-icon-btn" title="附件" :disabled="isSending">
+					<button
+						class="input-icon-btn"
+						:title="t.attachment"
+						:disabled="isSending"
+					>
 						<svg viewBox="0 0 16 16" fill="none">
 							<path
 								d="M13.5 7.5l-6 6a4 4 0 01-5.66-5.66l6-6a2.5 2.5 0 013.54 3.54l-6 6a1 1 0 01-1.42-1.42l5.5-5.5"
@@ -655,7 +678,7 @@
 						<StopGenerateButton
 							v-if="inputBusy"
 							:size="30"
-							title="停止生成"
+							:title="t.stopGenerating"
 							@click="handleStop"
 						/>
 						<!-- 待发送：发送按钮 -->

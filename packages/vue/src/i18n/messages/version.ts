@@ -1,0 +1,52 @@
+import { params } from '@nanostores/i18n'
+
+import { i18n } from '#vue/i18n/create'
+
+export const versionMessageDefaults = {
+  title: 'Version history',
+  loadFailed: 'Failed to load versions',
+  switchFailed: 'Failed to switch version. Please retry.',
+  createFailed: 'Failed to create version. Please retry.',
+  copyFailed: 'Failed to copy version. Please retry.',
+  renameFailed: 'Failed to rename. Please retry.',
+  deleteFailed: 'Failed to delete version. Please retry.',
+  sourceBlank: 'Blank',
+  sourceSnapshot: 'Snapshot',
+  justNow: 'Just now',
+  minutesAgo: params('{n} min ago'),
+  hoursAgo: params('{n} h ago'),
+  daysAgo: params('{n} d ago'),
+  addVersion: 'Add version',
+  loading: 'Loading…',
+  empty: 'No versions yet',
+  emptyHint: 'Click "Add version" above to create a blank version',
+  renameHint: 'Double-click to rename',
+  copyHint: 'Copy this version',
+  deleteHint: 'Delete version',
+  note: 'Versions are created manually; switching saves current content back to the original version.',
+  newBlank: 'New blank version',
+  versionName: 'Version name',
+  namePlaceholder: 'Version name, e.g. Draft / Review',
+  modeNoCollection: 'Without two-step info collection',
+  modeNoCollectionDesc: 'Empty document and conversation; start a new collection round (if new input is still insufficient)',
+  modeWithCollection: 'With two-step info collection',
+  modeWithCollectionDesc1: 'Empty document; keep only the questions and answers in the conversation, ready to regenerate',
+  modeWithCollectionDesc2: 'This session has no info-collection Q&A (requirements were clear from the start)',
+  copyVersion: 'Copy version',
+  copyDesc: params('Create a parallel version from "{name}" and switch to it.'),
+  copyWithChat: 'With conversation history',
+  copyWithChatDesc: 'Include edit conversation; info collection is kept too',
+  copyWithoutChat: 'Without conversation history',
+  copyWithoutChatDesc: 'Keep only the document and info collection, not the post-generation chat',
+  deleteVersion: 'Delete version',
+  deleteCurrentConfirm: params('Delete current version "{name}"?'),
+  deleteCurrentHint: 'It will switch to the latest remaining version; if it is the last one, current edits stay in the workspace.',
+  deleteConfirm: params('Delete "{name}"?'),
+  deleteHintFull: 'This version will be permanently deleted; the current PRD is unaffected.',
+  cancel: 'Cancel',
+  create: 'Create',
+  copy: 'Copy',
+  delete: 'Delete'
+} as const
+
+export const versionMessages = i18n('version', versionMessageDefaults)

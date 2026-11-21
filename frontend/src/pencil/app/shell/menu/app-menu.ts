@@ -65,8 +65,10 @@ export function useAppMenu() {
     'arrange.align-bottom': 'arrangeAlignBottom'
   }
 
+  // 应用界面只提供简体中文与英文；底层编辑器仍保留其他语言能力。
+  const uiLocales = availableLocales.filter((code) => code === 'en' || code === 'zh-CN')
   const languageMenu = computed<MenuEntry[]>(() =>
-    availableLocales.map((code) => ({
+    uiLocales.map((code) => ({
       label: localeLabels[code],
       checked: locale.value === code,
       onCheckedChange: (checked: boolean) => {

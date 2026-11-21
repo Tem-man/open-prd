@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useI18n } from "@open-pencil/vue";
 import { useModulesStore } from "@/stores/modules";
+
+const { editor: t } = useI18n();
 
 const props = defineProps<{
 	moduleId: string;
@@ -144,11 +147,11 @@ function formatDate(ts: number) {
 		<div class="se-header">
 			<div class="se-header-left">
 				<span class="se-title">
-					<template v-if="step === 'edit'">编辑 Skill · {{ moduleName }}</template>
-					<template v-else-if="step === 'ai-optimize'">AI 优化</template>
-					<template v-else-if="step === 'preview'">优化预览</template>
-					<template v-else-if="step === 'versions'">历史版本</template>
-					<template v-else>加载中…</template>
+					<template v-if="step === 'edit'">{{ t.stepEdit({ name: moduleName }) }}</template>
+					<template v-else-if="step === 'ai-optimize'">{{ t.stepAiOptimize }}</template>
+					<template v-else-if="step === 'preview'">{{ t.stepPreview }}</template>
+					<template v-else-if="step === 'versions'">{{ t.stepVersions }}</template>
+					<template v-else>{{ t.stepLoading }}</template>
 				</span>
 				<span v-if="currentVersion > 0 && step === 'edit'" class="se-version-badge">
 					v{{ currentVersion }}
@@ -166,24 +169,24 @@ function formatDate(ts: number) {
 
 		<!-- loading -->
 		<div v-if="step === 'loading'" class="se-loading">
-			<span class="se-loading-dot" />加载中…
+			<span class="se-loading-dot" />{{ t.stepLoading }}
 		</div>
 
 		<!-- ── 编辑模式 ── -->
 		<template v-if="step === 'edit'">
 			<div class="se-toolbar">
 				<button class="se-tool-btn" @click="loadVersions" :disabled="loading">
-					历史版本
+					{{ t.stepVersions }}
 				</button>
 				<button class="se-tool-btn" @click="handleExport" :disabled="loading">
-					导出 .md
+					{{ t.exportMd }}
 				</button>
 			</div>
 			<textarea
 				v-model="editContent"
 				class="se-editor"
 				spellcheck="false"
-				placeholder="SKILL.md 内容…"
+				:placeholder="t.skillContentPlaceholder"
 				:disabled="loading"
 			/>
 			<div class="se-footer">
@@ -192,16 +195,16 @@ function formatDate(ts: number) {
 					:disabled="loading"
 					@click="step = 'ai-optimize'; optimizeInstruction = ''"
 				>
-					✦ AI 优化
+					✦ {{ t.aiOptimize }}
 				</button>
 				<div class="se-footer-right">
-					<button class="se-cancel-btn" @click="emit('close')">取消</button>
+					<button class="se-cancel-btn" @click="emit('close')">{{ t.cancel }}</button>
 					<button
 						class="se-save-btn"
 						:disabled="loading || !editContent.trim()"
 						@click="handleSave"
 					>
-						{{ loading ? "保存中…" : "保存新版本 ✓" }}
+						{{ loading ? t.saving : t.saveNewVersion }}
 					</button>
 				</div>
 			</div>
@@ -210,23 +213,23 @@ function formatDate(ts: number) {
 		<!-- ── AI 优化模式 ── -->
 		<template v-if="step === 'ai-optimize'">
 			<div class="se-optimize-body">
-				<p class="se-optimize-label">告诉 AI 如何优化这个 Skill：</p>
+				<p class="se-optimize-label">{{ t.optimizePromptLabel }}</p>
 				<textarea
 					v-model="optimizeInstruction"
 					class="se-optimize-input"
-					placeholder="例：把输出格式改为文段+表格，增加市场趋势分析，保留竞品对比表"
+					:placeholder="t.optimizePromptPlaceholder"
 					rows="4"
 					:disabled="loading"
 				/>
 			</div>
 			<div class="se-footer">
-				<button class="se-cancel-btn" @click="step = 'edit'">← 返回编辑</button>
+				<button class="se-cancel-btn" @click="step = 'edit'">{{ t.backToEdit }}</button>
 				<button
 					class="se-save-btn"
 					:disabled="loading || !optimizeInstruction.trim()"
 					@click="handleAiOptimize"
 				>
-					{{ loading ? "AI 生成中…" : "生成优化版本 →" }}
+					{{ loading ? t.aiGenerating : t.generateOptimized }}
 				</button>
 			</div>
 		</template>
@@ -238,10 +241,10 @@ function formatDate(ts: number) {
 			</div>
 			<div class="se-footer">
 				<button class="se-cancel-btn" :disabled="loading" @click="step = 'ai-optimize'">
-					← 重新生成
+					{{ t.regenerate }}
 				</button>
 				<button class="se-save-btn" @click="adoptOptimized">
-					采用此版本（需再次保存）
+					{{ t.adoptVersion }}
 				</button>
 			</div>
 		</template>
@@ -257,7 +260,7 @@ function formatDate(ts: number) {
 				>
 					<div class="se-version-info">
 						<span class="se-version-num">v{{ v.version }}</span>
-						<span v-if="v.isCurrent" class="se-current-badge">当前</span>
+						<span v-if="v.isCurrent" class="se-current-badge">{{ t.current }}</span>
 						<span class="se-version-date">{{ formatDate(v.createdAt) }}</span>
 					</div>
 					<div class="se-version-actions">
@@ -265,7 +268,7 @@ function formatDate(ts: number) {
 							class="se-tool-btn"
 							@click="previewVersion(v.id)"
 						>
-							预览
+							{{ t.preview }}
 						</button>
 						<button
 							v-if="!v.isCurrent"
@@ -273,7 +276,7 @@ function formatDate(ts: number) {
 							:disabled="loading"
 							@click="rollbackToVersion(v.id)"
 						>
-							回滚
+							{{ t.rollback }}
 						</button>
 					</div>
 				</div>
@@ -284,7 +287,7 @@ function formatDate(ts: number) {
 			</div>
 			<div class="se-footer">
 				<button class="se-cancel-btn" @click="step = 'edit'; previewingVersionContent = ''">
-					← 返回编辑
+					{{ t.backToEdit }}
 				</button>
 			</div>
 		</template>

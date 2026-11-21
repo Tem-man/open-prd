@@ -66,10 +66,14 @@ export interface Prototype {
 export interface Question {
 	id: string;
 	label: string;
+	/** 界面显示用的本地化 label；缺省时用 label。label 本身作为提交/解析的稳定 key 保持不变。 */
+	labelI18n?: string;
 	required: boolean;
 	type: "single_choice" | "multi_choice" | "text";
 	options?: string[];
 	placeholder?: string;
+	/** 界面显示用的本地化占位符；缺省时用 placeholder。 */
+	placeholderI18n?: string;
 }
 
 export interface QuestionFormAction {

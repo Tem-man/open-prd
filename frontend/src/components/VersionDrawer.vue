@@ -6,6 +6,7 @@
 	 * 详见 docs/plan-prd-version-create-options.md
 	 */
 	import { ref, computed, watch, nextTick } from "vue";
+	import { useI18n } from "@open-pencil/vue";
 	import { useSessionsStore } from "@/stores/sessions";
 	import { usePrdVersionsStore } from "@/stores/prdVersions";
 	import { useMessagesStore } from "@/stores/messages";
@@ -20,6 +21,7 @@
 		"update:modelValue": [value: boolean];
 	}>();
 
+	const { version: t } = useI18n();
 	const sessionsStore = useSessionsStore();
 	const versionsStore = usePrdVersionsStore();
 	const messagesStore = useMessagesStore();
@@ -67,7 +69,7 @@
 			if (open && sessionId.value) {
 				errorMsg.value = "";
 				versionsStore.fetchVersions(sessionId.value).catch(() => {
-					errorMsg.value = "版本列表加载失败";
+					errorMsg.value = t.value.loadFailed;
 				});
 			}
 		},
@@ -77,7 +79,7 @@
 	watch(sessionId, (id) => {
 		if (props.modelValue && id) {
 			versionsStore.fetchVersions(id).catch(() => {
-				errorMsg.value = "版本列表加载失败";
+				errorMsg.value = t.value.loadFailed;
 			});
 		}
 	});
@@ -88,18 +90,18 @@
 	}
 
 	function sourceLabel(source: PrdVersionMeta["source"]) {
-		if (source === "blank") return "空白";
-		return "快照";
+		if (source === "blank") return t.value.sourceBlank;
+		return t.value.sourceSnapshot;
 	}
 
 	function relativeTime(ts: number) {
 		const diff = Date.now() - ts;
 		const m = Math.floor(diff / 60000);
-		if (m < 1) return "刚刚";
-		if (m < 60) return `${m} 分钟前`;
+		if (m < 1) return t.value.justNow;
+		if (m < 60) return t.value.minutesAgo({ n: m });
 		const h = Math.floor(m / 60);
-		if (h < 24) return `${h} 小时前`;
-		return `${Math.floor(h / 24)} 天前`;
+		if (h < 24) return t.value.hoursAgo({ n: h });
+		return t.value.daysAgo({ n: Math.floor(h / 24) });
 	}
 
 	// ── 切换版本 ──
@@ -109,7 +111,7 @@
 		try {
 			await versionsStore.activateVersion(sessionId.value, v.id);
 		} catch {
-			errorMsg.value = "切换版本失败，请重试";
+			errorMsg.value = t.value.switchFailed;
 		}
 	}
 
@@ -135,7 +137,7 @@
 			);
 			showAddDialog.value = false;
 		} catch {
-			errorMsg.value = "新增版本失败，请重试";
+			errorMsg.value = t.value.createFailed;
 			showAddDialog.value = false;
 		}
 	}
@@ -150,19 +152,19 @@
 	}
 
 	async function confirmCopy() {
-		const t = copyTarget.value;
-		if (!t || !sessionId.value) return;
+		const target = copyTarget.value;
+		if (!target || !sessionId.value) return;
 		const label = copyLabel.value.trim();
 		try {
 			await versionsStore.duplicateVersion(
 				sessionId.value,
-				t.id,
+				target.id,
 				label === `v${nextVersionNumber.value}` ? "" : label,
 				copyConversation.value,
 			);
 			copyTarget.value = null;
 		} catch {
-			errorMsg.value = "复制版本失败，请重试";
+			errorMsg.value = t.value.copyFailed;
 			copyTarget.value = null;
 		}
 	}
@@ -222,7 +224,7 @@
 				label === `v${v.version}` ? "" : label,
 			);
 		} catch {
-			errorMsg.value = "重命名失败，请重试";
+			errorMsg.value = t.value.renameFailed;
 		}
 	}
 
@@ -232,13 +234,13 @@
 
 	// ── 删除版本 ──
 	async function confirmDelete() {
-		const t = deleteTarget.value;
-		if (!t || !sessionId.value) return;
+		const target = deleteTarget.value;
+		if (!target || !sessionId.value) return;
 		try {
-			await versionsStore.deleteVersion(sessionId.value, t.id);
+			await versionsStore.deleteVersion(sessionId.value, target.id);
 			deleteTarget.value = null;
 		} catch {
-			errorMsg.value = "删除版本失败，请重试";
+			errorMsg.value = t.value.deleteFailed;
 			deleteTarget.value = null;
 		}
 	}
@@ -257,7 +259,7 @@
 				v-if="modelValue"
 				class="version-drawer"
 				role="dialog"
-				aria-label="版本管理"
+				:aria-label="t.title"
 				@mousedown="onDrawerMouseDown"
 			>
 				<!-- Header -->
@@ -265,7 +267,7 @@
 					<div class="drawer-header-left">
 						<icon-lucide-history class="drawer-icon" />
 						<div>
-							<p class="drawer-title">版本管理</p>
+							<p class="drawer-title">{{ t.title }}</p>
 							<p class="drawer-subtitle" v-if="sessionTitle">
 								{{ sessionTitle }}
 							</p>
@@ -284,7 +286,7 @@
 						@click="openAddDialog"
 					>
 						<icon-lucide-plus />
-						新增版本
+						{{ t.addVersion }}
 					</button>
 				</div>
 
@@ -292,18 +294,18 @@
 				<div v-if="errorMsg" class="drawer-error">{{ errorMsg }}</div>
 
 				<!-- 加载中 -->
-				<div v-if="versionsStore.loading" class="drawer-empty">
-					<p>加载中…</p>
-				</div>
+			<div v-if="versionsStore.loading" class="drawer-empty">
+				<p>{{ t.loading }}</p>
+			</div>
 
 				<!-- 空状态 -->
 				<div
 					v-else-if="versionsStore.versions.length === 0"
 					class="drawer-empty"
 				>
-					<icon-lucide-history class="empty-icon" />
-					<p>还没有版本记录</p>
-					<p class="empty-hint">点击上方「新增版本」创建空白版本</p>
+				<icon-lucide-history class="empty-icon" />
+				<p>{{ t.empty }}</p>
+				<p class="empty-hint">{{ t.emptyHint }}</p>
 				</div>
 
 				<!-- 版本列表 -->
@@ -341,7 +343,7 @@
 								<span
 									v-else
 									class="version-name editable"
-									title="双击重命名"
+									:title="t.renameHint"
 									@click.stop="onNameClick(v)"
 									@dblclick.stop="startRename(v)"
 									>{{ displayName(v) }}</span
@@ -355,7 +357,7 @@
 						<div class="version-actions" @click.stop>
 							<button
 								class="icon-btn"
-								title="复制此版本"
+								:title="t.copyHint"
 								:disabled="versionsStore.mutating"
 								@click="openCopyDialog(v)"
 							>
@@ -363,7 +365,7 @@
 							</button>
 							<button
 								class="icon-btn danger"
-								title="删除版本"
+								:title="t.deleteHint"
 								:disabled="versionsStore.mutating"
 								@click="deleteTarget = v"
 							>
@@ -374,9 +376,9 @@
 				</div>
 
 				<!-- Footer 说明 -->
-				<div class="drawer-footer">
-					版本为手动创建；切换版本时当前内容会自动保存回原版本。
-				</div>
+			<div class="drawer-footer">
+				{{ t.note }}
+			</div>
 			</div>
 		</Transition>
 
@@ -388,9 +390,9 @@
 				@click.self="showAddDialog = false"
 			>
 				<div class="dialog">
-					<p class="dialog-title">新建空白版本</p>
+					<p class="dialog-title">{{ t.newBlank }}</p>
 					<label class="dialog-field-label" for="add-version-name">
-						版本名称
+						{{ t.versionName }}
 					</label>
 					<input
 						id="add-version-name"
@@ -398,7 +400,7 @@
 						v-model="addLabel"
 						class="dialog-input"
 						type="text"
-						placeholder="版本名称，如：初稿 / 评审版"
+						:placeholder="t.namePlaceholder"
 						maxlength="50"
 						@keydown.enter="confirmAdd"
 					/>
@@ -406,9 +408,9 @@
 						<label class="mode-option" :class="{ checked: !copyIntake }">
 							<input type="radio" v-model="copyIntake" :value="false" />
 							<div>
-								<p class="mode-name">不带两轮信息收集</p>
+								<p class="mode-name">{{ t.modeNoCollection }}</p>
 								<p class="mode-desc">
-									空文档、空对话，新开一轮收集（若新输入仍不够）
+									{{ t.modeNoCollectionDesc }}
 								</p>
 							</div>
 						</label>
@@ -426,12 +428,12 @@
 								:disabled="!hasCollectionForm"
 							/>
 							<div>
-								<p class="mode-name">带两轮信息收集</p>
+								<p class="mode-name">{{ t.modeWithCollection }}</p>
 								<p class="mode-desc">
 									{{
 										hasCollectionForm
-											? "空文档，对话里只留下当时的提问与作答，可直接再生成"
-											: "当前会话没有信息收集问答（需求一开始就够用）"
+											? t.modeWithCollectionDesc1
+											: t.modeWithCollectionDesc2
 									}}
 								</p>
 							</div>
@@ -439,14 +441,14 @@
 					</div>
 					<div class="dialog-actions">
 						<button class="btn-cancel" @click="showAddDialog = false">
-							取消
+							{{ t.cancel }}
 						</button>
 						<button
 							class="btn-confirm"
 							:disabled="versionsStore.mutating"
 							@click="confirmAdd"
 						>
-							创建
+							{{ t.create }}
 						</button>
 					</div>
 				</div>
@@ -461,12 +463,12 @@
 				@click.self="copyTarget = null"
 			>
 				<div class="dialog">
-					<p class="dialog-title">复制版本</p>
+					<p class="dialog-title">{{ t.copyVersion }}</p>
 					<p class="dialog-text">
-						基于「{{ displayName(copyTarget) }}」创建平行版本，并切换过去。
+						{{ t.copyDesc({ name: displayName(copyTarget) }) }}
 					</p>
 					<label class="dialog-field-label" for="copy-version-name">
-						版本名称
+						{{ t.versionName }}
 					</label>
 					<input
 						id="copy-version-name"
@@ -474,7 +476,7 @@
 						v-model="copyLabel"
 						class="dialog-input"
 						type="text"
-						placeholder="版本名称，如：初稿 / 评审版"
+						:placeholder="t.namePlaceholder"
 						maxlength="50"
 						@keydown.enter="confirmCopy"
 					/>
@@ -482,26 +484,26 @@
 						<label class="mode-option" :class="{ checked: copyConversation }">
 							<input type="radio" v-model="copyConversation" :value="true" />
 							<div>
-								<p class="mode-name">带会话记录</p>
-								<p class="mode-desc">编辑对话一并带走；信息收集也会保留</p>
+								<p class="mode-name">{{ t.copyWithChat }}</p>
+								<p class="mode-desc">{{ t.copyWithChatDesc }}</p>
 							</div>
 						</label>
 						<label class="mode-option" :class="{ checked: !copyConversation }">
 							<input type="radio" v-model="copyConversation" :value="false" />
 							<div>
-								<p class="mode-name">不带会话记录</p>
-								<p class="mode-desc">只要文档和信息收集，生成之后的对话不要</p>
+								<p class="mode-name">{{ t.copyWithoutChat }}</p>
+								<p class="mode-desc">{{ t.copyWithoutChatDesc }}</p>
 							</div>
 						</label>
 					</div>
 					<div class="dialog-actions">
-						<button class="btn-cancel" @click="copyTarget = null">取消</button>
+						<button class="btn-cancel" @click="copyTarget = null">{{ t.cancel }}</button>
 						<button
 							class="btn-confirm"
 							:disabled="versionsStore.mutating"
 							@click="confirmCopy"
 						>
-							复制
+							{{ t.copy }}
 						</button>
 					</div>
 				</div>
@@ -516,25 +518,25 @@
 				@click.self="deleteTarget = null"
 			>
 				<div class="dialog">
-					<p class="dialog-title">删除版本</p>
+					<p class="dialog-title">{{ t.deleteVersion }}</p>
 					<p class="dialog-text" v-if="deleteTarget.isActive">
-						删除当前版本「{{ displayName(deleteTarget) }}」？
-						将自动切换到最新剩余版本；若是最后一个版本，当前编辑内容会保留在工作区。
+						{{ t.deleteCurrentConfirm({ name: displayName(deleteTarget) }) }}
+						{{ t.deleteCurrentHint }}
 					</p>
 					<p class="dialog-text" v-else>
-						删除「{{ displayName(deleteTarget) }}」？
-						该版本内容将被永久删除，不影响当前 PRD。
+						{{ t.deleteConfirm({ name: displayName(deleteTarget) }) }}
+						{{ t.deleteHintFull }}
 					</p>
 					<div class="dialog-actions">
 						<button class="btn-cancel" @click="deleteTarget = null">
-							取消
+							{{ t.cancel }}
 						</button>
 						<button
 							class="btn-danger"
 							:disabled="versionsStore.mutating"
 							@click="confirmDelete"
 						>
-							删除
+							{{ t.delete }}
 						</button>
 					</div>
 				</div>

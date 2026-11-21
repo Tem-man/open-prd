@@ -1,0 +1,12 @@
+{
+  "title": "历史会话",
+  "emptyMessage": "空消息",
+  "justNow": "刚刚",
+  "minutesAgo": "{n} 分钟前",
+  "hoursAgo": "{n} 小时前",
+  "daysAgo": "{n} 天前",
+  "currentRound": "本轮对话记录",
+  "empty": "还没有对话记录",
+  "replying": "回复中…",
+  "aiLabel": "AI"
+}

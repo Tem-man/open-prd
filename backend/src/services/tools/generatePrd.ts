@@ -9,18 +9,23 @@ export function generatePrdTool(ctx: OrchestratorContext) {
 	return tool(
 		async (_input, config) => {
 			const emit = emitterFor(ctx, config);
+			const zh = ctx.locale === "zh-CN";
 
 			// 已有 PRD：只发确认卡片，真正执行由路由凭 token 触发（模型拿不到 token）
 			if (ctx.prdId) {
 				if (ctx.recorder.pendingAction || ctx.recorder.form) {
-					return "本轮已向用户发送过卡片，请等待用户选择。";
+					return zh
+						? "本轮已向用户发送过卡片，请等待用户选择。"
+						: "A card was already sent this turn. Wait for the user to choose.";
 				}
 				const action = createPendingAction(ctx.prdId);
 				const form = buildConfirmForm(action);
 				ctx.recorder.pendingAction = action;
 				ctx.recorder.form = form;
 				emit({ type: "form", data: form });
-				return "已向用户发送整份重新生成的确认卡片，等待用户选择。";
+				return zh
+					? "已向用户发送整份重新生成的确认卡片，等待用户选择。"
+					: "A confirmation card for full regeneration has been sent. Wait for the user to choose.";
 			}
 
 			ctx.recorder.generationStarted = true;
@@ -31,8 +36,12 @@ export function generatePrdTool(ctx: OrchestratorContext) {
 			);
 			ctx.recorder.prd = outcome;
 			return outcome.status === "ready"
-				? "PRD 已生成完成。"
-				: `PRD 生成失败：${outcome.message}`;
+				? zh
+					? "PRD 已生成完成。"
+					: "The PRD has been generated."
+				: zh
+					? `PRD 生成失败：${outcome.message}`
+					: `PRD generation failed: ${outcome.message}`;
 		},
 		{
 			name: "generate_prd",

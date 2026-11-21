@@ -48,6 +48,10 @@
 | `core/src/text/fonts.ts` | `fetchBundledFont` 改用 `publicAssetUrl()` | 原本硬编码 `/Inter-Regular.ttf` 这类根绝对路径 |
 | `kiwi/src/schema-runtime/{binary,js,parser}.ts` | 类型导入改为 `import type` | 本仓库开启了 `verbatimModuleSyntax` |
 | `fig/src/instance-overrides/index.ts` | 删除未使用的 `overrideCandidates` 导入 | 本仓库开启了 `noUnusedLocals` |
+| `vue/src/i18n/messages/{shell,home,session,version,export,module,prd,history,prototype,editor}.ts` | **新增** 10 个应用业务消息域 | OpenPRD 业务界面 + 原型编辑器/PRD 编辑器定制文案的多语言，沿用现有 `@nanostores/i18n` 体系 |
+| `vue/src/i18n/locales/zh-cn/{shell,home,session,version,export,module,prd,history,prototype,editor}.json` | **新增** 对应中文译文 | 同上；其余语种回退英文基线（`baseLocale='en'`） |
+| `vue/src/i18n/{messages,useI18n,index}.ts`、`vue/src/index.ts` | 补导出新域的消息对象与 composable | 供 OpenPRD 业务组件通过 `useI18n()` 使用 |
+| `vue/src/i18n/messages/dialogs.ts`、`locales/zh-cn/dialogs.json` | 新增 `settingsGeneral` / `language` / `languageDescription` | 设置弹层的语言分区 |
 
 ### 依赖调整
 

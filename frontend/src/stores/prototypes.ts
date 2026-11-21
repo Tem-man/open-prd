@@ -1,3 +1,4 @@
+import { sessionMessages } from '@open-pencil/vue'
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
@@ -14,7 +15,7 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 		loading.value = true;
 		try {
 			const res = await fetch("/api/prototypes");
-			if (!res.ok) throw new Error("加载原型列表失败");
+			if (!res.ok) throw new Error(sessionMessages.get().errLoadPrototypes);
 			prototypes.value = (await res.json()) as Prototype[];
 		} finally {
 			loading.value = false;
@@ -33,8 +34,8 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 	async function fetchFigBytes(id: string): Promise<Uint8Array> {
 		const res = await fetch(`/api/prototypes/${id}`);
 		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: "加载失败" }));
-			throw new Error((err as { error?: string }).error ?? "加载失败");
+			const err = await res.json().catch(() => ({ error: sessionMessages.get().errFetch }));
+			throw new Error((err as { error?: string }).error ?? sessionMessages.get().errFetch);
 		}
 		const buf = await res.arrayBuffer();
 		return new Uint8Array(buf);
@@ -47,8 +48,8 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 			body: JSON.stringify(sessionId ? { title, sessionId } : { title }),
 		});
 		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: "创建失败" }));
-			throw new Error((err as { error?: string }).error ?? "创建失败");
+			const err = await res.json().catch(() => ({ error: sessionMessages.get().errCreate }));
+			throw new Error((err as { error?: string }).error ?? sessionMessages.get().errCreate);
 		}
 		const proto = (await res.json()) as Prototype;
 		prototypes.value.unshift(proto);
@@ -74,8 +75,8 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 			});
 			if (!res.ok) {
 				saveStatus.value = "error";
-				const err = await res.json().catch(() => ({ error: "保存失败" }));
-				throw new Error((err as { error?: string }).error ?? "保存失败");
+				const err = await res.json().catch(() => ({ error: sessionMessages.get().errSave }));
+				throw new Error((err as { error?: string }).error ?? sessionMessages.get().errSave);
 			}
 			const updated = (await res.json()) as Prototype;
 			const idx = prototypes.value.findIndex((p) => p.id === id);
@@ -99,8 +100,8 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 			body: JSON.stringify(patch),
 		});
 		if (!res.ok) {
-			const err = await res.json().catch(() => ({ error: "更新失败" }));
-			throw new Error((err as { error?: string }).error ?? "更新失败");
+			const err = await res.json().catch(() => ({ error: sessionMessages.get().errUpdate }));
+			throw new Error((err as { error?: string }).error ?? sessionMessages.get().errUpdate);
 		}
 		const updated = (await res.json()) as Prototype;
 		const idx = prototypes.value.findIndex((p) => p.id === id);
@@ -112,8 +113,8 @@ export const usePrototypesStore = defineStore("prototypes", () => {
 	async function deletePrototype(id: string) {
 		const res = await fetch(`/api/prototypes/${id}`, { method: "DELETE" });
 		if (!res.ok && res.status !== 204) {
-			const err = await res.json().catch(() => ({ error: "删除失败" }));
-			throw new Error((err as { error?: string }).error ?? "删除失败");
+			const err = await res.json().catch(() => ({ error: sessionMessages.get().errDelete }));
+			throw new Error((err as { error?: string }).error ?? sessionMessages.get().errDelete);
 		}
 		prototypes.value = prototypes.value.filter((p) => p.id !== id);
 		if (current.value?.id === id) current.value = null;

@@ -150,6 +150,7 @@ async function main(): Promise<void> {
 					sessionId: SESSION_ID,
 					userMessage: c.input,
 					target: c.target ?? null,
+					locale: "zh-CN",
 					signal: new AbortController().signal,
 					recorder: createTurnRecorder(),
 				},
