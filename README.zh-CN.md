@@ -14,7 +14,7 @@ Open PRD 是一个本地优先的桌面 / Web 应用，面向产品经理、创�
 - **单文件交互导出** —— Tab 切换的 HTML，CSS / JS 全部内嵌，离线可看；同时支持 Markdown、PDF 与 Word。
 - **对话式编辑** —— 在预览中点选模块或元素，用对话让 AI 改写；内置类似 Figma Page 的版本管理。
 - **内置原型编辑器** —— 基于 OpenPencil 引擎（CanvasKit / Skia WASM + Yoga WASM），具备图层树、属性面板、结合 PRD 上下文的 AI 对话、JSX / Tailwind 代码输出、自动保存与放映模式。
-- **模型自由切换** —— OpenAI 兼容接口、Anthropic、本地 Ollama，不绑定单一厂商。
+- **模型自由切换** —— 在应用内的设置里添加服务商与 API Key，为设计、PRD、审阅、轻量任务、视觉分别指定模型；凭据存在浏览器加密存储，不绑定单一厂商。
 - **全平台桌面安装包** —— Windows（NSIS + 便携版）、macOS（dmg + zip）、Linux（AppImage + deb），由 GitHub Actions 原生构建。
 - **本地优先，数据私有** —— 会话与 PRD 存在本地 SQLite，无需账号、不上传云端。
 
@@ -74,26 +74,29 @@ Open PRD 是一个本地优先的桌面 / Web 应用，面向产品经理、创�
 ```bash
 nvm use 24.9.0          # 或 fnm use
 pnpm install
-cp backend/.env.example backend/.env
-# 编辑 backend/.env：选择模型协议并填入 API Key
 pnpm dev
 ```
 
-然后打开 <http://localhost:5173>，后端默认监听 `3000` 端口。
+然后打开 <http://localhost:5173>，后端默认监听 `3000` 端口。模型和 API Key 都在应用内配置（见下节），**不需要创建 `backend/.env`**。
 
 如果切换到其他 Node 大版本后 `pnpm dev` 报 `NODE_MODULE_VERSION` 不匹配，执行一次 `pnpm fix:native` 即可。
 
 ### 模型配置
 
-在 `backend/.env` 中设置 `LLM_PROVIDER`：
+模型在**应用内配置**，不需要写 `backend/.env`，也不需要把 API Key 落盘成环境变量。
 
-| 协议 | 需要配置 |
-| --- | --- |
-| `openai` | `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`LLM_MODEL` |
-| `anthropic` | `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、`LLM_MODEL` |
-| `ollama` | `OLLAMA_BASE_URL`、`LLM_MODEL` —— 无需 API Key |
+点击右上角的齿轮图标打开 **设置**，进入 **AI & agents**：
 
-任何提供 OpenAI 兼容 API 的服务——OpenRouter、DeepSeek、SiliconFlow、LM Studio 等——改一下 `OPENAI_BASE_URL` 就能接入，代码里没有写死厂商。
+![模型设置](./screenshots/model-settings.png)
+
+- **Models（模型）**：点 **+ Add model** 添加服务商连接（如 DeepSeek、OpenRouter 或任意 OpenAI 兼容服务），填入凭据并选择具体模型；每项会显示连接状态。
+- **Assignments（分配）**：为不同工作指定模型——**Design agent**（AI 对话与画布编辑）、**PRD agent**（对话与 PRD 生成）、**Review**（方案与设计审阅）、**Fast tasks**（低成本后台任务）、**Vision**（视觉能力）。后三项可继承 Design 模型（「Same as Design」）或留空。
+
+开启 **Remember credentials on this browser** 后，凭据保存在**浏览器加密存储**中，不会写入后端，也不会进入代码仓库。
+
+日常使用时，直接在对话输入框下方的模型选择器里切换当前模型，无需再打开设置：
+
+![模型选择器](./screenshots/model-selector.png)
 
 ## PRD 文档结构
 

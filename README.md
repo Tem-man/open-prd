@@ -14,7 +14,7 @@ Open PRD is a local-first desktop and web application for product managers, foun
 - **Interactive single-file export** — tabbed navigation with all CSS and JS embedded; Markdown, PDF and Word are available too.
 - **Conversational editing** — pick a section or an element in the preview and ask the AI to rewrite it. Version history is built in (Figma-page style).
 - **Built-in prototype editor** — powered by the OpenPencil engine (CanvasKit / Skia WASM + Yoga WASM), with layers, a properties inspector, PRD-grounded AI chat, JSX / Tailwind output, autosave and presentation mode.
-- **Bring your own model** — OpenAI-compatible APIs, Anthropic, or a local Ollama model. No vendor lock-in.
+- **Bring your own model** — add providers and API keys in the in-app Settings dialog and assign different models to design, PRD, review, fast tasks and vision. Credentials stay in encrypted browser storage. No vendor lock-in.
 - **Desktop builds for every platform** — Windows (NSIS + portable), macOS (dmg + zip) and Linux (AppImage + deb), produced by GitHub Actions.
 - **Local-first and private** — conversations and PRDs are stored in a local SQLite database. No account, no cloud sync.
 
@@ -74,26 +74,29 @@ Requirements: **Node.js 24.9.0** (pinned in `.nvmrc`) and **pnpm**. `npm` is not
 ```bash
 nvm use 24.9.0          # or: fnm use
 pnpm install
-cp backend/.env.example backend/.env
-# edit backend/.env: choose a provider and set your API key
 pnpm dev
 ```
 
-Then open <http://localhost:5173>. The backend listens on port `3000` by default.
+Then open <http://localhost:5173>. The backend listens on port `3000` by default. Models and API keys are configured in the app itself — see below; there is no need to create `backend/.env`.
 
 If you ever switch to a different major Node version and `pnpm dev` reports `NODE_MODULE_VERSION`, run `pnpm fix:native` once.
 
 ### Model configuration
 
-Set `LLM_PROVIDER` in `backend/.env`:
+Models are configured **inside the application**, not in `backend/.env`. No API keys or environment variables need to be written to disk.
 
-| Provider | Settings |
-| --- | --- |
-| `openai` | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` |
-| `anthropic` | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `LLM_MODEL` |
-| `ollama` | `OLLAMA_BASE_URL`, `LLM_MODEL` — no API key needed |
+Open **Settings** from the gear icon in the top-right corner and select **AI & agents**:
 
-Any service exposing an OpenAI-compatible API — OpenRouter, DeepSeek, SiliconFlow, LM Studio and others — works by simply changing `OPENAI_BASE_URL`. The application never hardcodes a vendor.
+![Model settings](./screenshots/model-settings.png)
+
+- **Models** — click **+ Add model** to register a provider connection (for example DeepSeek, OpenRouter or an OpenAI-compatible endpoint), enter its credentials and pick a model. Each entry shows its connection status.
+- **Assignments** — choose which model handles each kind of work: **Design agent** (AI chat and canvas edits), **PRD agent** (conversation and PRD generation), **Review**, **Fast tasks** and **Vision**. The last three can inherit the Design model ("Same as Design") or be left unset.
+
+With **Remember credentials on this browser** enabled, credentials are held in **encrypted browser storage** — they are never written to the backend or committed to the repository.
+
+For everyday use, switch the active model from the selector right under the chat input, without opening Settings:
+
+![Model selector](./screenshots/model-selector.png)
 
 ## PRD structure
 
