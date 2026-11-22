@@ -9,7 +9,7 @@ Open PRD is a local-first desktop and web application for product managers, foun
 ## Highlights
 
 - **Guided requirement intake** — structured question forms and explicit confirmation before generation. No silent guessing.
-- **8-section PRD, fully customizable** — background & goals, users & scenarios, feature list, product architecture, business flow, information architecture, data model, and prototype basis.
+- **8-section PRD, fully customizable** — background & goals, users & scenarios, feature list, product architecture, business flow, information architecture, data model, and prototype basis. Add your own sections as Skills — manually, with AI, or by importing a markdown file.
 - **Real diagrams** — Mermaid (architecture / flow / ER) plus a markmap mind map, rendered directly in the exported HTML.
 - **Interactive single-file export** — tabbed navigation with all CSS and JS embedded; Markdown, PDF and Word are available too.
 - **Conversational editing** — pick a section or an element in the preview and ask the AI to rewrite it. Version history is built in (Figma-page style).
@@ -112,6 +112,20 @@ The default document has eight sections; you can add, remove or rename them in t
 | 6 | Information Architecture | markmap mind map |
 | 7 | Data Model | Mermaid `erDiagram` plus entity tables |
 | 8 | Prototype Basis | Page inventory, page details, navigation and design guidelines — the input for the prototype AI |
+
+## Modules and Skills
+
+The eight sections above are just the default. Open the **Modules** dialog from the toolbar to add, remove, reorder or customize them — the selected list on the left is exactly the set of sections the PRD will contain, in that order.
+
+![Module manager — add a module manually, with AI, or by importing a Skill](./screenshots/module-skills.png)
+
+Every module is backed by a **Skill**: a markdown instruction file that tells the PRD agent what that section should cover, which diagram to draw and how to structure the content. Built-in modules ship with their own Skills and cannot be deleted. Three ways to extend the library:
+
+- **Add manually** — enter a name and a short description; an empty custom Skill is created for you.
+- **Create with AI** — answer two short questions and the agent auto-generates a Skill for the new module.
+- **Import Skill** — upload an existing `.md` file and give the module a name.
+
+Custom Skills can be edited afterwards, and built-in ones can be duplicated into an editable user copy. The mapping is one-to-one: **one Skill → one module → one section in the generated PRD**. Adding "Competitive Analysis" to the selected list, for example, adds that section to the document.
 
 ## Prototype editor
 
