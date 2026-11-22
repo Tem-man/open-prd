@@ -11,16 +11,16 @@ Open PRD is a local-first desktop and web application for product managers, foun
 - **Guided requirement intake** — structured question forms and explicit confirmation before generation. No silent guessing.
 - **8-section PRD, fully customizable** — background & goals, users & scenarios, feature list, product architecture, business flow, information architecture, data model, and prototype basis.
 - **Real diagrams** — Mermaid (architecture / flow / ER) plus a markmap mind map, rendered directly in the exported HTML.
-- **Interactive single-file export** — tabbed navigation with all CSS and JS embedded; Markdown and PDF are available too.
+- **Interactive single-file export** — tabbed navigation with all CSS and JS embedded; Markdown, PDF and Word are available too.
 - **Conversational editing** — pick a section or an element in the preview and ask the AI to rewrite it. Version history is built in (Figma-page style).
-- **Built-in prototype editor** — powered by the OpenPencil engine (CanvasKit / Skia WASM + Yoga WASM), with layers, a design panel, PRD-grounded AI chat, autosave and presentation mode.
+- **Built-in prototype editor** — powered by the OpenPencil engine (CanvasKit / Skia WASM + Yoga WASM), with layers, a properties inspector, PRD-grounded AI chat, JSX / Tailwind output, autosave and presentation mode.
 - **Bring your own model** — OpenAI-compatible APIs, Anthropic, or a local Ollama model. No vendor lock-in.
 - **Desktop builds for every platform** — Windows (NSIS + portable), macOS (dmg + zip) and Linux (AppImage + deb), produced by GitHub Actions.
 - **Local-first and private** — conversations and PRDs are stored in a local SQLite database. No account, no cloud sync.
 
-## Screenshots
+## PRD workflow in screenshots
 
-**PRD library**
+**PRD library — start a new PRD or pick up an existing one**
 
 ![PRD library](./screenshots/home.png)
 
@@ -28,19 +28,19 @@ Open PRD is a local-first desktop and web application for product managers, foun
 
 ![New session](./screenshots/session-start.png)
 
-**Structured intake: the AI asks for what is missing before writing anything**
+**Structured intake — multi-select questions before the AI writes anything**
 
-![Structured intake form](./screenshots/intake-form.png)
+![Structured question form](./screenshots/question-form.png)
 
-**Key decisions are confirmed explicitly**
-
-![AI clarification](./screenshots/ai-clarification.png)
-
-**Generated PRD with feature tables and architecture diagrams**
+**Generated PRD — background and goals, with the intake form still available on the left**
 
 ![Generated PRD](./screenshots/prd-preview.png)
 
-**Export as interactive HTML, Markdown or PDF**
+**Data model — Mermaid ER diagram and entity tables**
+
+![Data model](./screenshots/data-model.png)
+
+**Export as interactive HTML, Markdown, PDF or Word**
 
 ![Export dialog](./screenshots/export.png)
 
@@ -109,6 +109,34 @@ The default document has eight sections; you can add, remove or rename them in t
 | 6 | Information Architecture | markmap mind map |
 | 7 | Data Model | Mermaid `erDiagram` plus entity tables |
 | 8 | Prototype Basis | Page inventory, page details, navigation and design guidelines — the input for the prototype AI |
+
+## Prototype editor
+
+Open PRD ships with a full design editor at `/prototype`, powered by the OpenPencil engine (CanvasKit / Skia WASM + Yoga WASM). It is not a passive mockup viewer: you can draw frames, edit vector layers, drive changes through AI, copy production-ready code and present the result. The PRD's "Prototype Basis" section is wired in as context, so the AI designs against the pages and guidelines you already confirmed.
+
+### Three-panel canvas
+
+![Prototype editor with layers and properties](./screenshots/prototype-editor.png)
+
+Pages and a collapsible layer tree sit on the left, an infinite canvas with rulers and artboards in the middle, and a properties inspector on the right. Select a frame (for example, iPhone 13 & 14) to adjust position, auto layout, dimensions, clipping, alignment and appearance. The floating toolbar provides select, frame, shape, pen, text, hand and comment tools.
+
+### AI editing that sees the selection
+
+![AI-assisted edits with expandable reasoning](./screenshots/prototype-ai.png)
+
+Switch the right panel to **AI**, choose a model, and type a change in plain language. The agent inspects the selected nodes, resolves their parent context, shows each step (Thinking / Get Node / Eval — all expandable) and then applies the edit on the canvas. Because it is grounded in the PRD, it knows what the screen is for instead of guessing from pixel positions.
+
+### Design to code
+
+![JSX and Tailwind output](./screenshots/prototype-code.png)
+
+The **Code** tab projects the current design into JSX with Tailwind classes. Nodes retain `data-name` labels, so the output stays readable and can be imported or copied into your codebase rather than rebuilt by hand.
+
+### Interactive presentation
+
+![Presentation view of a single screen](./screenshots/prototype-present.png)
+
+Presentation mode hides the editor chrome and shows one screen at a time, with fit-to-window, page switching and fullscreen controls — handy for walking stakeholders through a flow or testing interactions in a real page.
 
 ## Tech stack
 

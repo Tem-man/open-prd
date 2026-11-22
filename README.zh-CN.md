@@ -11,16 +11,16 @@ Open PRD 是一个本地优先的桌面 / Web 应用，面向产品经理、创�
 - **引导式需求澄清** —— 生成前先给结构化提问表单，关键环节要求显式确认，不做主观臆断。
 - **8 个标准模块，可自由定制** —— 背景与目标、用户与场景、功能清单、产品架构、业务流程、信息架构、数据模型、原型设计依据。
 - **真正的专业图表** —— Mermaid 绘制架构图 / 流程图 / ER 图，markmap 绘制信息架构脑图，导出后直接在 HTML 中渲染。
-- **单文件交互导出** —— Tab 切换的 HTML，CSS / JS 全部内嵌，离线可看；同时支持 Markdown 与 PDF。
+- **单文件交互导出** —— Tab 切换的 HTML，CSS / JS 全部内嵌，离线可看；同时支持 Markdown、PDF 与 Word。
 - **对话式编辑** —— 在预览中点选模块或元素，用对话让 AI 改写；内置类似 Figma Page 的版本管理。
-- **内置原型编辑器** —— 基于 OpenPencil 引擎（CanvasKit / Skia WASM + Yoga WASM），具备图层树、属性面板、结合 PRD 上下文的 AI 对话、自动保存与放映模式。
+- **内置原型编辑器** —— 基于 OpenPencil 引擎（CanvasKit / Skia WASM + Yoga WASM），具备图层树、属性面板、结合 PRD 上下文的 AI 对话、JSX / Tailwind 代码输出、自动保存与放映模式。
 - **模型自由切换** —— OpenAI 兼容接口、Anthropic、本地 Ollama，不绑定单一厂商。
 - **全平台桌面安装包** —— Windows（NSIS + 便携版）、macOS（dmg + zip）、Linux（AppImage + deb），由 GitHub Actions 原生构建。
 - **本地优先，数据私有** —— 会话与 PRD 存在本地 SQLite，无需账号、不上传云端。
 
-## 界面预览
+## PRD 流程界面预览
 
-**PRD 工作台首页**
+**PRD 工作台首页：新建或接着编辑已有文档**
 
 ![PRD 工作台](./screenshots/home.png)
 
@@ -28,19 +28,19 @@ Open PRD 是一个本地优先的桌面 / Web 应用，面向产品经理、创�
 
 ![新建会话](./screenshots/session-start.png)
 
-**结构化信息收集：信息不足时 AI 先提问，再动笔**
+**结构化信息收集：生成之前先让 AI 把关键信息问清楚**
 
-![信息收集表单](./screenshots/intake-form.png)
+![结构化提问表单](./screenshots/question-form.png)
 
-**关键设计决策逐条确认**
-
-![AI 澄清确认](./screenshots/ai-clarification.png)
-
-**生成结果：功能清单表格与架构图**
+**生成结果：背景与目标章节，左侧仍可继续对话修改**
 
 ![生成的 PRD](./screenshots/prd-preview.png)
 
-**导出为交互 HTML、Markdown 或 PDF**
+**数据模型：Mermaid ER 图与实体字段表格**
+
+![数据模型](./screenshots/data-model.png)
+
+**导出为交互 HTML、Markdown、PDF 或 Word**
 
 ![导出对话框](./screenshots/export.png)
 
@@ -109,6 +109,34 @@ pnpm dev
 | 6 | 信息架构 | markmap 思维导图 |
 | 7 | 数据模型 | Mermaid `erDiagram` + 实体说明表格 |
 | 8 | 原型设计依据 | 页面清单、页面详情、导航关系与设计规范，供原型 AI 使用 |
+
+## 原型设计编辑器
+
+Open PRD 在 `/prototype` 路由下内置了一整套设计编辑器，由 OpenPencil 引擎（CanvasKit / Skia WASM + Yoga WASM）驱动。它不是静态原型查看器：你可以创建画板、编辑矢量图层、用 AI 驱动修改、复制可直接使用的代码，并放映演示。PRD 的「原型设计依据」章节会作为上下文接入，因此 AI 是围绕你已确认的页面和设计规范来设计，而不是凭空猜测。
+
+### 三栏设计画布
+
+![原型编辑器：图层树与属性面板](./screenshots/prototype-editor.png)
+
+左侧是页面列表与可折叠的图层树，中间是带标尺和画板的无限画布，右侧是属性面板。选中画板（例如 iPhone 13 & 14）后可调整位置、自动布局、尺寸、裁剪、对齐与外观。底部浮动工具栏提供选择、画板、形状、钢笔、文本、手型和评论工具。
+
+### 看得见选中对象的 AI 编辑
+
+![带可展开推理步骤的 AI 编辑](./screenshots/prototype-ai.png)
+
+把右侧面板切到 **AI**，选择模型，用自然语言描述要改的内容。Agent 会读取当前选中的节点、向上追溯父级上下文，逐步展示 Thinking / Get Node / Eval 等可展开的过程，然后把修改应用到画布。由于结合了 PRD 上下文，它知道这个页面是做什么的，而不是靠像素位置瞎猜。
+
+### 设计稿直接转代码
+
+![JSX 与 Tailwind 代码](./screenshots/prototype-code.png)
+
+**Code** 标签会把当前设计投影为带 Tailwind class 的 JSX。节点保留 `data-name` 标记，结构清晰可读，可以直接导入或复制到项目里，不用照着设计稿手工还原。
+
+### 交互式演示
+
+![单页放映视图](./screenshots/prototype-present.png)
+
+放映模式会隐藏编辑器界面，一次只显示一个页面，并提供适应窗口、页面切换和全屏控制——适合带着干系人走查流程，或在真实页面里验证交互。
 
 ## 技术栈
 
